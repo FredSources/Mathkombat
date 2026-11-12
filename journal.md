@@ -734,3 +734,54 @@ Trouvées par le smoke test L0 puis corrigées (le smoke test en est le test de 
 ### Prochaine étape
 
 - Inchangée : jalon **J1** (scaffold web).
+
+---
+
+## 2026-11-12 — Jalon J1 — Scaffold web (Vite + Phaser + scène de combat squelette)
+
+### Produits
+
+- `game/package.json` + `tsconfig.json` (TypeScript **strict**) + `vite.config.ts`
+  (base relative pour l'APK futur, `__BUILD_MODE__` injecté debug/release).
+- `game/index.html` + `game/src/main.ts` (bootstrap Phaser 1280×720, Scale.FIT).
+- `game/src/scenes/BootScene.ts` + `game/src/scenes/FightScene.ts` — **scène de
+  combat squelette** : arène provisoire (dégradé + sol), 2 combattants placeholder
+  (J1 bleu, J2 orange), barres de vie animées (vert/orange/rouge, §2.4), HUD minimal
+  (PV, chrono de phase, énergie), démo ESPACE = coup / R = réinitialiser.
+- `scripts/build.sh` : typecheck + build web DEBUG/RELEASE → `game/dist/`.
+- Dépendances installées **dans le projet** : phaser ^3.80, vite, typescript.
+
+### Décisions
+
+- Présentation uniquement dans `scenes/` (la logique métier viendra en J2/J3 dans
+  `core/`), conforme à AGENTS §7.
+- Les combattants sont des **placeholders graphiques** : les sprites cut-out
+  (méthode `docs/assets.md`) remplaceront en J5.
+- Logger branché dès maintenant (`session.debut`, `session.boot`, `combat.phase`,
+  `ui.saisie`, `combat.coup_resolu` démo) — événements conformes à la nomenclature.
+
+### Tests
+
+- **Typecheck TypeScript strict** : ✅ 0 erreur.
+- **`bash scripts/build.sh release`** : ✅ `game/dist/` (1,2 Mo).
+- **`bash scripts/build.sh debug`** : ✅ (11 Mo, sourcemaps).
+- **Dev server** : ✅ HTTP 200 sur `http://127.0.0.1:5173`.
+- **Capture de validation** : ✅ `output/screenshots/j1-fight-skeleton.png` —
+  2 combattants affichés, barres de vie, chrono, HUD lisibles (rendu headless
+  chromium + SwiftShader).
+- Smoke L0 : inchangé (vert).
+
+### Anomalies
+
+- Rendu headless : Chromium nécessite `--headless=new --use-angle=swiftshader`
+  pour le WebGL (le mode `--headless` classique laissait un écran blanc) — à
+  garder en tête pour l'E2E (J4) et les captures. Les captures headless génèrent
+  des avertissements Phaser « Framebuffer Unsupported / WebGL Context lost »
+  (SwiftShader), sans impact : le contexte est restauré et le rendu correct.
+- Premier rendu : libellés PV chevauchant les barres → corrigé (libellés sous
+  les barres) et revalidé par capture.
+
+### Prochaine étape
+
+- Jalon **J2** : moteur mathématique (`core/config.ts`, `core/math-generator.ts`,
+  tests Vitest, `scripts/run-scenarios.mjs`).

@@ -471,13 +471,13 @@ catalogue de scénarios S01→S12, procédure de pilotage agent).
 source scripts/env.sh                  # ancrage isolation (obligatoire)
 node scripts/log-collector.js          # collecteur de logs (terminal dédié, mode DEBUG)
 bash scripts/smoke.sh                  # vérifications rapides (L0)
-bash scripts/setup-sdk.sh              # installe tools/ (SDK+Gradle+JDK, copie locale)
+bash scripts/setup-sdk.sh              # (re)construit tools/ (copie locale ou téléchargement)
+cd game && npm install && npm run dev  # J1 : dev server web (http://127.0.0.1:5173)
+bash scripts/build.sh [debug|release]  # J1 : build web → game/dist/
 
 # jalons suivants (documentés ici au fur et à mesure) :
-# npm install && npm run dev           # J1 : dev server web
 # npm test                             # J2+ : tests Vitest
 # node scripts/run-scenarios.mjs       # J3+ : scénarios headless
-# bash scripts/build.sh                # J1+ : build web release
 # bash scripts/build-apk.sh            # J7 : APK (SDK local uniquement)
 ```
 

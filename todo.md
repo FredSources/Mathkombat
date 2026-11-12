@@ -5,8 +5,9 @@ Une case ne se coche que si : code produit + tests verts + entrée dans `journal
 
 ## État actuel
 
-**Jalon J0 — socle : TERMINÉ** (smoke L0 vert, `tools/` installé, docs à jour).
-Prochaine étape : **J1 — scaffold web** (Vite + Phaser + TypeScript).
+**Jalon J1 — scaffold web : TERMINÉ** (typecheck ✅, builds DEBUG/RELEASE ✅,
+dev server jouable validé par capture ✅).
+Prochaine étape : **J2 — moteur mathématique** (`math-generator`, `config.ts`, tests Vitest).
 
 ## Planification (ordre et dépendances)
 
@@ -43,13 +44,13 @@ J6 (contenu complet) ; J8 clôt.
 - [x] `tools/` installé (SDK 34 + Gradle + JDK) et vérifié — 949 Mo, javac 21, gradle 8.10.2
 - [x] L0 smoke vert (collecteur WS + TCP + fichier JSONL) — PASS, 5/5 événements
 
-### J1 — Scaffold web
+### J1 — Scaffold web (terminé ✅)
 
-- [ ] `npm init` + Vite + Phaser 3 + TypeScript strict (`game/`)
-- [ ] `scripts/build.sh` (build web DEBUG/RELEASE)
-- [ ] Scène de combat squelette (2 sprites, barres de vie, HUD minimal)
-- [ ] Logger branché sur les scènes (événements `session.*`, `ui.*`)
-- [ ] `npm run dev` jouable dans le navigateur
+- [x] `npm init` + Vite + Phaser 3 + TypeScript strict (`game/`) — phaser ^3.80, vite, typescript
+- [x] `scripts/build.sh` (build web DEBUG/RELEASE) — typecheck + vite build → `game/dist/`
+- [x] Scène de combat squelette (2 combattants, barres de vie animées, HUD : PV/chrono/énergie)
+- [x] Logger branché sur les scènes (événements `session.*`, `ui.*`, `combat.*` démo)
+- [x] `npm run dev` jouable dans le navigateur — validé par capture (`output/screenshots/j1-fight-skeleton.png`)
 
 ### J2 — Moteur mathématique
 

@@ -1,0 +1,21 @@
+{
+  "name": "mathkombat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MathKombat — jeu de combat éducatif (calcul mental)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:debug": "vite build --mode debug",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  }
+}
