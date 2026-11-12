@@ -1,0 +1,26 @@
+# MathKombat — .gitignore
+# tools/ (SDK Android, Gradle, JDK) n'est PAS versionné : il est reconstitué par
+# scripts/setup-sdk.sh (copie locale ou téléchargement officiel).
+# Seuls les sources, scripts et docs sont versionnés ; caches et artefacts ignorés.
+
+# Outillage de build (reconstitué par scripts/setup-sdk.sh)
+tools/
+
+# Caches isolés dans le projet (scripts/env.sh)
+.gradle-cache/
+.npm-cache/
+.xdg-cache/
+.tmp/
+
+# Artefacts transitoires (tests, logs, captures — régénérables)
+tmp/
+output/logs/
+output/reports/
+output/screenshots/
+
+# Sorties de build (régénérables par scripts/build*.sh)
+game/dist/
+android/build/
+android/app/build/
+android/.gradle/
+*.apk
