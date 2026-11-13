@@ -81,7 +81,7 @@ J6 (contenu complet) ; J8 clôt.
 
 - [x] Assets (méthode `docs/assets.md`) : planches générées des 2 personnages + découpe cut-out automatisée (`scripts/assets-cutout.py` → `game/assets/personnages/perso-a.png`, `perso-b.png`)
 - [x] Décor d'arène cut-out (`game/assets/decors/arene-1.png`, intégré via `publicDir` Vite : servi en dev **et** copié dans dist pour l'APK) ; arena-2 + UI rétro → J6
-- [~] Sprites/états animés par tweens : `idle` (respiration), `frappe` (élan), `touche` (recul), `ko` (chute + flash) faits ; `garde`, `parade`, `contre` à finaliser
+- [x] Sprites/états animés par tweens : `idle` (respiration), `frappe` (élan), `touche` (recul), `ko` (chute + flash) + **`garde`, `parade`, `contre` dédiées** (esquive puis riposte)
 - [x] Chargement d'aura « Dragon Ball » sous les calculs : **flamme à 2 couches**
   (langue colorée fusion normale + noyau incandescent fusion ADD) sur textures
   générées `scripts/assets-flammes.py` (2 variantes, flou durci) — 11 positions
@@ -91,15 +91,19 @@ J6 (contenu complet) ; J8 clôt.
   échelle 0.7→1.24), **contraste WCAG 1.4.11 mesuré ≥ 3:1** (corps 3,17:1,
   noyaux 9,6:1)
 - [x] Impulsions d'aura à chaque calcul réussi (+1 petite, +7 marquée) — revient à l'alpha du palier courant (`alphaPalier`, bug d'écrasement corrigé)
-- [~] Frappe graduée par tier (§2.8b) : tiers 1→4 avec élan, recul cible, secousse caméra, flash plein écran, dégâts flottants dimensionnés ; ralenti 0,3 s du tier 4 restant
-- [~] Défense simultanée (§2.8c) : encaissement (recul) et blocage parfait (étincelles) faits ; parade + contre-attaque dédiées à finaliser
-- [~] Dégâts flottants proportionnels + K.O. animé (chute, flash) faits ; capture E04/E05 restante
-- [~] HUD complet : barres animées vert→orange→rouge, timer, énergie faits ; journal de combat (5 derniers événements) + score de manche restent
-- [ ] Sons + particules (aura, impacts) + ralenti tier 4
-- [ ] Captures dans `output/screenshots/` (E04, E05)
+- [x] Frappe graduée par tier (§2.8b) : élan, recul de la cible, secousse caméra, flash plein écran, dégâts flottants dimensionnés, **zoom caméra tier 3/4**, **ralenti (hitstop) tier 4** — toutes les intensités dans `config.ts` (`juice`)
+- [x] Défense (§2.8c) : encaissement (recul), **blocage parfait** (étincelles + onde de choc), **parade dédiée** (garde + lueur d'aura) et **CONTRE-ATTAQUE dédiée** (esquive de l'attaquant puis riposte) — priorité visuelle contre > blocage > frappe > whiff
+- [x] Impacts : flash radial fusion ADD + **étincelles** or (12 à 100 px, ADD) + **onde de choc** annulaire (tier ≥ 2), tailles/durées pilotées par `config.ts`
+- [x] K.O. animé (chute + flash) + **bannière K.O. conservée** (`killTweensOf` : le fade du bandeau l'effaçait)
+- [x] HUD complet : barres animées vert→orange→rouge, timer, énergie, **journal de combat** (5 derniers événements, bas centre) + **score de manche** persistant entre rejeux R (haut centre)
+- [x] **Sons** WAV synthétisés (`scripts/assets-sons.py`) : `reussite`, `erreur`, `frappe`, `blocage`, `ko` — préchargés par `BootScene`, joués silencieusement si absents
+- [x] Saisie **vidée après validation, juste ou faux** ; message d'erreur réduit à « FAUX ! » (le calcul, lui, reste affiché I4)
+- [x] Captures E04 (`e2e-04-frappe.png`, tier 3 forcé) et E05 (`e2e-05-ko.png`, K.O. + score) — **E2E 9/9**
 
 ### J6 — Modes et menus
 
+- [ ] **Refonte des planches en 3/4 de face, rendu type Mortal Kombat / Street Fighter** — demande utilisateur, direction `docs/assets.md` §2a
+- [ ] **Coups de poing et de pied animés en vrais sprites** (`animPoing` / `animPied`, coup choisi par `config.ts` selon le tier) — demande utilisateur, recettes `docs/assets.md` §3a
 - [ ] Mode 2 joueurs (même écran, tour par tour)
 - [ ] Écran de lancement rétro (bouton **RUN** clignotant au-dessus, **CONFIG** au-dessous, style borne d'arcade)
 - [ ] Écran CONFIG des règles (commandes ◀ ▶ rétro) : mode, tempo (durée unique attaque = défense : Rapide 10 s, Normal 15 s, Long 25 s + curseur borné 5–60 s), rythme de calcul (Différé/Simultané), PV, niveau, difficulté IA

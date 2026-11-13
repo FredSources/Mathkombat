@@ -1113,3 +1113,80 @@ Trouvées par le smoke test L0 puis corrigées (le smoke test en est le test de 
 - **Fin de J5** : sons, particules d'impact, ralenti tier 4, parade +
   contre-attaque dédiées, journal de combat (5 événements) + score de manche,
   captures E04/E05.
+
+---
+
+## 2026-11-13 — Jalon J5 (fin) — Sons, juice de frappe, parade/contre, journal + score, E04/E05
+
+### Produits
+
+| Fichier | Rôle |
+|---------|------|
+| `scripts/assets-sons.py` | Générateur de sons **déterministe** (stdlib `wave`/`math`/`struct`, 22 050 Hz mono PCM 16 bits) |
+| `game/assets/sons/{reussite,erreur,frappe,blocage,ko}.wav` | 5 effets sonores synthétisés (aucun asset importé) |
+| `game/src/core/config.ts` | Bloc **`juice`** (8 paramètres) : zoom tier 3/4, ralenti (durée + facteur), étincelles/tier, rayon d'onde de choc, secousse/tier, durée du flash tier 4 |
+| `game/src/scenes/BootScene.ts` | Préchargement des 5 sons + trace `assets.pret.sons` |
+| `game/src/scenes/FightScene.ts` | Sons, journal de combat, score de manche, animations de résolution refondues, hooks debug |
+| `game/src/ui/quiz-overlay.ts` | Message d'erreur réduit à **« FAUX ! »** |
+| `scripts/e2e.mjs` | **E04** (tier 3 forcé, capture) et **E05** (K.O. + score, capture) ajoutés — 9 verdicts |
+| `docs/test-plan.md`, `AGENTS.md` | Lignes E04/E05 et commande E2E alignées sur l'implémentation |
+| `docs/assets.md` | **§2a** direction artistique 3/4 face MK/SF, **§3a** coups de poing/pied en sprites, **§6b** chaîne de production des sons |
+| `output/screenshots/e2e-04-frappe.png`, `e2e-05-ko.png` | Captures de fin de J5 |
+
+### Décisions
+
+- **Priorité visuelle de résolution** : `CONTRE > blocage > frappe > whiff`
+  (`afficherResolution` ne déclenche qu'une seule recette) — la contre-attaque
+  dispose de sa propre chorégraphie : l'attaquant avance, esquive manquée, le
+  défenseur se décale puis frappe dans la foulée (`animContre`).
+- **Aucune intensité en dur** : tout le « juice » (zoom, ralenti, secousse,
+  flash, étincelles, onde de choc) sort de `CONFIG.juice` — testable et
+  rééquilibrable sans toucher à la scène.
+- **Ralenti « hitstop »** : `tweens.timeScale` **et** `time.timeScale` posés à
+  `ralentiFacteur`, restaurés par un `delayedCall` dont le délai est **multiplié
+  par le facteur** (l'horloge Phaser est elle-même scale) → durée réelle
+  respectée. Remise à 1 dans `lancerCombat()` (rejeu R).
+- **Étincelles en or** (`#ffd76b`) plutôt que blanc : sur le sol clair de
+  l'arène, le blanc ADD se délavait ; le flash central reste blanc.
+- **Bannière K.O.** : `killTweensOf(bandeauResolution)` avant l'affichage — le
+  tween de fade lancé à la résolution effaçait le K.O. (anomalie levée).
+- **Hooks de debug** `journal()`, `score()`, `forcerEnergieAttaque(v)`,
+  `forcerEnergieDefense(v)` : E04/E05 pilotent le moteur sans modifier le code
+  de jeu (défense de l'IA forcée à 6 → dégâts déterministes, indépendants du
+  rendement IA).
+- **Saisie vidée après validation, juste ou faux** (demande utilisateur) : le
+  calcul, lui, reste affiché (I4) — seule la ligne de saisie repart à vide.
+- **Deux demandes artistiques consignées pour la suite** (non implémentées en
+  J5) : personnages en **3/4 de face** style *Mortal Kombat* / *Street Fighter*
+  (`docs/assets.md` §2a, planifié J6) et **coups de poing / de pied animés en
+  vrais sprites** (`docs/assets.md` §3a, planifié J6).
+
+### Tests
+
+- **Batterie complète verte** : typecheck strict ✅ 0 erreur ; Vitest ✅
+  **49/49**, couverture **100 %** (156/156 statements, 100/100 branches, 31/31
+  fonctions) ; scénarios ✅ **11/11** S01→S11
+  (`output/reports/scenarios-2026-11-13T22-17-46.md`) ; smoke L0 ✅ PASS ;
+  E2E ✅ **9/9** (`output/reports/e2e-2026-11-13T22-18-14.md`).
+- **E04** : énergie d'attaque forcée à 16 → `tierAttaque` = 3, défense forcée à
+  6 → 10 dégâts, PV de l'IA conformes, journal contient « encaisse ».
+- **E05** : solde = défense + 100 → `fini` = true, `gagnant` = j1,
+  `score().j1` = 1, journal contient « K.O. », bannière visible en capture.
+- **E02a** étendu : après une validation erronée, `saisie().texte` == `''`.
+
+### Anomalies
+
+- **Défense IA variable** : la première version d'E04 lisait la défense de l'IA
+  pour en déduire les dégâts — le rendement IA a été relevé jusqu'à 21 en un
+  tour, ce qui inversait le solde (contre au lieu de dégâts). Corrigé par le hook
+  `forcerEnergieDefense` : le scénario ne dépend plus du hasard IA.
+- **Capture d'impact prise trop tard** (700 ms) : flash et étincelles déjà
+  détruits — capture déplacée à 180 ms après la résolution (le ralenti étire
+  quand même les tweens, d'où la fenêtre choisie).
+
+### Prochaine étape
+
+- **J6** : refonte des planches en **3/4 de face** (MK/SF), **sprites de coup de
+  poing et de coup de pied** animés (recettes `animPoing` / `animPied`, coup choisi
+  par `config.ts`), puis mode 2 joueurs, écrans RUN/CONFIG et sélection de
+  personnage.

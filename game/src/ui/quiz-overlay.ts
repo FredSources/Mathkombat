@@ -120,7 +120,7 @@ export class QuizOverlay {
 
   /** Retour « Faux ! » — le calcul reste affiché (I4). */
   erreur(difficulte: Difficulte): void {
-    this.messages.setText('FAUX !  le calcul reste…');
+    this.messages.setText('FAUX !');
     this.messages.setColor('#ff7b7b');
     this.scene.time.delayedCall(900, () => {
       if (this.messages.text.startsWith('FAUX')) this.messages.setText('');

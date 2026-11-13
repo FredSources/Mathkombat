@@ -15,7 +15,7 @@
  */
 import Phaser from 'phaser';
 import { CONFIG } from '../core/config.ts';
-import type { Difficulte } from '../core/config.ts';
+import type { ConfigJeu, Difficulte } from '../core/config.ts';
 import {
   CombatEngine,
   PhaseCalcul,
@@ -109,6 +109,14 @@ export class FightScene extends Phaser.Scene {
   private texteEnergie1!: Phaser.GameObjects.Text;
   private texteEnergie2!: Phaser.GameObjects.Text;
   private bandeauResolution!: Phaser.GameObjects.Text;
+  /** Journal de combat (5 derniers événements, §2.7 HUD) — bas centre. */
+  private journalText!: Phaser.GameObjects.Text;
+  /** Score de manches gagnées sur la session (J1 vs IA/J2). */
+  private texteScore!: Phaser.GameObjects.Text;
+  private journalEvenements: string[] = [];
+  /** Ralenti « hitstop » en cours (restauré par ralentir()). */
+  private ralentiActif = false;
+  private manches = { j1: 0, j2: 0 };
 
   private quizJ1!: QuizOverlay;
   private quizJ2!: QuizOverlay;
@@ -361,6 +369,18 @@ export class FightScene extends Phaser.Scene {
     });
   }
 
+  /** Joue un effet s'il est préchargé ; silencieux sinon (boot partiel, couverture). */
+  private jouerSon(nom: string): void {
+    if (this.cache.audio.exists(nom)) this.sound.play(nom);
+  }
+
+  /** Journalise la manche (K.O.) et incrémente le score de l'équipe gagnante. */
+  private cloturerManche(gagnant: 'j1' | 'j2'): void {
+    this.noterJournal(`K.O. — ${FightScene.nomJoueur(gagnant)} l'emporte`);
+    this.manches[gagnant]++;
+    this.mettreAJourScore();
+  }
+
   private dessinerHud(): void {
     this.barre1 = this.add.graphics();
     this.barre2 = this.add.graphics();
@@ -387,7 +407,36 @@ export class FightScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '30px', color: '#ffd76b',
       backgroundColor: '#1b2a52', padding: { x: 18, y: 8 },
     }).setOrigin(0.5).setAlpha(0);
+    // score de manche (haut centre) + journal de combat (5 derniers, bas centre)
+    this.texteScore = this.add.text(LARGEUR / 2, 92, '', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#ffd76b',
+    }).setOrigin(0.5, 0);
+    this.journalText = this.add.text(LARGEUR / 2, 634, '', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#cfe3ff',
+      backgroundColor: '#0d0820cc', padding: { x: 8, y: 5 },
+      align: 'center', lineSpacing: 3,
+    }).setOrigin(0.5, 0);
+    this.mettreAJourScore();
     this.mettreAJourHud();
+  }
+
+  /** Libellé court d'un joueur (HUD et journal). */
+  private static nomJoueur(id: 'j1' | 'j2'): string {
+    return id === 'j1' ? 'J1' : 'IA';
+  }
+
+  /** Ajoute un événement en tête du journal (5 derniers maximum, §2.7). */
+  private noterJournal(texte: string): void {
+    this.journalEvenements = [texte, ...this.journalEvenements].slice(0, 5);
+    this.journalText.setText(this.journalEvenements.join('\n'));
+  }
+
+  /** Score de manches gagnées (persiste d'un rejeu R à l'autre). */
+  private mettreAJourScore(): void {
+    const numero = this.manches.j1 + this.manches.j2 + 1;
+    this.texteScore.setText(
+      `Manche ${numero}  ·  J1 ${this.manches.j1} – ${this.manches.j2} IA`
+    );
   }
 
   private mettreAJourHud(): void {
@@ -413,6 +462,10 @@ export class FightScene extends Phaser.Scene {
   // ============================================================== boucle de combat
 
   private lancerCombat(): void {
+    // ralenti éventuel en cours : on repart à vitesse normale
+    this.tweens.timeScale = 1;
+    this.time.timeScale = 1;
+    this.ralentiActif = false;
     this.engine = new CombatEngine({
       niveaux: { j1: 'intermediaire', j2: 'intermediaire' },
       emettre: (e: TraceEvent) => log.debug(e.event, e.data),
@@ -424,6 +477,8 @@ export class FightScene extends Phaser.Scene {
     this.tourCourant = null;
     this.progressionIA = 0;
     this.gainIAPrevu = 0;
+    this.journalEvenements = [];
+    this.journalText.setText('');
     this.bandeauResolution.setAlpha(0);
     // remise à pied des combattants (rejeu après K.O.)
     this.j1.corps.setPosition(360, SOL).setAngle(0).setScale(0.62);
@@ -569,6 +624,10 @@ export class FightScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Résolution d'un tour : journal, sons et animations.
+   * Priorité visuelle : CONTRE > blocage > frappe > coup raté.
+   */
   private afficherResolution(r: ResultatTour): void {
     const libelle = r.contre
       ? `CONTRE-ATTAQUE : ${r.degats} dégâts pour ${r.attaquant.toUpperCase()} !`
@@ -585,51 +644,203 @@ export class FightScene extends Phaser.Scene {
       duration: 400,
     });
 
-    // frappe visuelle (tier déterministe, §2.8b — juice J5)
     const attaquant = r.attaquant === 'j1' ? this.j1 : this.j2;
-    const cible = r.sur === 'defenseur' ? (r.defenseur === 'j1' ? this.j1 : this.j2) : attaquant;
-    const tier = tierFrappe(r.attaque);
-    const direction = cible === this.j1 ? -1 : 1;
+    const defenseur = r.defenseur === 'j1' ? this.j1 : this.j2;
+    const juice = CONFIG.juice;
 
-    if (tier > 0) {
-      // élan de frappe de l'attaquant
+    if (r.contre && r.degats > 0) {
+      // riposte dédiée : l'attaquant est esquivé puis frappé (§2.8c)
+      const tier = tierFrappe(r.defense);
+      this.noterJournal(`CONTRE de ${FightScene.nomJoueur(r.defenseur)} (+${r.degats})`);
+      this.jouerSon('frappe');
+      this.animContre(attaquant, defenseur, tier);
+      this.juiceTier(tier, juice);
+      this.afficherDegatsFlottants(attaquant, r.degats, tier, true);
+    } else if (r.solde === 0 && r.attaque > 0) {
+      // parade : l'énergie défense annule exactement l'attaque (§2.8c)
+      this.noterJournal(`${FightScene.nomJoueur(r.defenseur)} parade`);
+      this.jouerSon('blocage');
+      this.animBlocage(defenseur, tierFrappe(r.attaque));
+    } else if (r.degats > 0) {
+      this.noterJournal(`${FightScene.nomJoueur(r.defenseur)} encaisse ${r.degats}`);
+      this.jouerSon('frappe');
+      this.animFrappe(attaquant, defenseur, tierFrappe(r.attaque));
+      this.juiceTier(tierFrappe(r.attaque), juice);
+      this.afficherDegatsFlottants(defenseur, r.degats, tierFrappe(r.attaque), false);
+    } else {
+      // coup raté (attaque nulle) : l'attaquant échoue à se projeter
+      this.noterJournal(`${FightScene.nomJoueur(r.attaquant)} rate son coup`);
+      this.jouerSon('blocage');
+      this.animWhiff(attaquant);
+    }
+  }
+
+  /** Juice commun aux impacts : secousse, flash (tier 4), zoom et ralenti (tier 3+). */
+  private juiceTier(tier: number, juice: ConfigJeu['juice']): void {
+    if (tier >= 2) this.cameras.main.shake(100 + tier * 40, juice.secousseTier * tier);
+    if (tier >= 4) this.cameras.main.flash(juice.flashTier4Ms, 255, 255, 255);
+    if (tier >= 3) {
+      const zoom = tier >= 4 ? juice.zoomTier4 : juice.zoomTier3;
       this.tweens.add({
-        targets: attaquant.corps,
-        x: attaquant.corps.x + (attaquant === this.j1 ? 1 : -1) * (16 + tier * 10),
-        duration: 90,
+        targets: this.cameras.main,
+        zoom,
+        duration: 110,
         yoyo: true,
+        ease: 'quad.out',
       });
-      // recul de la cible (encaisse / contre : §2.8c)
-      if (cible !== attaquant || r.contre) {
+      this.ralentir();
+    }
+  }
+
+  /** Ralenti « hitstop » : tweens et horloge au ralenti, restaurés ensuite. */
+  private ralentir(): void {
+    const juice = CONFIG.juice;
+    if (juice.ralentiFacteur >= 1 || this.ralentiActif) return;
+    this.ralentiActif = true;
+    this.tweens.timeScale = juice.ralentiFacteur;
+    this.time.timeScale = juice.ralentiFacteur;
+    // delayedCall est lui-même scale : delay × facteur = durée réelle voulue
+    this.time.delayedCall(juice.ralentiDureeMs * juice.ralentiFacteur, () => {
+      this.tweens.timeScale = 1;
+      this.time.timeScale = 1;
+      this.ralentiActif = false;
+    });
+  }
+
+  /** Élan de frappe : l'attaquant projeté vers la cible qui encaisse. */
+  private animFrappe(attaquant: Combattant, cible: Combattant, tier: number): void {
+    const avance = attaquant === this.j1 ? 1 : -1;
+    const direction = cible === this.j1 ? -1 : 1;
+    this.tweens.add({
+      targets: attaquant.corps,
+      x: attaquant.corps.x + avance * (16 + tier * 10),
+      duration: 90,
+      yoyo: true,
+    });
+    this.tweens.add({
+      targets: cible.corps,
+      x: cible.corps.x + direction * (10 + tier * 8),
+      duration: 110,
+      yoyo: true,
+      delay: 70,
+    });
+    this.impactVisuel(cible, tier, false);
+  }
+
+  /** Parade : garde du défenseur, étincelles d'impact, aucune perte de position. */
+  private animBlocage(defenseur: Combattant, tier: number): void {
+    this.tweens.add({
+      targets: defenseur.corps,
+      scaleX: defenseur.corps.scaleX * 1.06,
+      scaleY: defenseur.corps.scaleY * 0.96,
+      duration: 60,
+      yoyo: true,
+      repeat: 1,
+    });
+    this.tweens.add({
+      targets: defenseur.aura,
+      alpha: 0.95,
+      duration: 60,
+      yoyo: true,
+      repeat: 2,
+    });
+    this.etincelles(defenseur.corps.x, SOL - 150, Math.max(3, tier * 2), '#9fd8ff');
+    if (tier >= 2) this.ondeDeChoc(defenseur.corps.x, SOL - 150, tier);
+  }
+
+  /** CONTRE : esquive de l'attaquant puis riposte sur lui (priorité visuelle). */
+  private animContre(attaquant: Combattant, riposte: Combattant, tier: number): void {
+    const versAvant = attaquant === this.j1 ? 1 : -1;
+    // 1. l'attaquant avance… et rate sa cible (esquive)
+    this.tweens.add({
+      targets: attaquant.corps,
+      x: attaquant.corps.x + versAvant * 34,
+      duration: 120,
+      ease: 'quad.out',
+    });
+    // 2. le défenseur se décale puis frappe dans la foulée
+    this.tweens.add({
+      targets: riposte.corps,
+      x: riposte.corps.x + (riposte === this.j1 ? 1 : -1) * -22,
+      duration: 120,
+      yoyo: true,
+      onComplete: () => {
         this.tweens.add({
-          targets: cible.corps,
-          x: cible.corps.x + direction * (10 + tier * 8),
+          targets: attaquant.corps,
+          x: attaquant.corps.x - versAvant * (14 + tier * 9),
           duration: 110,
           yoyo: true,
-          delay: 80,
         });
-      }
-      // secousse de caméra progressive (tier 2+)
-      if (tier >= 2) this.cameras.main.shake(100 + tier * 40, 0.0015 * tier);
-      // flash plein écran (tier 4 = surpuissance)
-      if (tier >= 4) this.cameras.main.flash(180, 255, 255, 255);
-      // dégâts flottants : taille et couleur selon le tier
-      this.afficherDegatsFlottants(
-        cible,
-        r.degats,
-        tier,
-        r.contre
-      );
-    } else if (r.solde === 0 && r.attaque > 0) {
-      // blocage parfait : étincelles sur le défenseur (§2.8c)
+        this.impactVisuel(attaquant, tier, true);
+      },
+    });
+  }
+
+  /** Coup raté : l'attaquant s'arrête net, sans impact. */
+  private animWhiff(attaquant: Combattant): void {
+    const versAvant = attaquant === this.j1 ? 1 : -1;
+    this.tweens.add({
+      targets: attaquant.corps,
+      x: attaquant.corps.x + versAvant * 20,
+      duration: 140,
+      ease: 'sine.out',
+      yoyo: true,
+      onComplete: () => this.etincelles(attaquant.corps.x, SOL - 150, 3, '#8fa8d8'),
+    });
+  }
+
+  /** Flash d'impact + étincelles radiales (fusion ADD) + onde de choc aux tiers élevés. */
+  private impactVisuel(cible: Combattant, tier: number, contre: boolean): void {
+    const x = cible.corps.x;
+    const y = SOL - 150;
+    const couleur = contre ? '#ff9d6b' : '#ffffff';
+    const teinteEtoiles = contre ? '#ff9d6b' : '#ffd76b'; // or : lisible sur le sol clair
+    const flash = this.add.circle(x, y, 20 + tier * 6, Phaser.Display.Color.HexStringToColor(couleur).color);
+    flash.setBlendMode(Phaser.BlendModes.ADD).setDepth(10);
+    this.tweens.add({
+      targets: flash,
+      scale: 1.9,
+      alpha: 0,
+      duration: 130,
+      onComplete: () => flash.destroy(),
+    });
+    this.etincelles(x, y, CONFIG.juice.etincellesParTier * tier, teinteEtoiles);
+    if (tier >= 2) this.ondeDeChoc(x, y, tier);
+  }
+
+  /** Étoiles d'impact projetées en radial, fusion ADD (visibles sur fond sombre). */
+  private etincelles(x: number, y: number, nombre: number, couleur: string): void {
+    const rgb = Phaser.Display.Color.HexStringToColor(couleur);
+    for (let i = 0; i < nombre; i++) {
+      const angle = (Math.PI * 2 * i) / nombre + Math.random() * 0.4;
+      const distance = 45 + Math.random() * 60;
+      const goutte = this.add.circle(x, y, 4 + Math.random() * 4, rgb.color);
+      goutte.setBlendMode(Phaser.BlendModes.ADD).setDepth(11);
       this.tweens.add({
-        targets: cible.aura,
-        alpha: 0.9,
-        duration: 60,
-        yoyo: true,
-        repeat: 2,
+        targets: goutte,
+        x: x + Math.cos(angle) * distance,
+        y: y + Math.sin(angle) * distance,
+        alpha: 0,
+        scale: 0.3,
+        duration: 320 + Math.random() * 160,
+        ease: 'quad.out',
+        onComplete: () => goutte.destroy(),
       });
     }
+  }
+
+  /** Onde de choc circulaire qui s'étend à l'impact (tier 2+). */
+  private ondeDeChoc(x: number, y: number, tier: number): void {
+    const anneau = this.add.circle(x, y, 20).setStrokeStyle(3, 0xffffff, 0.85);
+    anneau.setBlendMode(Phaser.BlendModes.ADD).setDepth(9);
+    this.tweens.add({
+      targets: anneau,
+      radius: CONFIG.juice.ondeChocRayon * (0.6 + tier * 0.15),
+      alpha: 0,
+      duration: 300,
+      ease: 'quad.out',
+      onComplete: () => anneau.destroy(),
+    });
   }
 
   /** Dégâts flottants au-dessus de la cible (valeur = solde, §2.8b). */
@@ -660,10 +871,12 @@ export class FightScene extends Phaser.Scene {
   }
 
   private finDeCombat(): void {
-    const gagnant = this.engine.etat.gagnant === 'j1' ? 'JOUEUR 1' : 'IA / JOUEUR 2';
+    const gagnant = this.engine.etat.gagnant;
+    if (!gagnant) return; // un K.O. est toujours assorti d'un gagnant
+    const libelle = gagnant === 'j1' ? 'JOUEUR 1' : 'IA / JOUEUR 2';
     // K.O. : flash + chute animée du perdant (§2.8d)
     this.cameras.main.flash(240, 255, 255, 255);
-    const perdant = this.engine.etat.gagnant === 'j1' ? this.j2 : this.j1;
+    const perdant = gagnant === 'j1' ? this.j2 : this.j1;
     this.tweens.add({
       targets: perdant.corps,
       y: SOL + 26,
@@ -671,9 +884,13 @@ export class FightScene extends Phaser.Scene {
       duration: 550,
       ease: 'quad.in',
     });
+    // on retire le fade du bandeau : la bannière K.O. doit rester lisible
+    this.tweens.killTweensOf(this.bandeauResolution);
     this.bandeauResolution
-      .setText(`★  K.O.  ★   ${gagnant} GAGNE !   (R = rejouer)`)
+      .setText(`★  K.O.  ★   ${libelle} GAGNE !   (R = rejouer)`)
       .setAlpha(1);
+    this.jouerSon('ko');
+    this.cloturerManche(gagnant);
   }
 
   // ============================================================== saisie du joueur
@@ -700,8 +917,13 @@ export class FightScene extends Phaser.Scene {
       this.quizJ1.mettreAJour({ difficulte, enonce: q.enonce, gain: q.gain });
       this.numpadJ1.reset();
       this.impulsionAura(this.j1, q.gain); // impulsion d'aura (§2.8a)
+      this.noterJournal(`${FightScene.nomJoueur('j1')} : juste (+${q.gain})`);
+      this.jouerSon('reussite');
     } else {
       this.quizJ1.erreur(difficulte);
+      this.numpadJ1.reset(); // la saisie est vidée après validation, juste ou non
+      this.noterJournal(`${FightScene.nomJoueur('j1')} : erreur`);
+      this.jouerSon('erreur');
       // micro-animation de gêne : l'aura reste à son niveau (§2.8a)
       // (échelle du conteneur = 0.62 : écrasement léger, le yoyo restaure)
       this.tweens.add({
@@ -792,6 +1014,34 @@ export class FightScene extends Phaser.Scene {
       forcerAlphaAura: (a: number) => {
         scene.j1.aura.setAlpha(a);
         scene.j2.aura.setAlpha(a);
+      },
+      // journal de combat (5 derniers événements, récent en tête)
+      journal: () => [...scene.journalEvenements],
+      // score de manche persistant entre rejeux
+      score: () => ({ ...scene.manches }),
+      // force l'énergie d'attaque du tour en cours (captures E04/E05)
+      forcerEnergieAttaque: (v: number) => {
+        const phase = scene.tourCourant?.phaseAttaque;
+        if (!phase) return false;
+        Object.defineProperty(phase, 'energie', {
+          value: () => v,
+          configurable: true,
+          writable: true,
+        });
+        scene.mettreAJourEnergies();
+        return true;
+      },
+      // force l'énergie de défense du tour en cours (captures E04)
+      forcerEnergieDefense: (v: number) => {
+        const phase = scene.tourCourant?.phaseDefense;
+        if (!phase) return false;
+        Object.defineProperty(phase, 'energie', {
+          value: () => v,
+          configurable: true,
+          writable: true,
+        });
+        scene.mettreAJourEnergies();
+        return true;
       },
     };
   }

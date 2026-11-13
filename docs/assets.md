@@ -29,6 +29,28 @@ lecture visuelle des PNG par l'agent (contrôle qualité).
 - Aucun texte dans les sprites (les textes sont rendus par le jeu : dégâts flottants,
   HUD).
 
+### 2a. Cible de rendu — 3/4 de face façon *Mortal Kombat* / *Street Fighter*
+
+**Exigence utilisateur (2026-11-13)** : à terme, les combattants doivent être
+représentés **en 3/4 de face**, avec un rendu de jeu de combat 2D de référence
+(*Mortal Kombat*, *Street Fighter*).
+
+- **3/4 de face** : corps légèrement tourné (un épaule en avant), tête de trois
+  quarts, regard vers l'adversaire — pas de profil pur, pas de face complète.
+  Les pièces cut-out sont générées dans cette orientation dès la prochaine
+  planche (`perso-a`/`perso-b` v2) : épaule avant/rear distinctes, jambe avant
+  décalée en X, silhouette asymétrique.
+- **Rendu MK/SF** : proportions héroïques (épaules larges, taille marquée),
+  contours sombres nets, ombres portées simples, **ligne d'action lisible** —
+  la pose doit se lire en silhouette sur l'arène.
+- **Conséquences techniques** (inchangées pour l'instant) : le cut-out animé par
+  tweens (§3) reste la méthode ; la symétrie de gauche/droite n'est plus
+  utilisée — chaque personnage est retourné par `setFlipX()`, ce qui convient au
+  3/4 (la ligne d'action inversée reste crédible).
+- **Planification** : refonte des planches → **J6** (avec la sélection de
+  personnage), validation visuelle en **J8** (QA/polish). Ne casse rien en J5 :
+  les sprites actuels restent en place.
+
 ## 3. Méthode 1 — « cut-out animé » (privilégiée)
 
 Principe : un personnage = **pièces détachées** (tête, buste, bras avant/arrière,
@@ -56,6 +78,26 @@ par frame.
 
 - Les **effets** (aura, particules, ondes, flashs, secousses, dégâts flottants) sont
   générés **par le code** (Phaser graphics/particles) : zéro asset.
+
+#### 3a. Coups de poing et de pied en sprites (exigence utilisateur, 2026-11-13)
+
+L'élan de frappe actuel déplace tout le conteneur (translation + recul) : c'est
+crédible mais ce n'est **pas un coup animé**. Exigence : **coup de poing et coup
+de pied animés avec des sprites**.
+
+- **Poing** : le bras avant pivote de l'épaule en 3 temps — *chamber* (poing
+  ramené, coude replié) → *extension* (bras tendu, épaule en avant, buste qui
+  suit) → *recul* ; la pièce `bras-avant.png` est la seule à animer (+ rotation
+  du buste de 5–10°).
+- **Pied** : coup de pied circulaire / front kick — la jambe avant se relève
+  (`jambe-av.png` pivotée à la hanche), le buste s'incline en arrière pour
+  l'équilibre, la jambe arrière reste plantée ; retour en `idle`.
+- **Choix du coup** : déterministe à partir du tier (§2.8b) — `tier 1–2` = poing,
+  `tier 3–4` = pied (le pied est le coup « lourd »), **le choix vit dans
+  `config.ts`** (`coupsParTier`), jamais dans la scène.
+- **Livrable** : deux recettes d'animation (`animPoing`, `animPied`) + les pièces
+  nécessaires si la planche v2 doit les prévoir (poing fermé visible, pied
+  chaussé/net). À produire en **J6** avec la refonte 3/4 (§2a).
 
 ## 4. Méthode 2 — spritesheet frame-by-frame (dépannage)
 
@@ -115,6 +157,23 @@ game/assets/
   vacillement par tweens décalés (hauteur, largeur, éclat, balancement).
 - **Contraste WCAG 1.4.11** mesuré sur captures réelles : corps des langues
   ≥ 3:1 contre le fond, noyaux ≈ 8–10:1 (paliers 1–2).
+
+### 6b. Sons (§2.8d — fin de J5)
+
+- **Génération** : `scripts/assets-sons.py` (Python stdlib uniquement : `wave`,
+  `math`, `struct`) — **100 % déterministe**, aucun binaire importé, aucun
+  réseau. Sortie : `game/assets/sons/*.wav`, **22 050 Hz, mono, PCM 16 bits**.
+- **Fichiers** : `reussite.wav` (carillon montant), `erreur.wav` (basse
+  dissonante), `frappe.wav` (percussion sourde + bruit filtré), `blocage.wav`
+  (« ting » métallique), `ko.wav` (chute grave + vibrato).
+- **Chaîne** : enveloppe ADSR + oscillateurs (sinus/carré) + bruit pseudo-aléatoire
+  déterministe (LCG), mélange borné, normalisation d'amplitude ; chaque son
+  tient < 1 s.
+- **Intégration** : `BootScene` précharge via `this.load.audio(...)` ; la scène
+  joue par `jouerSon(nom)` qui **vérifie `cache.audio.exists(nom)`** — un son
+  absent (boot partiel, couverture de tests) est un no-op, jamais une erreur.
+  Aucune intensité de son en dur : les durées/amplitudes vivent dans le
+  générateur, les déclenchements dans la scène.
 
 ## 7. Contrôle qualité (chaque livraison d'asset)
 

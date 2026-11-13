@@ -76,10 +76,10 @@ Parcours Puppeteer (chromium headless, config `pptr.json` de l'environnement) :
 | ID | Parcours | Étapes | Oracle |
 |----|----------|--------|--------|
 | E01 | Lancement RUN → sélection → combat Solo vs IA | clics + écran de quiz | capture + scène `Fight` atteinte |
-| E02 | Répondre à 3 calculs d'attaque | saisies au clavier numérique (dont une erreur corrigée par **Effacer** avant **Valider**) | énergie affichée = somme attendue, calcul erroné non remplacé (I4, I8) |
+| E02 | Répondre à 3 calculs d'attaque | saisies au clavier numérique (dont une erreur corrigée par **Effacer** avant **Valider**) | énergie affichée = somme attendue, calcul erroné non remplacé (I4, I8), **saisie vidée après validation** (juste ou faux) |
 | E03 | Défense + contre-attaque | laisser l'IA attaquer, répondre aux divisions | PV mis à jour selon I1/I2 |
-| E04 | K.O. et écran de fin | forcer des dégâts (scénario seedé) | écran GameOver + événement `combat.ko` |
-| E05 | Mise en scène graduée | accumuler une énergie connue puis résoudre le coup | événements `anim.frappe_tier` / `anim.contre` conformes à la puissance (I13) + captures dans `output/screenshots/` |
+| E04 | Mise en scène graduée (tier 3) | forcer l'énergie d'attaque à 16 et la défense à 6 via les hooks debug, résoudre le tour | tier = 3 déterministe, 10 dégâts sur l'IA, journal mis à jour + capture `e2e-04-frappe.png` (I13) |
+| E05 | K.O. et score de manche | forcer l'énergie d'attaque = défense + PV max, résoudre le tour | `fini` = true, gagnant J1, score de manche 1–0, bannière K.O. conservée + capture `e2e-05-ko.png` (I5) |
 | E06 | Tempo configurable | choisir un preset (Rapide 10 s) dans l'écran CONFIG puis lancer une phase | la phase respecte la durée configurée, attaque et défense identiques (logs `combat.phase` + HUD timer) |
 | E07 | Rythme de calcul | sélectionner SIMULTANÉ dans CONFIG puis jouer un tour | les deux zones actives sur le **même chrono**, résolution commune (I15) |
 

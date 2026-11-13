@@ -51,6 +51,26 @@ export interface ConfigJeu {
   auraAlphas: readonly [number, number, number, number];
   /** Bornes des tiers de frappe (§2.8b) : [tier1 max, tier2 max, tier3 max]. */
   tiersFrappe: readonly number[];
+  /**
+   * Intensités d'animation « juice » (§2.8b/c/d) — déterministes de la
+   * puissance, jamais estimées à l'œil dans la scène.
+   */
+  juice: {
+    /** Zoom caméra au tier 3 / tier 4 (multiplicateur de la caméra). */
+    zoomTier3: number;
+    zoomTier4: number;
+    /** Ralenti du tier 4 : durée en ms (temps réel) et facteur de temps. */
+    ralentiDureeMs: number;
+    ralentiFacteur: number;
+    /** Étincelles d'impact : base + N par point de tier. */
+    etincellesParTier: number;
+    /** Onde de choc du tier 4 (rayon final en px). */
+    ondeChocRayon: number;
+    /** Amplitude de secousse caméra (Phaser intensity) par point de tier. */
+    secousseTier: number;
+    /** Durée du flash plein écran du tier 4 (ms). */
+    flashTier4Ms: number;
+  };
   /** Saisie au clavier numérique (§2.7). */
   saisieMaxChiffres: number;
   /** Cadence humaine de référence : 1 calcul réussi toutes les N secondes. */
@@ -105,6 +125,16 @@ export const CONFIG: ConfigJeu = {
   energieVisuelleMax: 30,
   auraAlphas: [0.55, 0.74, 0.88, 0.98],
   tiersFrappe: [5, 12, 20],
+  juice: {
+    zoomTier3: 1.06,
+    zoomTier4: 1.12,
+    ralentiDureeMs: 300,
+    ralentiFacteur: 0.3,
+    etincellesParTier: 4,
+    ondeChocRayon: 240,
+    secousseTier: 0.0015,
+    flashTier4Ms: 180,
+  },
   saisieMaxChiffres: 3,
   cadenceHumaineReference: 3,
   ia: {
