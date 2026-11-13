@@ -1,0 +1,13 @@
+{
+  "id": "S07",
+  "titre": "Suite de 3 tours alternés, PV cohérents à chaque résolution",
+  "type": "combat",
+  "graine": 21,
+  "niveaux": { "j1": "intermediaire", "j2": "intermediaire" },
+  "tours": [
+    { "attaque": 10, "defense": 4 },
+    { "attaque": 7, "defense": 12 },
+    { "attaque": 20, "defense": 18 }
+  ],
+  "oracles": ["I1", "I2", "I5", "alternance"]
+}

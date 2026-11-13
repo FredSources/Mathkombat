@@ -1,0 +1,13 @@
+{
+  "id": "S08",
+  "titre": "K.O. : derniers PV, un seul événement combat.ko",
+  "type": "combat",
+  "graine": 8,
+  "niveaux": { "j1": "debutant", "j2": "debutant" },
+  "tours": [
+    { "attaque": 40, "defense": 5 },
+    { "attaque": 10, "defense": 2 },
+    { "attaque": 70, "defense": 0 }
+  ],
+  "oracles": ["I5", "ko-unique"]
+}

@@ -837,3 +837,62 @@ Trouvées par le smoke test L0 puis corrigées (le smoke test en est le test de 
 - Jalon **J3** : `core/combat-engine.ts` (phases, énergie, résolution,
   contre-attaque) + `core/ai-controller.ts` (IA gentille) + scénarios
   S04→S08, S10, S11.
+
+---
+
+## 2026-11-13 — Jalon J3 — Moteur de combat + IA « gentille »
+
+### Produits
+
+- `game/src/core/combat-engine.ts` :
+  - `resoudreCoup()` — résolution pure (§2.4) : solde, dégâts, contre-attaque,
+    bloqué (I1/I2) ;
+  - `PhaseCalcul` — 3 calculs simultanés, remplacement du seul calcul résolu,
+    erreur = calcul conservé (I4, I12), énergie non plafonnée (I3, I11) ;
+  - `CombatEngine` — tours alternés (§2.1), PV bornés à 0, K.O. émis une seule
+    fois puis combat verrouillé (I5), rythmes DIFFÉRÉ/SIMULTANÉ tracés (I15) ;
+  - `tierFrappe()` / `palierAura()` — mise en scène déterministe (I13, §2.8).
+- `game/src/core/ai-controller.ts` — **IA « gentille »** (§2.6, I16) : tentatives
+  bornées par `rendementMax` (3 max vs 5 au joueur de référence → toujours
+  battable), **rattrapage doux** au-delà de `ecartSuspense`, stratégie de choix de
+  difficulté et taux de réussite paramétrés, événements `ia.choix_difficulte` /
+  `ia.reponse`.
+- `core/config.ts` : `ia.facteurRattrapage` + `ia.strategieChoix` ajoutés.
+- Tests Vitest : `combat-engine.test.ts` + `ai-controller.test.ts` (**49 tests
+  au total** avec J2) — couverture **100 %** du cœur (156/156 statements,
+  100/100 branches).
+- Scénarios `S04→S08`, `S10`, `S11` + types `resolution` / `phase` / `combat`
+  dans `scripts/run-scenarios.mjs` (contrôle de nomenclature de trace compris).
+
+### Décisions
+
+- Le cœur reste **pur** : les traces sortent par un callback `emettre` que les
+  scènes répercuteront vers le logger (règle AGENTS §5).
+- Modèle IA : le **nombre de tentatives** dépend du rendement plafonné
+  (indépendant de la difficulté), la **réussite** et le **choix des difficultés**
+  en dépendent. Rendement IA max 21 d'énergie/phase vs 35 pour un joueur rapide :
+  battable à toute difficulté.
+- Syntaxe TS strictement **érasable** dans le cœur (compatible Node
+  type-stripping) — incidents J2 évités.
+
+### Tests
+
+- **Typecheck strict** : ✅ 0 erreur.
+- **Vitest** : ✅ **49/49** — couverture **100 %** cœur (config, math-generator,
+  combat-engine, ai-controller).
+- **Scénarios headless** : ✅ **S01→S08, S10, S11 verts** — dont S07 (alternance
+  + PV cohérents), S08 (K.O. unique), S10 (bout en bout, trace conforme à la
+  nomenclature §4 : 91/91), S11 (remplacement du seul calcul résolu : 15/15).
+- **Smoke L0** : ✅ inchangé.
+
+### Anomalies
+
+- Deux écarts de tests corrigés en cours de route : comparaison d'énergie IA
+  inéquitable (borne reformulée : plafond `tentativesMax × gain max` vs joueur
+  rapide) et couverture du callback de trace de `PhaseCalcul.resoudre` (test
+  ajouté). Aucune anomalie de produit.
+
+### Prochaine étape
+
+- Jalon **J4** : quiz jouable (`ui/quiz-overlay.ts`, `ui/numpad.ts`), boucle
+  Solo vs IA de bout en bout, scénario S09, E2E E01→E03.

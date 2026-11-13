@@ -1,0 +1,17 @@
+{
+  "id": "S11",
+  "titre": "3 calculs simultanés : réussite ne remplace que le calcul résolu ; erreur laisse le calcul en place",
+  "type": "phase",
+  "graine": 33,
+  "operation": "multiplication",
+  "niveau": "intermediaire",
+  "etapes": [
+    { "difficulte": "facile", "saisie": "bonne", "gain": 1, "remplace": "facile" },
+    { "difficulte": "moyen", "saisie": "mauvaise", "gain": 0, "remplace": "aucun" },
+    { "difficulte": "difficile", "saisie": "bonne", "gain": 7, "remplace": "difficile" },
+    { "difficulte": "moyen", "saisie": "bonne", "gain": 3, "remplace": "moyen" },
+    { "difficulte": "facile", "saisie": "mauvaise", "gain": 0, "remplace": "aucun" }
+  ],
+  "energieAttendue": 11,
+  "oracles": ["I12", "I4"]
+}

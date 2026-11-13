@@ -56,12 +56,16 @@ export interface ConfigJeu {
     difficulte: Difficulte;
     /** Plafond de rendement (fraction de la cadence humaine de référence). */
     rendementMax: number;
+    /** Facteur appliqué au rendement quand le rattrapage doux se déclenche. */
+    facteurRattrapage: number;
     /** Écart de PV déclenchant le rattrapage doux. */
     ecartSuspense: number;
     /** Probabilité de réussite d'un calcul de l'IA par difficulté. */
     tauxReussite: Record<Difficulte, number>;
     /** Taux de victoires humaines visés (calibrage J8, cible S12). */
     tauxVictoiresCible: Record<Difficulte, number>;
+    /** Stratégie de choix de difficulté par niveau d'IA (somme = 1). */
+    strategieChoix: Record<Difficulte, Record<Difficulte, number>>;
   };
 }
 
@@ -94,9 +98,15 @@ export const CONFIG: ConfigJeu = {
   ia: {
     difficulte: 'moyen',
     rendementMax: 0.7,
+    facteurRattrapage: 0.7,
     ecartSuspense: 20,
     tauxReussite: { facile: 0.55, moyen: 0.7, difficile: 0.8 },
     tauxVictoiresCible: { facile: 0.8, moyen: 0.5, difficile: 0.3 },
+    strategieChoix: {
+      facile: { facile: 0.7, moyen: 0.2, difficile: 0.1 },
+      moyen: { facile: 0.25, moyen: 0.5, difficile: 0.25 },
+      difficile: { facile: 0.1, moyen: 0.2, difficile: 0.7 },
+    },
   },
 };
 

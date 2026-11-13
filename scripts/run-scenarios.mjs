@@ -21,6 +21,11 @@ import {
   poolFaits,
 } from '../game/src/core/math-generator.ts';
 import { CONFIG, cleFait, estResistant } from '../game/src/core/config.ts';
+import {
+  CombatEngine,
+  PhaseCalcul,
+  resoudreCoup,
+} from '../game/src/core/combat-engine.ts';
 
 const PROJ = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR_SCENARIOS = path.join(PROJ, 'game', 'tests', 'scenarios');
@@ -125,6 +130,155 @@ function jouerEnergie(sc) {
   return { verdicts, details };
 }
 
+// ---------------------------------------------------------------- scénario « resolution »
+
+function jouerResolution(sc) {
+  const verdicts = [];
+  const details = [];
+  for (const cas of sc.cas) {
+    const r = resoudreCoup(cas.attaque, cas.defense);
+    const attendus = {
+      solde: cas.solde,
+      degats: cas.degats,
+      sur: cas.sur,
+      contre: cas.contre,
+    };
+    for (const [cle, attendu] of Object.entries(attendus)) {
+      const ok = r[cle] === attendu;
+      if (!ok) details.push(`${sc.oracles[0]} ✗ ${cas.attaque} vs ${cas.defense} : ${cle} = ${r[cle]} ≠ ${attendu}`);
+      verdicts.push({ oracle: sc.oracles.includes('I1') ? 'I1' : 'I2', ok });
+    }
+  }
+  return { verdicts, details };
+}
+
+// ---------------------------------------------------------------- scénario « phase »
+
+function jouerPhase(sc) {
+  const verdicts = [];
+  const details = [];
+  const gen = new GenerateurMath(CONFIG, alea(sc.graine ?? 1));
+  const phase = new PhaseCalcul(sc.operation, sc.niveau, gen);
+
+  for (const etape of sc.etapes) {
+    const avant = {
+      facile: phase.question('facile'),
+      moyen: phase.question('moyen'),
+      difficile: phase.question('difficile'),
+    };
+    const cible = avant[etape.difficulte];
+    const saisie = etape.saisie === 'bonne' ? cible.reponse : cible.reponse + 1;
+    const res = phase.resoudre(etape.difficulte, saisie);
+
+    if (sc.oracles.includes('I4')) {
+      const ok = res.gain === etape.gain && res.correct === (etape.saisie === 'bonne');
+      if (!ok) details.push(`I4 ✗ ${etape.difficulte}/${etape.saisie} : gain ${res.gain} ≠ ${etape.gain}`);
+      verdicts.push({ oracle: 'I4', ok });
+    }
+    if (sc.oracles.includes('I12')) {
+      for (const d of ['facile', 'moyen', 'difficile']) {
+        const remplace = phase.question(d) !== avant[d];
+        const attendu = etape.remplace === d;
+        const ok = remplace === attendu;
+        if (!ok) details.push(`I12 ✗ calcul ${d} ${remplace ? 'remplacé' : 'conservé'} (attendu : ${etape.remplace})`);
+        verdicts.push({ oracle: 'I12', ok });
+      }
+    }
+  }
+
+  if (sc.oracles.includes('I3') || sc.energieAttendue !== undefined) {
+    const ok = phase.energie() === sc.energieAttendue;
+    if (!ok) details.push(`énergie de phase ${phase.energie()} ≠ ${sc.energieAttendue}`);
+    verdicts.push({ oracle: 'I3', ok });
+  }
+  return { verdicts, details };
+}
+
+// ---------------------------------------------------------------- scénario « combat »
+
+const DOMAINES = new Set(['math', 'combat', 'ia', 'ui', 'anim', 'session', 'erreur']);
+
+function jouerCombat(sc) {
+  const verdicts = [];
+  const details = [];
+  const trace = [];
+  const engine = new CombatEngine({
+    niveaux: sc.niveaux,
+    aleatoire: alea(sc.graine ?? 1),
+    emettre: (e) => trace.push(e),
+  });
+
+  let attaquantPrecedent = null;
+  for (const script of sc.tours) {
+    const tour = engine.demarrerTour();
+
+    if (sc.oracles.includes('alternance')) {
+      const ok = attaquantPrecedent === null || tour.attaquant !== attaquantPrecedent;
+      if (!ok) details.push(`alternance ✗ tour ${tour.numero} : ${tour.attaquant} attaque deux fois`);
+      verdicts.push({ oracle: 'alternance', ok });
+      attaquantPrecedent = tour.attaquant;
+    }
+
+    const pvAvant = { ...engine.etat.pv };
+    const r = engine.resoudreTour(tour, script.attaque, script.defense);
+
+    if (sc.oracles.includes('I5')) {
+      const cible = r.sur === 'defenseur' ? tour.defenseur : tour.attaquant;
+      const attendu = r.sur === 'aucun' ? pvAvant[cible] : Math.max(0, pvAvant[cible] - r.degats);
+      const koAttendu = engine.etat.pv.j1 === 0 || engine.etat.pv.j2 === 0;
+      const ok =
+        engine.etat.pv[cible] === attendu &&
+        engine.etat.pv.j1 >= 0 &&
+        engine.etat.pv.j2 >= 0 &&
+        r.ko === koAttendu;
+      if (!ok) details.push(`I5 ✗ tour ${tour.numero} : PV incohérents ${JSON.stringify(engine.etat.pv)}`);
+      verdicts.push({ oracle: 'I5', ok });
+    }
+  }
+
+  if (sc.oracles.includes('ko-unique')) {
+    const kos = trace.filter((e) => e.event === 'combat.ko');
+    let apresKo = false;
+    try {
+      engine.demarrerTour();
+    } catch {
+      apresKo = true;
+    }
+    const ok = kos.length === 1 && engine.etat.fini && apresKo && trace[trace.length - 1].event === 'combat.ko';
+    if (!ok) details.push(`ko-unique ✗ ${kos.length} événement(s) ko, fini=${engine.etat.fini}`);
+    verdicts.push({ oracle: 'ko-unique', ok });
+  }
+
+  if (sc.oracles.includes('I15')) {
+    const phases = trace.filter((e) => e.event === 'combat.phase');
+    const rythme = CONFIG.rythme;
+    const ok =
+      rythme === 'simultane'
+        ? phases.length === sc.tours.length && phases.every((e) => e.data.chronoUnique === true)
+        : phases.length === 2 * sc.tours.length &&
+          phases.every((e) => e.data.duree === CONFIG.tempsPhase);
+    if (!ok) details.push(`I15 ✗ ${phases.length} événement(s) phase pour ${sc.tours.length} tour(s), rythme ${rythme}`);
+    verdicts.push({ oracle: 'I15', ok });
+  }
+
+  if (sc.oracles.includes('trace')) {
+    for (const e of trace) {
+      const [domaine] = e.event.split('.');
+      const formeOk = /^[a-z]+\.[a-z0-9_]+$/.test(e.event) && DOMAINES.has(domaine);
+      if (!formeOk) details.push(`trace ✗ événement hors nomenclature : ${e.event}`);
+      verdicts.push({ oracle: 'trace', ok: formeOk });
+
+      if (e.event === 'combat.coup_resolu') {
+        const champsOk = ['attaque', 'defense', 'solde', 'contre'].every((c) => c in e.data);
+        if (!champsOk) details.push(`trace ✗ coup_resolu sans champs obligatoires`);
+        verdicts.push({ oracle: 'trace', ok: champsOk });
+      }
+    }
+  }
+
+  return { verdicts, details };
+}
+
 // ---------------------------------------------------------------- orchestration
 
 const filtre = process.argv[2] ?? null;
@@ -155,7 +309,17 @@ for (const fichier of fichiers) {
   const sc = JSON.parse(fs.readFileSync(path.join(DIR_SCENARIOS, fichier), 'utf8'));
   const debut = Date.now();
   const { verdicts, details } =
-    sc.type === 'generation' ? jouerGeneration(sc) : sc.type === 'energie' ? jouerEnergie(sc) : (process.stderr.write(`Type inconnu : ${sc.type}\n`), process.exit(1));
+    sc.type === 'generation'
+      ? jouerGeneration(sc)
+      : sc.type === 'energie'
+        ? jouerEnergie(sc)
+        : sc.type === 'resolution'
+          ? jouerResolution(sc)
+          : sc.type === 'phase'
+            ? jouerPhase(sc)
+            : sc.type === 'combat'
+              ? jouerCombat(sc)
+              : (process.stderr.write(`Type inconnu : ${sc.type}\n`), process.exit(1));
   const duree = Date.now() - debut;
 
   const parOracle = new Map();

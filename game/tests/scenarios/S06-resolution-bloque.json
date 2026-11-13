@@ -1,0 +1,11 @@
+{
+  "id": "S06",
+  "titre": "Coup bloqué : attaque 8 vs défense 8 → 0 dégât",
+  "type": "resolution",
+  "cas": [
+    { "attaque": 8, "defense": 8, "solde": 0, "degats": 0, "sur": "aucun", "contre": false },
+    { "attaque": 0, "defense": 5, "solde": -5, "degats": 5, "sur": "attaquant", "contre": true },
+    { "attaque": 0, "defense": 0, "solde": 0, "degats": 0, "sur": "aucun", "contre": false }
+  ],
+  "oracles": ["I2"]
+}

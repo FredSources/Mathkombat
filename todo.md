@@ -5,10 +5,10 @@ Une case ne se coche que si : code produit + tests verts + entrée dans `journal
 
 ## État actuel
 
-**Jalon J2 — moteur mathématique : TERMINÉ** (22 tests ✅, couverture 100 % cœur
-maths ✅, scénarios S01→S03 verts ✅, smoke L0 ✅).
-Prochaine étape : **J3 — moteur de combat + IA** (`combat-engine.ts`, `ai-controller.ts`,
-scénarios S04→S08/S10/S11).
+**Jalon J3 — moteur de combat + IA : TERMINÉ** (49 tests ✅, couverture 100 % du
+cœur ✅, scénarios S01→S08 + S10-S11 verts ✅, smoke L0 ✅).
+Prochaine étape : **J4 — quiz jouable** (3 calculs simultanés, clavier numérique,
+combat Solo vs IA de bout en bout, S09 + E01→E03).
 
 ## Planification (ordre et dépendances)
 
@@ -60,11 +60,11 @@ J6 (contenu complet) ; J8 clôt.
 - [x] Tests Vitest (S01→S03, invariants I3, I4, I6, I7, I11) — **22 tests, couverture 100 %** du cœur maths
 - [x] `scripts/run-scenarios.mjs` : exécuteur de scénarios headless + rapport `output/reports/scenarios-*.md`
 
-### J3 — Moteur de combat + IA
+### J3 — Moteur de combat + IA (terminé ✅)
 
-- [ ] `core/combat-engine.ts` : phases, énergie, résolution, contre-attaque (I1→I5)
-- [ ] `core/ai-controller.ts` : 3 difficultés (choix de difficulté + réussite, **IA gentille** : rendement plafonné + rattrapage doux, phases jouées sur la durée configurée)
-- [ ] Tests Vitest + scénarios S04→S08, S10, S11
+- [x] `core/combat-engine.ts` : phases, énergie, résolution, contre-attaque (I1→I5) — `resoudreCoup`, `PhaseCalcul` (3 calculs, I12), `CombatEngine` (tours alternés, PV bornés, K.O. unique), tiers de frappe/paliers d'aura déterministes (I13), rythmes (I15)
+- [x] `core/ai-controller.ts` : 3 difficultés (choix de difficulté + réussite, **IA gentille** : rendement plafonné + rattrapage doux, phases jouées sur la durée configurée) — I16
+- [x] Tests Vitest + scénarios S04→S08, S10, S11 — **49 tests, couverture 100 % du cœur** (156/156 statements, 100/100 branches)
 
 ### J4 — Quiz jouable
 

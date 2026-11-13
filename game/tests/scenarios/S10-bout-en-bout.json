@@ -1,0 +1,19 @@
+{
+  "id": "S10",
+  "titre": "Bout en bout : combat complet simulé, trace conforme à la nomenclature §4 archi.",
+  "type": "combat",
+  "graine": 50,
+  "niveaux": { "j1": "intermediaire", "j2": "avance" },
+  "tours": [
+    { "attaque": 25, "defense": 2 },
+    { "attaque": 5, "defense": 1 },
+    { "attaque": 25, "defense": 2 },
+    { "attaque": 5, "defense": 1 },
+    { "attaque": 25, "defense": 2 },
+    { "attaque": 5, "defense": 1 },
+    { "attaque": 25, "defense": 2 },
+    { "attaque": 5, "defense": 1 },
+    { "attaque": 25, "defense": 2 }
+  ],
+  "oracles": ["I5", "I15", "trace", "ko-unique"]
+}

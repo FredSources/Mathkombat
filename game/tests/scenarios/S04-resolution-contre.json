@@ -1,0 +1,9 @@
+{
+  "id": "S04",
+  "titre": "Coup simple : attaque 7 vs défense 10 → contre-attaque 3",
+  "type": "resolution",
+  "cas": [
+    { "attaque": 7, "defense": 10, "solde": -3, "degats": 3, "sur": "attaquant", "contre": true }
+  ],
+  "oracles": ["I1"]
+}
