@@ -165,12 +165,12 @@ export class FightScene extends Phaser.Scene {
     this.textePhase = this.add.text(LARGEUR / 2, 62, '', {
       fontFamily: 'monospace', fontSize: '20px', color: '#7bd4ff',
     }).setOrigin(0.5, 0);
-    // Énergie : à côté du clavier (zone vide, jamais recouverte par les boutons)
-    this.texteEnergie1 = this.add.text(252, 255, '', {
-      fontFamily: 'monospace', fontSize: '22px', color: '#7bd4ff',
+    // Énergie : sous les boutons VALIDER, en bas de chaque zone
+    this.texteEnergie1 = this.add.text(40, 578, '', {
+      fontFamily: 'monospace', fontSize: '20px', color: '#7bd4ff',
     });
-    this.texteEnergie2 = this.add.text(LARGEUR - 252, 255, '', {
-      fontFamily: 'monospace', fontSize: '22px', color: '#7bd4ff',
+    this.texteEnergie2 = this.add.text(LARGEUR - 40, 578, '', {
+      fontFamily: 'monospace', fontSize: '20px', color: '#7bd4ff',
     }).setOrigin(1, 0);
     this.bandeauResolution = this.add.text(LARGEUR / 2, SOL - 120, '', {
       fontFamily: 'monospace', fontSize: '30px', color: '#ffd76b',
