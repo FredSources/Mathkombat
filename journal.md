@@ -956,3 +956,160 @@ Trouvées par le smoke test L0 puis corrigées (le smoke test en est le test de 
 
 - Jalon **J5** : assets cut-out (`docs/assets.md`), aura Dragon Ball, frappe
   graduée, défense/contre animées, HUD complet, sons.
+
+---
+
+## 2026-11-13 — Jalon J5 (1ʳᵉ moitié) — Présentation : arène, sprites, aura, juice
+
+### Produits
+
+- **Génération d'assets** : arène 16:9 + 2 personnages (style cartoon BD) générés
+  (`tmp/test-*.png`), **découpe cut-out automatisée** par `scripts/assets-cutout.py`
+  (flood-fill depuis les bords, recadrage auto, redimensionnement 420 px, PNG 32
+  bits) → `game/assets/personnages/perso-a.png` (188×420), `perso-b.png`
+  (202×420), `game/assets/decors/arene-1.png` (1280×720).
+- **`game/vite.config.ts`** : `publicDir: 'assets'` — le dossier d'assets unique
+  est servi à la racine en dev **et** copié dans `dist/` à la build (chemin
+  relatif, compatible APK, AGENTS §4).
+- **`scenes/BootScene.ts`** : `preload()` des 3 images + trace `assets.pret`.
+- **`scenes/FightScene.ts`** :
+  - **arène réelle** en fond (repli dégradé si assets absents) + ligne de sol ;
+  - **sprites cut-out** des combattants (origin pieds sur le sol), étiquettes
+    « J1 » / « IA », **respiration idle** permanente (tween sine) ;
+  - **aura §2.8a** : halo redessiné par palier déterministe (`palierAura`),
+    alphas 0.15 / 0.32 / 0.5 / 0.7, éclats aux paliers ≥ 2, ombre portée ;
+    **impulsion** à chaque calcul réussi (+1/+3/+7) qui revient à l'alpha du
+    palier courant ;
+  - **micro-gêne** sur erreur (écrasement léger, échelle préservée) ;
+  - **frappe graduée §2.8b** : élan de l'attaquant, recul de la cible (encaisse /
+    contre), secousse caméra au tier ≥ 2, flash plein écran au tier 4,
+    **dégâts flottants** dimensionnés/colorés par tier (`⟲` pour la contre) ;
+  - **blocage parfait** : étincelles (flash d'aura) ;
+  - **K.O. §2.8d** : flash caméra + chute animée du perdant ;
+  - **rejeu (R)** : remise à pied des combattants (position, angle, échelle,
+    paliers d'aura) ;
+  - HUD : libellé de droite « IA » (cohérent avec l'étiquette du personnage) ;
+  - hook debug : `aura()` (alpha/palier/visible des deux combattants).
+- **`ui/numpad.ts`** : **bug corrigé** — Phaser ne remonte pas les événements
+  d'un enfant interactif au conteneur : les clics souris sur le pavé et les
+  boutons VALIDER ne fonctionnaient jamais (seul le clavier physique était
+  testé) → re-émission explicite `fond.on('pointerdown') → bouton.emit(...)`.
+- Captures : `output/screenshots/j5-arene-sprites.png`, `j5-aura.png` ;
+  sondes : `tmp/sonde-aura.mjs`, `tmp/sonde-aura-2.mjs`.
+
+### Décisions
+
+- **Sprites entiers animés par tweens** (méthode `docs/assets.md` : cut-out
+  animé privilégié) plutôt que spritesheets d'états découpés — les états
+  `garde`/`parade`/`contre` resteront à produire dans la 2ᵉ moitié de J5.
+- **`publicDir` = dossier d'assets** : une seule source d'images pour dev et
+  build, conformément à l'arborescence AGENTS §4 (`game/assets/`).
+- **Séparation alpha du palier / impulsion** : l'impulsion mémorise l'alpha cible
+  (`alphaPalier`) et y revient en fin de tween — sinon elle écrasait la valeur du
+  palier (anomalie ci-dessous).
+
+### Tests
+
+- **Typecheck strict** : ✅ 0 erreur. **Vitest** : ✅ **49/49**, couverture
+  **100 %** (156/156 statements, 100/100 branches).
+- **E2E** : ✅ **6/6** (E01→E03). **Scénarios** : ✅ **11/11** (S01→S11).
+- **Smoke L0** : ✅.
+- **Sonde aura** : alpha 0.15 (palier 0) → **0.32 (palier 1)** après +11
+  d'énergie, stable en fin de mesure ; validations au clic opérationnelles
+  (énergie 0 → 11 via les 3 boutons colorés).
+
+### Anomalies
+
+- **Clics VALIDER/pavé inertes** : non détecté en J4 (E2E = clavier physique
+  uniquement) — corrigé par re-émission d'événement, validé par la sonde aura.
+- **Alpha d'aura écrasé** : `impulsionAura` portait un tableau d'alphas
+  désynchronisé de `majAura` et son `onComplete` réappliquait l'ancienne valeur
+  (mesure : 0.15 au lieu de 0.32) — corrigé via `alphaPalier`, mesuré au hook.
+- Première capture d'intégration : libellé HUD « J2 » vs étiquette « IA » —
+  unifié en « IA ».
+
+### Prochaine étape
+
+- **Fin de J5** : sons, particules (aura/impacts), ralenti tier 4, parade +
+  contre dédiées, journal de combat (5 derniers événements) + score de manche,
+  captures E04 (résolution animée) et E05 (K.O.).
+
+## 2026-11-13 — Jalon J5 (suite) — Refonte de l'aura en flammes « Dragon Ball »
+
+### Contexte
+
+- Retour utilisateur sur la 1ʳᵉ version (langues en polygones durs dessinés dans
+  `update`) : « un peu bizarre tes flammes » ; demande explicite : **l'aura doit
+  être une flamme autour du personnage, style Dragon Ball**, **visible pour un
+  humain** (rappel des règles de contraste / variations de couleur).
+
+### Produit
+
+- **`scripts/assets-flammes.py`** : textures de flamme générées (PIL) —
+  `game/assets/effets/flamme-1.png`, `flamme-2.png`, 160×320 RGBA blanc
+  teintable ; 2 variantes à pointes, flou gaussien durci (`0.05·L`, fondu 62 %
+  avec le noyau net), bas atténué (aucune coupe franche).
+- **`scenes/FightScene.ts` — refonte de l'aura** :
+  - 11 langues `FLAMMES` plaquées sur la silhouette (pieds → couronne),
+    **flamme à 2 couches** : langue colorée en fusion **normale** + petit noyau
+    incandescent en fusion **ADD** ;
+  - `vaciller()` : tweens décalés par langue (hauteur, largeur, éclat autour de
+    l'alpha de base, balancement) — l'ancien redessin polygonal par frame est
+    supprimé ;
+  - `textureTeintee()` : **teinte CPU** (multiplication par pixel dans un canvas,
+    une copie par variante et par couleur) ;
+  - `majAura` : alpha du palier + échelle `0.7 + palier × 0.18` (les flammes
+    grandissent avec l'énergie) ; impulsions inchangées (`alphaPalier`).
+- **`scenes/BootScene.ts`** : préchargement `flamme1` / `flamme2`.
+- **`core/config.ts`** : `auraAlphas` → `[0.55, 0.74, 0.88, 0.98]`.
+- **`docs/assets.md` §6a** : production et teinte des textures de flamme.
+- Hook debug enrichi : `diagnosticAura()` (rendu, tint réel, blend, alpha des
+  enfants) et `forcerAlphaAura(a)` (captures à intensité imposée).
+
+### Décisions
+
+- **Textures générées plutôt que polygones** : formes douces mais pointues,
+  2 variantes alternées pour éviter la répétition — le vacillement vient des
+  tweens, pas du dessin par frame.
+- **Langue colorée en fusion normale, noyau en ADD** : en fusion additive
+  exclusive, la couleur se délavait en blanc/lavande sur le décor clair (le
+  noyau seul percent toujours) — la couleur franche + cœur incandescent donne
+  le rendu « ki Dragon Ball ».
+- **Teinte CPU (`melangerVersBlanc` reste la source unique)** : `lueur =
+  melangerVersBlanc(teinte, 0.55)` (langue), `coeur = …(0.85)` (noyau).
+- **Teintes et alphas relevés pour le contraste** : `auraAlphas` +0,05 à +0,08
+  et lueur 0,45 → 0,55 après mesure (cf. Tests).
+
+### Tests
+
+- **Batterie complète** : typecheck strict ✅ 0 erreur ; Vitest ✅ **49/49**,
+  couverture **100 %** (156/156 statements, 100/100 branches, 31/31 fonctions) ;
+  E2E ✅ **6/6** (rapport `output/reports/e2e-2026-11-13T21-05-28.md`) ;
+  scénarios ✅ **11/11** S01→S11 (rapport `output/reports/scenarios-2026-11-13T21-06-00.md`) ;
+  smoke L0 ✅ PASS.
+- **Mesures WCAG 1.4.11 sur captures réelles** (échantillonnage pixels) :
+  J1 palier 1 — corps des langues **3,17:1**, noyaux **9,6:1** ; IA palier 2 —
+  noyaux **8,19:1** (seuil exigé : ≥ 3:1).
+- **Validation visuelle** par captures : palier 0 = lueur légère ; palier 1
+  (J1, bleu) et palier 2 (IA, rouge) = flamme enveloppante à langues pointues —
+  capture de référence `output/screenshots/j5-aura.png`.
+
+### Anomalies
+
+- **`setTint()` WebGL totalement ignoré** (découverte en cours d'itération) :
+  une image jetable tintée `0xff0000` est rendue **blanche** (rendu = WebGL type
+  1, `tintTopLeft` correctement posé sur l'objet) — d'où l'aspect « colonne
+  blanche » de toutes les versions précédentes d'aura → contourné par la teinte
+  CPU, valable quel que soit l'environnement (captures, WebView APK, device).
+- **Diagnostic en couches** : capture avec noyaux seuls / couches seules /
+  alpha forcé à 1, mesures de pixels par échantillon — la mesure brute a dû
+  être reprise en excluant tout le sprite (le costume bleu de J1 contaminait
+  l'échantillon « langue bleue »).
+- Sondes ajoutées (non versionnées, `tmp/`) : `diag-aura`, `diag-tint`,
+  `diag-pipeline`, `sonde-aura-ia` (progression de l'aura IA sur son chrono).
+
+### Prochaine étape
+
+- **Fin de J5** : sons, particules d'impact, ralenti tier 4, parade +
+  contre-attaque dédiées, journal de combat (5 événements) + score de manche,
+  captures E04/E05.

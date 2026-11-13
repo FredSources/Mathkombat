@@ -177,6 +177,9 @@ export class Numpad {
       })
       .setOrigin(0.5);
     const bouton = scene.add.container(x + largeur / 2, y + hauteur / 2, [fond, texte]);
+    // Phaser ne remonte pas les événements d'un enfant interactif au conteneur :
+    // on re-émet explicitement pour que le handler du conteneur s'exécute.
+    fond.on('pointerdown', () => bouton.emit('pointerdown'));
     this.conteneur.add(bouton);
     return bouton;
   }

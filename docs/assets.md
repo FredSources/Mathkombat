@@ -89,6 +89,7 @@ game/assets/
 │   │              bras-arriere.png, jambe-av.png, jambe-ar.png
 │   └── perso-b/   idem
 ├── decors/        arena-1.png (1280×720), arena-2.png
+├── effets/        flamme-1.png, flamme-2.png (160×320, RGBA blanc teintable)
 ├── ui/            titre.png, cadre-retro.png, bouton-run.png, bouton-config.png
 └── README.md      # grille des spritesheets éventuelles (ordre, tailles)
 ```
@@ -96,6 +97,24 @@ game/assets/
 - Formats : **PNG 32 bits** (transparence), personnages ≈ 350 px de haut à
   l'échelle mobile (référence écran **1280×720** paysage).
 - Nommage : minuscules, tirets, français (`bras-avant.png`).
+
+### 6a. Textures de flamme (aura §2.8a)
+
+- **Génération** : `scripts/assets-flammes.py` (PIL) — 2 variantes de langue de
+  flamme 160×320, RGB blanc + alpha construit (masse arrondie + pointes,
+  flou gaussien durci `0.05·L` fondu 62 % avec le noyau net, bas atténué pour
+  éviter toute coupe franche). Teintables a posteriori.
+- **Teinte en jeu — teinte CPU, jamais `setTint()`** : le rendu WebGL
+  n'applique pas le tint vertex dans tous les environnements (constaté en captures
+  headless — image tintée rouge rendue **blanche**) → `FightScene.textureTeintee()`
+  cuisine la couleur par multiplication par pixel dans un canvas (une copie par
+  (variante, couleur)), et `melangerVersBlanc()` reste la source unique des
+  teintes (langue colorée + noyau incandescent).
+- **Composition à deux couches** : langue colorée en fusion **normale**
+  (l'ADD la délavait sur le décor clair) + petit noyau en fusion **ADD** ;
+  vacillement par tweens décalés (hauteur, largeur, éclat, balancement).
+- **Contraste WCAG 1.4.11** mesuré sur captures réelles : corps des langues
+  ≥ 3:1 contre le fond, noyaux ≈ 8–10:1 (paliers 1–2).
 
 ## 7. Contrôle qualité (chaque livraison d'asset)
 

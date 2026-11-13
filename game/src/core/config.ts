@@ -44,6 +44,11 @@ export interface ConfigJeu {
   };
   /** Plafond VISUEL de l'aura (l'énergie de jeu reste non plafonnée, I11). */
   energieVisuelleMax: number;
+  /**
+   * Alphas de l'aura par palier 0..3 (§2.8a). Calibrés pour un contraste
+   * ≥ 3:1 sur le décor (WCAG 1.4.11 — objets graphiques) : voir journal J5.
+   */
+  auraAlphas: readonly [number, number, number, number];
   /** Bornes des tiers de frappe (§2.8b) : [tier1 max, tier2 max, tier3 max]. */
   tiersFrappe: readonly number[];
   /** Saisie au clavier numérique (§2.7). */
@@ -98,6 +103,7 @@ export const CONFIG: ConfigJeu = {
     ],
   },
   energieVisuelleMax: 30,
+  auraAlphas: [0.55, 0.74, 0.88, 0.98],
   tiersFrappe: [5, 12, 20],
   saisieMaxChiffres: 3,
   cadenceHumaineReference: 3,

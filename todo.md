@@ -5,10 +5,14 @@ Une case ne se coche que si : code produit + tests verts + entrée dans `journal
 
 ## État actuel
 
-**Jalon J4 — quiz jouable : TERMINÉ** (49 tests ✅, couverture 100 % ✅, scénarios
-S01→S11 verts ✅, E2E 6/6 ✅, smoke L0 ✅).
-Prochaine étape : **J5 — présentation** (assets cut-out, aura Dragon Ball, frappe
-graduée, défense/contre animées, HUD, sons).
+**Jalon J5 — présentation : EN COURS (1ʳᵉ moitié + refonte d'aura livrée ✅)** —
+arène + sprites cut-out intégrés, **aura « Dragon Ball » à 2 couches** (langue
+colorée + noyau blanc, textures générées, teinte CPU, 4 paliers, contraste WCAG
+≥ 3:1 mesuré), impulsions, frappe graduée (élan, recul, secousse, flash, dégâts
+flottants), K.O. animé, clics pavé/VALIDER corrigés.
+Vérifications : 49 tests ✅, couverture 100 % ✅, E2E 6/6 ✅, S01→S11 ✅, smoke ✅.
+Prochaine étape : **fin de J5** (sons, particules, ralenti tier 4, parade +
+contre dédiées, journal de combat, captures E04/E05).
 
 ## Planification (ordre et dépendances)
 
@@ -75,16 +79,23 @@ J6 (contenu complet) ; J8 clôt.
 
 ### J5 — Présentation
 
-- [ ] Assets (méthode `docs/assets.md`) : planches de référence des 2 personnages + pièces cut-out (tête, buste, bras, jambes)
-- [ ] Décors d'arène (arena-1, arena-2) + UI rétro (titre, boutons RUN/CONFIG)
-- [ ] Sprites/états : `idle`, `charge`, `frappe`, `garde`, `parade`, `contre`, `touche`, `ko` (cut-out animé par tweens)
-- [ ] Chargement d'aura « Dragon Ball » sous les calculs (intensité croissante avec l'énergie, §2.8a)
-- [ ] Impulsions d'aura à chaque calcul réussi (+1 petite, +7 marquée)
-- [ ] Frappe graduée par tier de puissance (1→4 : zoom, secousses, particules, ralenti, §2.8b)
-- [ ] Défense simultanée : encaissement / blocage parfait / parade + contre-attaque (§2.8c)
-- [ ] Dégâts flottants proportionnels + K.O. animé (§2.8d)
-- [ ] HUD complet (barres de vie animées vert→orange→rouge, timer, énergie, journal de combat)
-- [ ] Sons + particules + secousses caméra + ralenti
+- [x] Assets (méthode `docs/assets.md`) : planches générées des 2 personnages + découpe cut-out automatisée (`scripts/assets-cutout.py` → `game/assets/personnages/perso-a.png`, `perso-b.png`)
+- [x] Décor d'arène cut-out (`game/assets/decors/arene-1.png`, intégré via `publicDir` Vite : servi en dev **et** copié dans dist pour l'APK) ; arena-2 + UI rétro → J6
+- [~] Sprites/états animés par tweens : `idle` (respiration), `frappe` (élan), `touche` (recul), `ko` (chute + flash) faits ; `garde`, `parade`, `contre` à finaliser
+- [x] Chargement d'aura « Dragon Ball » sous les calculs : **flamme à 2 couches**
+  (langue colorée fusion normale + noyau incandescent fusion ADD) sur textures
+  générées `scripts/assets-flammes.py` (2 variantes, flou durci) — 11 positions
+  suivant la silhouette, vacillement par tweens, **teinte CPU** (`textureTeintee()`,
+  le `setTint()` WebGL n'est pas appliqué dans l'environnement de test), teintes
+  via `melangerVersBlanc(0.55 / 0.85)`, 4 paliers (`auraAlphas` 0.55/0.74/0.88/0.98,
+  échelle 0.7→1.24), **contraste WCAG 1.4.11 mesuré ≥ 3:1** (corps 3,17:1,
+  noyaux 9,6:1)
+- [x] Impulsions d'aura à chaque calcul réussi (+1 petite, +7 marquée) — revient à l'alpha du palier courant (`alphaPalier`, bug d'écrasement corrigé)
+- [~] Frappe graduée par tier (§2.8b) : tiers 1→4 avec élan, recul cible, secousse caméra, flash plein écran, dégâts flottants dimensionnés ; ralenti 0,3 s du tier 4 restant
+- [~] Défense simultanée (§2.8c) : encaissement (recul) et blocage parfait (étincelles) faits ; parade + contre-attaque dédiées à finaliser
+- [~] Dégâts flottants proportionnels + K.O. animé (chute, flash) faits ; capture E04/E05 restante
+- [~] HUD complet : barres animées vert→orange→rouge, timer, énergie faits ; journal de combat (5 derniers événements) + score de manche restent
+- [ ] Sons + particules (aura, impacts) + ralenti tier 4
 - [ ] Captures dans `output/screenshots/` (E04, E05)
 
 ### J6 — Modes et menus
