@@ -1,0 +1,18 @@
+{
+  "id": "S03",
+  "titre": "Énergie : gains +1/+3/+7 cumulés, non résolu = 0",
+  "type": "energie",
+  "graine": 13,
+  "sequence": [
+    { "operation": "multiplication", "difficulte": "facile", "niveau": "avance", "resolu": true },
+    { "operation": "multiplication", "difficulte": "moyen", "niveau": "avance", "resolu": true },
+    { "operation": "multiplication", "difficulte": "difficile", "niveau": "avance", "resolu": false },
+    { "operation": "division", "difficulte": "difficile", "niveau": "avance", "resolu": true },
+    { "operation": "division", "difficulte": "moyen", "niveau": "debutant", "resolu": true },
+    { "operation": "division", "difficulte": "facile", "niveau": "debutant", "resolu": true },
+    { "operation": "multiplication", "difficulte": "moyen", "niveau": "intermediaire", "resolu": true },
+    { "operation": "division", "difficulte": "facile", "niveau": "intermediaire", "resolu": true }
+  ],
+  "energieAttendue": 19,
+  "oracles": ["I3", "I4"]
+}

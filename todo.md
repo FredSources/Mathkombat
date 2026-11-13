@@ -5,9 +5,10 @@ Une case ne se coche que si : code produit + tests verts + entrée dans `journal
 
 ## État actuel
 
-**Jalon J1 — scaffold web : TERMINÉ** (typecheck ✅, builds DEBUG/RELEASE ✅,
-dev server jouable validé par capture ✅).
-Prochaine étape : **J2 — moteur mathématique** (`math-generator`, `config.ts`, tests Vitest).
+**Jalon J2 — moteur mathématique : TERMINÉ** (22 tests ✅, couverture 100 % cœur
+maths ✅, scénarios S01→S03 verts ✅, smoke L0 ✅).
+Prochaine étape : **J3 — moteur de combat + IA** (`combat-engine.ts`, `ai-controller.ts`,
+scénarios S04→S08/S10/S11).
 
 ## Planification (ordre et dépendances)
 
@@ -52,12 +53,12 @@ J6 (contenu complet) ; J8 clôt.
 - [x] Logger branché sur les scènes (événements `session.*`, `ui.*`, `combat.*` démo)
 - [x] `npm run dev` jouable dans le navigateur — validé par capture (`output/screenshots/j1-fight-skeleton.png`)
 
-### J2 — Moteur mathématique
+### J2 — Moteur mathématique (terminé ✅)
 
-- [ ] `core/config.ts` : tout l'équilibrage centralisé
-- [ ] `core/math-generator.ts` : multiplications/divisions adaptatives (familles de tables vert/jaune/orange × niveaux, cadence libre, abstraction type d'opération pour +/− futurs)
-- [ ] Tests Vitest (S01→S03, invariants I6, I7, I11, I12)
-- [ ] `scripts/run-scenarios.mjs` : exécuteur de scénarios headless + rapport
+- [x] `core/config.ts` : tout l'équilibrage centralisé (PV, tempo, rythme, gains, familles 🟢🟡🟠, bornes 5/10/12, tiers, IA gentille, cadence de référence)
+- [x] `core/math-generator.ts` : multiplications/divisions adaptatives (couleur du fait, repli Débutant, non-répétition, exactitude, abstraction type d'opération pour +/− futurs)
+- [x] Tests Vitest (S01→S03, invariants I3, I4, I6, I7, I11) — **22 tests, couverture 100 %** du cœur maths
+- [x] `scripts/run-scenarios.mjs` : exécuteur de scénarios headless + rapport `output/reports/scenarios-*.md`
 
 ### J3 — Moteur de combat + IA
 

@@ -1,0 +1,9 @@
+{
+  "id": "S02",
+  "titre": "Divisions : exactitude et bornes",
+  "type": "generation",
+  "operation": "division",
+  "tirages": 300,
+  "graine": 7,
+  "oracles": ["I7", "I6", "I11", "non-repetition"]
+}

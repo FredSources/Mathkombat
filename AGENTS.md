@@ -474,10 +474,10 @@ bash scripts/smoke.sh                  # vérifications rapides (L0)
 bash scripts/setup-sdk.sh              # (re)construit tools/ (copie locale ou téléchargement)
 cd game && npm install && npm run dev  # J1 : dev server web (http://127.0.0.1:5173)
 bash scripts/build.sh [debug|release]  # J1 : build web → game/dist/
+cd game && npm test                    # J2 : tests Vitest du cœur (+ npm run test:coverage)
+node scripts/run-scenarios.mjs [S01]   # J2 : scénarios headless → output/reports/
 
 # jalons suivants (documentés ici au fur et à mesure) :
-# npm test                             # J2+ : tests Vitest
-# node scripts/run-scenarios.mjs       # J3+ : scénarios headless
 # bash scripts/build-apk.sh            # J7 : APK (SDK local uniquement)
 ```
 

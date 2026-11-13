@@ -785,3 +785,55 @@ Trouvées par le smoke test L0 puis corrigées (le smoke test en est le test de 
 
 - Jalon **J2** : moteur mathématique (`core/config.ts`, `core/math-generator.ts`,
   tests Vitest, `scripts/run-scenarios.mjs`).
+
+---
+
+## 2026-11-13 — Jalon J2 — Moteur mathématique
+
+### Produits
+
+- `game/src/core/config.ts` : **tout l'équilibrage centralisé** (PV 100, tempo 15 s,
+  rythme différé, gains +1/+3/+7, bornes 5/10/12, familles 🟢{1,2,5,10} / 🟡{3,4,6,8,9,11,12} /
+  🟠 5 résistants + repli Débutant, tiers de frappe, saisie 3 chiffres, cadence
+  humaine de référence 3 s, IA gentille). Pur, testé.
+- `game/src/core/math-generator.ts` : générateur adaptatif — **couleur du fait**
+  (table la plus facile, commutativité), **repli Débutant** (3×3, 3×4, 4×4),
+  **non-répétition** (même fait commutatif, sauf impossibilité), divisions
+  exactes (dividende = quotient × diviseur, quotient borné), évaluation à la
+  validation, gain 0 si non résolu, énergie de phase. Abstraction
+  `TypeOperation` (addition/soustraction refusées en v1, I14).
+- `game/tests/math-generator.test.ts` : **22 tests Vitest** (classement, pools,
+  S01/S02/S03, garde-fous, chemins défensifs).
+- `game/tests/scenarios/S01…S03.json` + `scripts/run-scenarios.mjs` : exécuteur
+  de scénarios headless (Node type-stripping, zéro dépendance) → rapports
+  `output/reports/scenarios-*.md`.
+- `game/vitest.config.ts` + dépendances `vitest`, `@vitest/coverage-v8`.
+
+### Décisions
+
+- Cœur **pur** sans logger (les scènes logueront aux frontières, AGENTS §6) ;
+  imports `import type` + extensions `.ts` explicites → le cœur est exécutable
+  **directement par Node** pour les scénarios, sans build intermédiaire.
+- Couverture ciblée sur le cœur maths (`config.ts`, `math-generator.ts`) —
+  s'étendra à `combat-engine` / `ai-controller` en J3.
+
+### Tests
+
+- **Typecheck strict** : ✅ 0 erreur.
+- **Vitest** : ✅ **22/22** — couverture **100 %** (45/45 statements, 42/42 branches,
+  14/14 fonctions).
+- **Scénarios headless** : ✅ S01 (2 700 vérif. I6/I11/non-répétition), S02
+  (2 700 vérif. I7/I6/I11), S03 (I3/I4) — rapports `output/reports/`.
+- **Smoke L0** : ✅ inchangé.
+
+### Anomalies
+
+- Node type-stripping refuse les *parameter properties* du constructeur et les
+  imports de types en valeur — corrigés (champs classiques + `import type`) ;
+  consigné dans les conventions d'écriture du cœur (syntaxe érasable uniquement).
+
+### Prochaine étape
+
+- Jalon **J3** : `core/combat-engine.ts` (phases, énergie, résolution,
+  contre-attaque) + `core/ai-controller.ts` (IA gentille) + scénarios
+  S04→S08, S10, S11.

@@ -1,0 +1,9 @@
+{
+  "id": "S01",
+  "titre": "Multiplications : génération par niveau et par difficulté (bornes, unicité)",
+  "type": "generation",
+  "operation": "multiplication",
+  "tirages": 300,
+  "graine": 42,
+  "oracles": ["I6", "I11", "non-repetition"]
+}
