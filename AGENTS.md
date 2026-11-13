@@ -193,6 +193,10 @@ l'architecture mais non implémentées (voir `todo.md`, « Idées / dette »).
     les joueurs humains (aucune résolution instantanée) ; son énergie s'accumule
     progressivement et est **visible via son aura** ; sa zone de calcul reste en
     veille (aucune interaction). Son score n'est révélé qu'à la résolution.
+  - **Chrono immédiat des phases IA (Solo)** : le score de l'IA est **calculé
+    d'avance** (rendement plafonné) et **totalisé sur un court chrono**
+    (`ia.dureeChronoIA`, défaut 3 s) — l'humain n'attend jamais la pleine durée
+    d'une phase jouée par l'IA.
   - **IA « gentille » — suspense ET possibilité de gagner** : l'IA **ne maximise
     jamais sa cadence** et **reste toujours battable**. Son rendement est plafonné
     (`iaRendementMax`, défaut **70 %** de la cadence humaine de référence,
@@ -216,17 +220,28 @@ l'architecture mais non implémentées (voir `todo.md`, « Idées / dette »).
   (Solo vs IA / 2 joueurs), tempo (durée unique attaque = défense, §2.9), **rythme de
   calcul (Différé / Simultané)**, PV, niveau de calcul, difficulté IA — touches
   **VALIDER** / **RÉINITIALISER**.
-- **Clavier numérique par joueur** : chiffres **0–9**, deux touches d'effacement
-  **distinctes** — **⌫ Effacer** (supprime le **dernier chiffre** saisi, répété =
-  remonte chiffre par chiffre) et **C Tout effacer** (vide la saisie entière
-  d'un coup) — et la touche **Valider** (évalue la réponse). Chaque joueur a **son
-  propre clavier** dans sa zone ; en mode Solo, un seul clavier est actif.
-  - Une saisie n'est **évaluée qu'à Valider** ; tant que Valider n'est pas appuyé,
-    **⌫ Effacer** et **C Tout effacer** corrigent sans aucune pénalité.
-  - Saisie vide + Valider = ignoré (aucun effet). Saisie **bornée à 3 chiffres**
+- **Clavier numérique par joueur** (console de saisie) :
+  - **la valeur saisie est affichée sur le clavier** : une **ligne d'entrée unique**
+    (même largeur que le clavier) ne montre que la **valeur tapée** (« 49 ») — elle
+    ne correspond à un calcul qu'à la **validation avec le bouton de la bonne
+    couleur** ; c'est le **seul endroit** d'affichage de la saisie ;
+  - chiffres **0–9**, deux touches d'effacement **distinctes** — **⌫ Effacer**
+    (supprime le **dernier chiffre** saisi, répété = chiffre par chiffre) et
+    **C Tout effacer** (vide la saisie entière d'un coup) ;
+  - **sous le clavier, les 3 boutons VALIDER colorés** (vert/jaune/rouge — un par
+    calcul, libellés « VALIDER FACILE +1 / MOYEN +3 / DIFFICILE +7 ») : on sait
+    **quel calcul on valide** ; la touche **Entrée** valide le calcul ciblé ;
+  - tap sur un calcul = le **cibler** (bordure renforcée — la validation par
+    Entrée le concerne) ; **changer de calcul ciblé efface la saisie en cours**
+    (la saisie appartient au calcul).
+  - Une saisie n'est **évaluée qu'à une validation** ; tant qu'aucun VALIDER n'est
+    pressé, **⌫ Effacer** et **C Tout effacer** corrigent sans aucune pénalité.
+  - Saisie vide + validation = ignorée (aucun effet). Saisie **bornée à 3 chiffres**
     (les réponses vont de 0 à 144 : produits ≤ 12×12, quotients ≤ 12). La saisie en
     cours à la fin de la phase est **abandonnée** (seuls les calculs résolus comptent).
-  - Version web de debug : touches physiques 0–9, `Entrée` = Valider,
+  - Chaque joueur a **son propre clavier** dans sa zone (J1 aligné à gauche, J2 à
+    droite) ; en mode Solo, un seul clavier est actif.
+  - Version web de debug : touches physiques 0–9, `Entrée` = valider la cible,
     `Retour arrière` = ⌫ Effacer, `Échap` = C Tout effacer.
 - **Alignement des claviers** : le clavier de la zone gauche (J1) est **aligné à
   gauche**, celui de la zone droite (J2) **aligné à droite** — chacun plaqué contre
@@ -476,6 +491,7 @@ cd game && npm install && npm run dev  # J1 : dev server web (http://127.0.0.1:5
 bash scripts/build.sh [debug|release]  # J1 : build web → game/dist/
 cd game && npm test                    # J2 : tests Vitest du cœur (+ npm run test:coverage)
 node scripts/run-scenarios.mjs [S01]   # J2 : scénarios headless → output/reports/
+node scripts/e2e.mjs                   # J4 : E2E navigateur (E01→E03) → captures + rapport
 
 # jalons suivants (documentés ici au fur et à mesure) :
 # bash scripts/build-apk.sh            # J7 : APK (SDK local uniquement)

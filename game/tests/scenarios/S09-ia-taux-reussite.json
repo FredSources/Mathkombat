@@ -1,0 +1,8 @@
+{
+  "id": "S09",
+  "titre": "IA : taux de réussite conforme à sa difficulté (±10 points sur 200 tirages)",
+  "type": "ia",
+  "graine": 42,
+  "tirages": 200,
+  "oracles": ["I16"]
+}

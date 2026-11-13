@@ -26,6 +26,7 @@ import {
   PhaseCalcul,
   resoudreCoup,
 } from '../game/src/core/combat-engine.ts';
+import { AiController } from '../game/src/core/ai-controller.ts';
 
 const PROJ = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR_SCENARIOS = path.join(PROJ, 'game', 'tests', 'scenarios');
@@ -279,6 +280,40 @@ function jouerCombat(sc) {
   return { verdicts, details };
 }
 
+// ---------------------------------------------------------------- scénario « ia »
+
+function jouerIA(sc) {
+  const verdicts = [];
+  const details = [];
+  const tirages = sc.tirages ?? 200;
+
+  for (const difficulte of ['facile', 'moyen', 'difficile']) {
+    const ia = new AiController(CONFIG, alea(sc.graine ?? 1));
+    const decisions = [];
+    let graine = 1;
+    while (decisions.length < tirages) {
+      const phase = new PhaseCalcul('division', 'avance', new GenerateurMath(CONFIG, alea(graine++)));
+      decisions.push(...ia.jouerPhase(phase, difficulte, 0));
+    }
+    const echantillon = decisions.slice(0, tirages);
+    const taux = echantillon.filter((d) => d.correct).length / tirages;
+    const cible = CONFIG.ia.tauxReussite[difficulte];
+    const ok = Math.abs(taux - cible) <= 0.1;
+    if (!ok) details.push(`I16 ✗ IA ${difficulte} : taux ${taux.toFixed(2)} hors ±10 pts de ${cible}`);
+    verdicts.push({ oracle: 'I16', ok });
+
+    // plafond de tentatives (I16)
+    const plafond = Math.floor(
+      (CONFIG.tempsPhase / CONFIG.cadenceHumaineReference) * CONFIG.ia.rendementMax
+    );
+    for (const d of decisions) void d;
+    const okPlafond = ia.tentativesMax(0) <= plafond;
+    if (!okPlafond) details.push(`I16 ✗ tentativesMax ${ia.tentativesMax(0)} > plafond ${plafond}`);
+    verdicts.push({ oracle: 'I16', ok: okPlafond });
+  }
+  return { verdicts, details };
+}
+
 // ---------------------------------------------------------------- orchestration
 
 const filtre = process.argv[2] ?? null;
@@ -317,7 +352,9 @@ for (const fichier of fichiers) {
           ? jouerResolution(sc)
           : sc.type === 'phase'
             ? jouerPhase(sc)
-            : sc.type === 'combat'
+            : sc.type === 'ia'
+              ? jouerIA(sc)
+              : sc.type === 'combat'
               ? jouerCombat(sc)
               : (process.stderr.write(`Type inconnu : ${sc.type}\n`), process.exit(1));
   const duree = Date.now() - debut;

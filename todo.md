@@ -5,10 +5,10 @@ Une case ne se coche que si : code produit + tests verts + entrée dans `journal
 
 ## État actuel
 
-**Jalon J3 — moteur de combat + IA : TERMINÉ** (49 tests ✅, couverture 100 % du
-cœur ✅, scénarios S01→S08 + S10-S11 verts ✅, smoke L0 ✅).
-Prochaine étape : **J4 — quiz jouable** (3 calculs simultanés, clavier numérique,
-combat Solo vs IA de bout en bout, S09 + E01→E03).
+**Jalon J4 — quiz jouable : TERMINÉ** (49 tests ✅, couverture 100 % ✅, scénarios
+S01→S11 verts ✅, E2E 6/6 ✅, smoke L0 ✅).
+Prochaine étape : **J5 — présentation** (assets cut-out, aura Dragon Ball, frappe
+graduée, défense/contre animées, HUD, sons).
 
 ## Planification (ordre et dépendances)
 
@@ -66,12 +66,12 @@ J6 (contenu complet) ; J8 clôt.
 - [x] `core/ai-controller.ts` : 3 difficultés (choix de difficulté + réussite, **IA gentille** : rendement plafonné + rattrapage doux, phases jouées sur la durée configurée) — I16
 - [x] Tests Vitest + scénarios S04→S08, S10, S11 — **49 tests, couverture 100 % du cœur** (156/156 statements, 100/100 branches)
 
-### J4 — Quiz jouable
+### J4 — Quiz jouable (terminé ✅)
 
-- [ ] `ui/quiz-overlay.ts` : 3 calculs simultanés (Facile/Moyen/Difficile), choix libre, remplacement du seul calcul résolu, retour « Faux ! » sans changer le calcul
-- [ ] `ui/numpad.ts` : clavier numérique par joueur (0–9, ⌫ Effacer = un chiffre, C Tout effacer, Valider), saisie évaluée à la validation seulement, touches physiques en web debug
-- [ ] Boucle de combat jouable Solo vs IA de bout en bout
-- [ ] E2E E01→E03 (Puppeteer)
+- [x] `ui/quiz-overlay.ts` : 3 calculs simultanés (Facile/Moyen/Difficile), ciblage au tap, remplacement du seul calcul résolu, retour « Faux ! » sans changer le calcul
+- [x] `ui/numpad.ts` : console de saisie par joueur — **valeur affichée sur le clavier** (case de la largeur du clavier, valeur seule), 0–9, ⌫ un chiffre, C tout effacer, **3 boutons VALIDER colorés sous le clavier** (un par calcul), touches physiques en web debug
+- [x] Boucle de combat jouable Solo vs IA de bout en bout (rythmes Différé/Simultané, **chrono immédiat IA** avec score calculé, résolution animée, K.O. + R)
+- [x] E2E E01→E03 (Puppeteer) — **6/6 verts** + captures ; scénario S09 (taux de réussite IA)
 
 ### J5 — Présentation
 

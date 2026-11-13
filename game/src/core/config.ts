@@ -66,6 +66,12 @@ export interface ConfigJeu {
     tauxVictoiresCible: Record<Difficulte, number>;
     /** Stratégie de choix de difficulté par niveau d'IA (somme = 1). */
     strategieChoix: Record<Difficulte, Record<Difficulte, number>>;
+    /**
+     * Chrono « immédiat » des phases IA en rythme DIFFÉRÉ Solo : le score est
+     * calculé d'avance et totalisé sur cette courte durée (l'humain n'attend
+     * jamais la pleine durée d'une phase IA).
+     */
+    dureeChronoIA: number;
   };
 }
 
@@ -107,6 +113,7 @@ export const CONFIG: ConfigJeu = {
       moyen: { facile: 0.25, moyen: 0.5, difficile: 0.25 },
       difficile: { facile: 0.1, moyen: 0.2, difficile: 0.7 },
     },
+    dureeChronoIA: 3,
   },
 };
 

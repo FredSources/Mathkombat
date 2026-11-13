@@ -896,3 +896,63 @@ Trouvées par le smoke test L0 puis corrigées (le smoke test en est le test de 
 
 - Jalon **J4** : quiz jouable (`ui/quiz-overlay.ts`, `ui/numpad.ts`), boucle
   Solo vs IA de bout en bout, scénario S09, E2E E01→E03.
+
+---
+
+## 2026-11-13 — Jalon J4 — Quiz jouable (Solo vs IA de bout en bout)
+
+### Produits
+
+- `game/src/ui/quiz-overlay.ts` : 3 calculs simultanés (ciblage au tap, remplacement
+  du seul calcul résolu, « Faux ! » sans changer le calcul — I4, I12).
+- `game/src/ui/numpad.ts` : **console de saisie par joueur** — case d'affichage de
+  la **valeur seule** (largeur = celle du clavier), chiffres 0–9, ⌫ un chiffre,
+  C tout effacer, **3 boutons VALIDER colorés sous le clavier** (alignés sur les
+  colonnes, un par calcul : « VALIDER +1 / +3 / +7 »), touches physiques web debug.
+- `game/src/scenes/FightScene.ts` : **boucle complète Solo vs IA** — tours alternés,
+  rythmes Différé/Simultané, quiz + clavier pour l'humain, **chrono immédiat IA**
+  (score calculé d'avance, totalisé sur `ia.dureeChronoIA` = 3 s), résolution
+  animée (bandeau, tier de frappe, barres de vie), K.O. + R, hook debug
+  `window.__mathkombat` (état, questions, saisie, setTempsPhase, forceFinDePhase).
+- `core/config.ts` : `ia.dureeChronoIA` ajouté.
+- `scripts/e2e.mjs` : **E2E Puppeteer** (E01→E03) — saisies clavier réelles,
+  captures `output/screenshots/e2e-*.png`, rapports `output/reports/e2e-*.md`.
+- Scénario **S09** (taux de réussite IA ±10 pts / 200 tirages) + type `ia` du
+  lanceur. Spécifications mises à jour (AGENTS §2.1/§2.6/§2.7, I8, I15, I16).
+
+### Décisions (itérations de jouabilité validées en cours de route)
+
+- **Un seul endroit d'affichage de la saisie** : la case du clavier montre la
+  **valeur seule** (« 49 ») — elle ne correspond à un calcul qu'à la **validation
+  avec le bouton de la bonne couleur** (pas d'énoncé dans la case).
+- **3 boutons VALIDER colorés sous le clavier**, alignés sur ses colonnes, de la
+  largeur des touches — on sait quel calcul on valide.
+- **Changer de calcul ciblé efface la saisie en cours** (la saisie appartient au
+  calcul) — règle qui a aussi éliminé une contamination de saisie entre calculs.
+- **Chrono immédiat IA** : en Solo, les phases jouées par l'IA ne font pas attendre
+  l'humain — score pré-calculé, totalisé sur un court chrono (I15/I16 amendés).
+- Affichages d'énergie placés **à côté des claviers** (jamais recouvrables).
+
+### Tests
+
+- **Typecheck strict** : ✅ 0 erreur. **Vitest** : ✅ **49/49**, couverture
+  **100 %** du cœur (156/156 statements, 100/100 branches).
+- **Scénarios** : ✅ **S01→S11 tous verts** (11/11).
+- **E2E** : ✅ **6/6** — E01 (scène atteinte), E02a (erreur validée = gain 0,
+  calcul conservé), E02b (correction ⌫ avant validation, +3), E02c (+7),
+  E02d (C tout effacer, énergie totale +11), E03 (défense + résolution, PV
+  conformes I1/I2).
+- **Smoke L0** : ✅ inchangé.
+
+### Anomalies
+
+- E2E : frappes Puppeteer à cadence 0 avalées par le navigateur → saisies à
+  `{ delay: 40 }` (fiabilisé) ; contamination de la saisie partagée entre calculs
+  après une erreur validée → règle « changer de cible efface la saisie ».
+- Chevauchements d'affichage successifs (libellés PV, énergie, boutons) corrigés
+  et vérifiés par capture à chaque itération.
+
+### Prochaine étape
+
+- Jalon **J5** : assets cut-out (`docs/assets.md`), aura Dragon Ball, frappe
+  graduée, défense/contre animées, HUD complet, sons.
