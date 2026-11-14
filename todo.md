@@ -5,14 +5,23 @@ Une case ne se coche que si : code produit + tests verts + entrée dans `journal
 
 ## État actuel
 
-**Jalon J5 — présentation : EN COURS (1ʳᵉ moitié + refonte d'aura livrée ✅)** —
-arène + sprites cut-out intégrés, **aura « Dragon Ball » à 2 couches** (langue
-colorée + noyau blanc, textures générées, teinte CPU, 4 paliers, contraste WCAG
-≥ 3:1 mesuré), impulsions, frappe graduée (élan, recul, secousse, flash, dégâts
-flottants), K.O. animé, clics pavé/VALIDER corrigés.
-Vérifications : 49 tests ✅, couverture 100 % ✅, E2E 6/6 ✅, S01→S11 ✅, smoke ✅.
-Prochaine étape : **fin de J5** (sons, particules, ralenti tier 4, parade +
-contre dédiées, journal de combat, captures E04/E05).
+**Jalon J6 — étape 1 « le duel (mode 2 joueurs) » : LIVRÉE ✅** —
+`CONFIG.mode: 'solo' | 'duel'`, **une seule classe `Numpad`/`QuizOverlay` instanciée
+deux fois** (J1 = ligne de chiffres, J2 = pavé numérique, `event.code` strictement
+disjoints), helpers `joueurDe` / `naturePourJoueur` / `estHumain` / `zoneDe`,
+chrono = `tempsPhase` pour **les deux** joueurs en duel, libellés mode-aware
+(`'IA'` → `'J2'`), hooks debug `mode` / `setMode` / `setRythme` / `libelles` /
+`questionsHumain(joueur)` / `saisie(joueur)`.
+Vérifications : typecheck ✅ · Vitest **60/60** ✅ · couverture **100 %** (158/158,
+103/103 branches) ✅ · scénarios **12/12** ✅ · smoke L0 ✅ · E2E **17/17** ✅
+(nouveau cas **E08a→E08g**, capture `e2e-08-duel.png`).
+Prochaine étape J6 : **accès à l'écran CONFIG** (choix du mode + rythme depuis le
+menu) — le cœur du duel est jouable, mais pas encore sélectionnable dans l'UI.
+
+**Rappel J5 (présentation)** : arène + sprites cut-out, aura « Dragon Ball » à
+2 couches (4 paliers, contraste WCAG ≥ 3:1), frappe graduée, K.O. animé —
+J5 reste ouvert sur : sons, particules, ralenti tier 4, parade + contre dédiées,
+journal de combat, captures E04/E05 (E04/E05 sont désormais verts en E2E).
 
 ## Planification (ordre et dépendances)
 
@@ -104,10 +113,21 @@ J6 (contenu complet) ; J8 clôt.
 
 - [ ] **Refonte des planches en 3/4 de face, rendu type Mortal Kombat / Street Fighter** — demande utilisateur, direction `docs/assets.md` §2a
 - [x] **Coups de poing et de pied animés** — demande utilisateur : **rig cut-out articulé** livré (`scripts/assets-rig.py` → 5 pièces par perso, pivots épaule/hanche, bandes de recouvrement) : poing, pied haut/bas, garde haute/basse, **contre avec saut + coup de pied**, flash d'impact à la hauteur du coup — angles/durées dans `config.ts` (`rig`), recettes `docs/assets.md` §3a ; validé par sonde rAF (`tmp/anim-probe.mjs` : 92/36/85/−140/150°) + E2E 9/9
-- [ ] Mode 2 joueurs (même écran, tour par tour)
+- [~] **Mode 2 joueurs (même écran, tour par tour)** — **cœur livré et testé** :
+      `CONFIG.mode`, une console par joueur (touches physiques disjointes), rôles
+      alternés, chrono unique, libellés J2, E2E **E08a→E08g** vert. **Reste** :
+      rendre le mode **choisissable depuis l'écran CONFIG** (et non plus par hook
+      debug) — dépend de l'écran CONFIG ci-dessous.
 - [ ] Écran de lancement rétro (bouton **RUN** clignotant au-dessus, **CONFIG** au-dessous, style borne d'arcade)
 - [ ] Écran CONFIG des règles (commandes ◀ ▶ rétro) : mode, tempo (durée unique attaque = défense : Rapide 10 s, Normal 15 s, Long 25 s + curseur borné 5–60 s), rythme de calcul (Différé/Simultané), PV, niveau, difficulté IA
 - [ ] Sélection de personnage + menu principal + choix de niveau
+- [ ] **Classe `Personnage` — interface unique + skins** (détail `docs/architecture.md` §9) :
+      une seule classe pour J1/J2, orientation en **état** (`gauche`/`droite`), coups
+      nommés (`coupDePoing('direct'|'uppercut'|'crochet')`, `coupDePied('haut'|'bas')`,
+      `saut`, `garde…`), skin = **descripteur de données** (pièces + pivots +
+      profondeurs + teintes) → changer d'habillage = changer de descripteur, aucun
+      code dupliqué ; héritage réservé à un skin à **comportement** propre.
+      Prérequis de la sélection de personnage ; déplace ~12 méthodes hors `FightScene`.
 - [ ] Best-of-3 manches (option, voir J8)
 
 ### J7 — APK

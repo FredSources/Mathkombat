@@ -1,11 +1,14 @@
 /**
- * FightScene — boucle de combat jouable (jalons J4).
+ * FightScene — boucle de combat jouable (jalons J4/J6).
  *
- * Solo vs IA (J6 ajoutera le 2 joueurs) :
+ * Solo vs IA ou DUEL 2 joueurs (§2.6) :
  *  - tours alternés (§2.1), rythmes DIFFÉRÉ / SIMULTANÉ selon la config (I15) ;
  *  - 3 calculs simultanés + clavier numérique dans la zone du joueur actif
  *    (§2.2/§2.3/§2.7) ; seul le calcul résolu est remplacé ; erreur = le calcul
  *    reste (I4, I12) ;
+ *  - duel : chaque joueur a sa zone et son clavier (J1 = ligne de chiffres,
+ *    J2 = pavé numérique) ; aucune phase n'appartient à l'IA, le chrono est
+ *    toujours la durée de phase configurée (§2.6) ;
  *  - l'IA joue ses phases sur la durée configurée, énergie progressive (§2.6) ;
  *  - résolution : solde = attaque − défense → dégâts ou CONTRE-ATTAQUE (§2.4),
  *    barres de vie animées, K.O. (I5) ;
@@ -15,7 +18,7 @@
  */
 import Phaser from 'phaser';
 import { CONFIG, coupPourTier } from '../core/config.ts';
-import type { ConfigJeu, Coup, Difficulte } from '../core/config.ts';
+import type { ConfigJeu, Coup, Difficulte, ModeJeu, Rythme } from '../core/config.ts';
 import {
   CombatEngine,
   PhaseCalcul,
@@ -25,7 +28,7 @@ import {
 import type { ResultatTour, Tour, TraceEvent } from '../core/combat-engine.ts';
 import { AiController } from '../core/ai-controller.ts';
 import { getLogger } from '../core/logger';
-import { Numpad, TOUCHES_J1 } from '../ui/numpad.ts';
+import { Numpad, TOUCHES_J1, TOUCHES_J2 } from '../ui/numpad.ts';
 import { QuizOverlay } from '../ui/quiz-overlay.ts';
 
 declare const __BUILD_MODE__: string | undefined;
@@ -113,6 +116,8 @@ function etatRig(c: Combattant): { saut: number; angles: Record<string, number> 
 
 interface Combattant {
   nom: string;
+  /** Étiquette de nom sous le personnage (libellé J1 / IA / J2). */
+  etiquette: Phaser.GameObjects.Text;
   corps: Phaser.GameObjects.Container;
   /** Conteneur des flammes (fusion ADD) : alpha = palier, échelle = intensité. */
   aura: Phaser.GameObjects.Container;
@@ -173,6 +178,7 @@ export class FightScene extends Phaser.Scene {
   private quizJ1!: QuizOverlay;
   private quizJ2!: QuizOverlay;
   private numpadJ1!: Numpad;
+  private numpadJ2!: Numpad;
 
   /** Énergie progressive affichée pour l'IA (accumulation visuelle, §2.6). */
   private progressionIA = 0;
@@ -185,26 +191,37 @@ export class FightScene extends Phaser.Scene {
 
   create(): void {
     this.dessinerArene();
-    this.j1 = this.creerCombattant('J1', 360, 0x3f7fe0, 'persoA');
-    this.j2 = this.creerCombattant('IA', 920, 0xd4433a, 'persoB');
+    this.j1 = this.creerCombattant(FightScene.nomJoueur('j1'), 360, 0x3f7fe0, 'persoA');
+    this.j2 = this.creerCombattant(FightScene.nomJoueur('j2'), 920, 0xd4433a, 'persoB');
     this.dessinerHud();
 
     this.quizJ1 = new QuizOverlay(this, 40, 130, 'gauche', (d) =>
       this.numpadJ1.setCible(d)
     );
-    this.quizJ2 = new QuizOverlay(this, LARGEUR - 40, 130, 'droite');
+    this.quizJ2 = new QuizOverlay(this, LARGEUR - 40, 130, 'droite', (d) =>
+      this.numpadJ2.setCible(d)
+    );
     this.numpadJ1 = new Numpad({
       scene: this,
       x: 40,
       y: 250,
       alignement: 'gauche',
-      onValider: (d) => this.onValiderSaisie(d),
+      onValider: (d) => this.onValiderSaisie('j1', d),
       touches: TOUCHES_J1,
+    });
+    this.numpadJ2 = new Numpad({
+      scene: this,
+      x: LARGEUR - 40,
+      y: 250,
+      alignement: 'droite',
+      onValider: (d) => this.onValiderSaisie('j2', d),
+      touches: TOUCHES_J2,
     });
 
     this.quizJ1.setActif(false);
     this.quizJ2.setActif(false);
     this.numpadJ1.setActif(false);
+    this.numpadJ2.setActif(false);
 
     if (this.input.keyboard) {
       this.input.keyboard.on('keydown-R', () => {
@@ -378,6 +395,7 @@ export class FightScene extends Phaser.Scene {
 
     return {
       nom,
+      etiquette,
       corps: conteneur,
       aura,
       ombre,
@@ -522,9 +540,9 @@ export class FightScene extends Phaser.Scene {
     this.mettreAJourHud();
   }
 
-  /** Libellé court d'un joueur (HUD et journal). */
+  /** Libellé court d'un joueur (HUD et journal) : 'IA' en solo, 'J2' en duel. */
   private static nomJoueur(id: 'j1' | 'j2'): string {
-    return id === 'j1' ? 'J1' : 'IA';
+    return id === 'j1' ? 'J1' : CONFIG.mode === 'duel' ? 'J2' : 'IA';
   }
 
   /** Ajoute un événement en tête du journal (5 derniers maximum, §2.7). */
@@ -537,7 +555,7 @@ export class FightScene extends Phaser.Scene {
   private mettreAJourScore(): void {
     const numero = this.manches.j1 + this.manches.j2 + 1;
     this.texteScore.setText(
-      `Manche ${numero}  ·  J1 ${this.manches.j1} – ${this.manches.j2} IA`
+      `Manche ${numero}  ·  J1 ${this.manches.j1} – ${this.manches.j2} ${FightScene.nomJoueur('j2')}`
     );
   }
 
@@ -556,7 +574,7 @@ export class FightScene extends Phaser.Scene {
       const ratio = Math.max(0, valeur / CONFIG.pvMax);
       barre.fillStyle(ratio > 0.5 ? 0x43c96a : ratio > 0.25 ? 0xe0a63c : 0xd94848, 1);
       barre.fillRoundedRect(x, 22, largeur * ratio, 22, 8);
-      texte.setText(`${joueur === 'j1' ? 'J1' : 'IA'} — ${valeur} PV`);
+      texte.setText(`${FightScene.nomJoueur(joueur)} — ${valeur} PV`);
     }
     this.texteChrono.setText(`⏱ ${this.chronoRestant}`);
   }
@@ -598,6 +616,11 @@ export class FightScene extends Phaser.Scene {
     }
     this.j1.palier = -1;
     this.j2.palier = -1;
+    // libellés du mode courant (solo = IA, duel = J2) : étiquette et score
+    const nomJ2 = FightScene.nomJoueur('j2');
+    this.j2.nom = nomJ2;
+    this.j2.etiquette.setText(nomJ2);
+    this.mettreAJourScore();
     this.demarrerTour();
   }
 
@@ -612,24 +635,47 @@ export class FightScene extends Phaser.Scene {
     }
   }
 
-  private humainJoue(nature: 'attaque' | 'defense'): boolean {
+  /** Joueur qui possède cette nature de phase (attaquant = ×, défenseur = ÷). */
+  private joueurDe(nature: 'attaque' | 'defense'): 'j1' | 'j2' {
     const tour = this.tourCourant!;
-    return nature === 'attaque' ? tour.attaquant === 'j1' : tour.defenseur === 'j1';
+    return nature === 'attaque' ? tour.attaquant : tour.defenseur;
   }
 
   private phasePour(nature: 'attaque' | 'defense'): PhaseCalcul {
     return nature === 'attaque' ? this.tourCourant!.phaseAttaque : this.tourCourant!.phaseDefense;
   }
 
+  /** Un joueur est humain : toujours en duel, J1 seul en solo (§2.6). */
+  private estHumain(joueur: 'j1' | 'j2'): boolean {
+    return CONFIG.mode === 'duel' || joueur === 'j1';
+  }
+
+  /** Nature jouée par CE joueur, ou null s'il n'est pas en jeu pendant cette phase. */
+  private naturePourJoueur(joueur: 'j1' | 'j2'): 'attaque' | 'defense' | null {
+    if (!this.naturePhase || !this.tourCourant) return null;
+    if (this.naturePhase === 'simultane') {
+      return this.joueurDe('attaque') === joueur ? 'attaque' : 'defense';
+    }
+    return this.joueurDe(this.naturePhase) === joueur ? this.naturePhase : null;
+  }
+
+  /** Éteint les deux zones (quiz + clavier) — avant d'activer les joueurs en jeu. */
+  private eteindreZones(): void {
+    this.quizJ1.setActif(false);
+    this.quizJ2.setActif(false);
+    this.numpadJ1.setActif(false);
+    this.numpadJ2.setActif(false);
+  }
+
   /** Phase unique partagée (rythme SIMULTANÉ, I15) : un seul chrono. */
   private lancerPhaseUnique(): void {
     this.naturePhase = 'simultane';
-    const humainAttaque = this.humainJoue('attaque');
-    const natureHumain = humainAttaque ? 'attaque' : 'defense';
-    const natureIA = humainAttaque ? 'defense' : 'attaque';
-
-    this.preparerHumain(natureHumain);
-    this.preparerIA(natureIA);
+    this.eteindreZones();
+    for (const nature of ['attaque', 'defense'] as const) {
+      const joueur = this.joueurDe(nature);
+      if (this.estHumain(joueur)) this.preparerJoueur(joueur, nature);
+      else this.preparerIA(nature);
+    }
     this.textePhase.setText('ATTAQUE ×  /  DÉFENSE ÷   (même chrono)');
     this.demarrerMinuteur(this.tempsPhase);
   }
@@ -637,38 +683,54 @@ export class FightScene extends Phaser.Scene {
   /** Phases enchaînées (rythme DIFFÉRÉ, I15) ; phase IA = chrono immédiat (§2.6). */
   private lancerPhase(nature: 'attaque' | 'defense'): void {
     this.naturePhase = nature;
-    const humain = this.humainJoue(nature);
-    if (humain) {
-      this.preparerHumain(nature);
+    this.eteindreZones();
+    const joueur = this.joueurDe(nature);
+    if (this.estHumain(joueur)) {
+      this.preparerJoueur(joueur, nature);
     } else {
       this.preparerIA(nature);
     }
     this.textePhase.setText(
       nature === 'attaque' ? 'PHASE ATTAQUE ×' : 'PHASE DÉFENSE ÷'
     );
-    // chrono immédiat pour l'IA : score déjà calculé, l'humain n'attend pas
-    this.demarrerMinuteur(humain ? this.tempsPhase : CONFIG.ia.dureeChronoIA);
+    // chrono immédiat pour l'IA (solo) : score déjà calculé, l'humain n'attend
+    // pas — en duel, les deux joueurs sont humains : toujours tempsPhase
+    this.demarrerMinuteur(this.estHumain(joueur) ? this.tempsPhase : CONFIG.ia.dureeChronoIA);
   }
 
-  private preparerHumain(nature: 'attaque' | 'defense'): void {
+  /**
+   * Les 3 objets de la **zone** d'un joueur (quiz + clavier + combattant) —
+   * **un seul point d'accès par joueur**. `Numpad` et `QuizOverlay` sont une
+   * seule classe instanciée deux fois (J1 / J2) : la logique n'est jamais
+   * dupliquée par joueur, seul le réglage (`touches`, `alignement`) change.
+   */
+  private zoneDe(joueur: 'j1' | 'j2'): {
+    quiz: QuizOverlay;
+    numpad: Numpad;
+    combattant: Combattant;
+  } {
+    return joueur === 'j1'
+      ? { quiz: this.quizJ1, numpad: this.numpadJ1, combattant: this.j1 }
+      : { quiz: this.quizJ2, numpad: this.numpadJ2, combattant: this.j2 };
+  }
+
+  /** Active la zone d'un joueur humain et remplit ses 3 calculs (§2.2/§2.3). */
+  private preparerJoueur(joueur: 'j1' | 'j2', nature: 'attaque' | 'defense'): void {
     const phase = this.phasePour(nature);
-    this.quizJ1.setActif(true);
-    this.numpadJ1.setActif(true);
-    this.quizJ2.setActif(false);
+    const { quiz, numpad } = this.zoneDe(joueur);
+    quiz.setActif(true);
+    numpad.setActif(true);
     for (const d of DIFFICULTES) {
       const q = phase.question(d);
-      this.quizJ1.mettreAJour({ difficulte: d, enonce: q.enonce, gain: q.gain });
+      quiz.mettreAJour({ difficulte: d, enonce: q.enonce, gain: q.gain });
     }
-    this.numpadJ1.reset();
-    this.numpadJ1.setCible(this.quizJ1.focus);
+    numpad.reset();
+    numpad.setCible(quiz.focus);
     this.mettreAJourEnergies();
   }
 
   private preparerIA(nature: 'attaque' | 'defense'): void {
     const phase = this.phasePour(nature);
-    this.quizJ1.setActif(false);
-    this.numpadJ1.setActif(false);
-    this.quizJ2.setActif(false);
     this.quizJ2.afficherMessage(
       nature === 'attaque' ? "L'IA attaque…" : "L'IA défend…",
       '#9fd0ff'
@@ -721,9 +783,7 @@ export class FightScene extends Phaser.Scene {
   }
 
   private resoudreEtContinuer(): void {
-    this.quizJ1.setActif(false);
-    this.quizJ2.setActif(false);
-    this.numpadJ1.setActif(false);
+    this.eteindreZones();
     this.progressionIA = 0;
 
     const resultat = this.engine.resoudreTour(this.tourCourant!);
@@ -971,7 +1031,7 @@ export class FightScene extends Phaser.Scene {
       duration: 120,
       yoyo: true,
       onComplete: () => {
-        // la riposte part vers l'attaquant : J1 fait face à droite, l'IA à gauche
+        // la riposte part vers l'attaquant : J1 fait face à droite, l'adversaire à gauche
         const droite = attaquant.corps.x > riposte.corps.x;
         this.sauter(riposte);
         this.animerCoup(riposte, 'pied-haut', droite, CONFIG.rig.angles.contrePied);
@@ -1116,7 +1176,8 @@ export class FightScene extends Phaser.Scene {
   private finDeCombat(): void {
     const gagnant = this.engine.etat.gagnant;
     if (!gagnant) return; // un K.O. est toujours assorti d'un gagnant
-    const libelle = gagnant === 'j1' ? 'JOUEUR 1' : 'IA / JOUEUR 2';
+    const libelle =
+      gagnant === 'j1' ? 'JOUEUR 1' : CONFIG.mode === 'duel' ? 'JOUEUR 2' : 'IA / JOUEUR 2';
     // K.O. : flash + chute animée du perdant (§2.8d)
     this.cameras.main.flash(240, 255, 255, 255);
     const perdant = gagnant === 'j1' ? this.j2 : this.j1;
@@ -1138,39 +1199,36 @@ export class FightScene extends Phaser.Scene {
 
   // ============================================================== saisie du joueur
 
-  private onValiderSaisie(difficulte: Difficulte): boolean {
-    const valeur = this.numpadJ1.valeur;
+  private onValiderSaisie(joueur: 'j1' | 'j2', difficulte: Difficulte): boolean {
+    const { quiz, numpad, combattant } = this.zoneDe(joueur);
+    const valeur = numpad.valeur;
     if (valeur === null) return false; // saisie vide = ignorée (§2.7)
-    if (!this.tourCourant || !this.naturePhase) return false;
+    const nature = this.naturePourJoueur(joueur);
+    if (!nature) return false; // ce joueur n'est pas en jeu pendant cette phase
 
-    const nature =
-      this.naturePhase === 'simultane'
-        ? this.humainJoue('attaque')
-          ? 'attaque'
-          : 'defense'
-        : this.naturePhase;
     const phase = this.phasePour(nature);
+    const zone = joueur.toUpperCase(); // 'J1' | 'J2'
 
-    log.info('ui.saisie', { zone: 'J1', difficulte, valeur });
-    log.info('ui.validation', { zone: 'J1', difficulte, valeur });
+    log.info('ui.saisie', { zone, difficulte, valeur });
+    log.info('ui.validation', { zone, difficulte, valeur });
     const resultat = phase.resoudre(difficulte, valeur);
 
     if (resultat.correct) {
       const q = phase.question(difficulte);
-      this.quizJ1.mettreAJour({ difficulte, enonce: q.enonce, gain: q.gain });
-      this.numpadJ1.reset();
-      this.impulsionAura(this.j1, q.gain); // impulsion d'aura (§2.8a)
-      this.noterJournal(`${FightScene.nomJoueur('j1')} : juste (+${q.gain})`);
+      quiz.mettreAJour({ difficulte, enonce: q.enonce, gain: q.gain });
+      numpad.reset();
+      this.impulsionAura(combattant, q.gain); // impulsion d'aura (§2.8a)
+      this.noterJournal(`${FightScene.nomJoueur(joueur)} : juste (+${q.gain})`);
       this.jouerSon('reussite');
     } else {
-      this.quizJ1.erreur(difficulte);
-      this.numpadJ1.reset(); // la saisie est vidée après validation, juste ou non
-      this.noterJournal(`${FightScene.nomJoueur('j1')} : erreur`);
+      quiz.erreur(difficulte);
+      numpad.reset(); // la saisie est vidée après validation, juste ou non
+      this.noterJournal(`${FightScene.nomJoueur(joueur)} : erreur`);
       this.jouerSon('erreur');
       // micro-animation de gêne : l'aura reste à son niveau (§2.8a)
       // (échelle du conteneur = 0.62 : écrasement léger, le yoyo restaure)
       this.tweens.add({
-        targets: this.j1.corps,
+        targets: combattant.corps,
         scaleX: 0.64,
         scaleY: 0.6,
         duration: 70,
@@ -1185,13 +1243,14 @@ export class FightScene extends Phaser.Scene {
     if (!this.tourCourant) return;
     const tour = this.tourCourant;
     const phaseJ1 = tour.attaquant === 'j1' ? tour.phaseAttaque : tour.phaseDefense;
-    const phaseIA = tour.attaquant === 'j1' ? tour.phaseDefense : tour.phaseAttaque;
+    const phaseJ2 = tour.attaquant === 'j1' ? tour.phaseDefense : tour.phaseAttaque;
     this.texteEnergie1.setText(`énergie J1 : +${phaseJ1.energie()}`);
-    const afficheIA = this.iaEnCours ? this.progressionIA : phaseIA.energie();
-    this.texteEnergie2.setText(`énergie IA : +${afficheIA}`);
+    // en solo, l'IA révèle son score progressivement (§2.6) ; en duel, J2 joue réellement
+    const afficheJ2 = this.iaEnCours ? this.progressionIA : phaseJ2.energie();
+    this.texteEnergie2.setText(`énergie ${FightScene.nomJoueur('j2')} : +${afficheJ2}`);
     // auras en temps réel (§2.8a) — intensité = palier de l'énergie courante
     this.majAura(this.j1, phaseJ1.energie());
-    this.majAura(this.j2, afficheIA);
+    this.majAura(this.j2, afficheJ2);
   }
 
   // ============================================================== hook debug (DEBUG)
@@ -1208,6 +1267,7 @@ export class FightScene extends Phaser.Scene {
         fini: scene.engine.etat.fini,
         gagnant: scene.engine.etat.gagnant,
         rythme: scene.engine.etat.rythme,
+        mode: CONFIG.mode,
         phase: scene.naturePhase,
         chrono: scene.chronoRestant,
         energieAttaque: scene.tourCourant?.phaseAttaque.energie() ?? 0,
@@ -1215,13 +1275,9 @@ export class FightScene extends Phaser.Scene {
         tierAttaque: tierFrappe(scene.tourCourant?.phaseAttaque.energie() ?? 0),
         palierAura: palierAura(scene.tourCourant?.phaseAttaque.energie() ?? 0),
       }),
-      questionsHumain: () => {
-        const nature =
-          scene.naturePhase === 'simultane'
-            ? scene.humainJoue('attaque')
-              ? 'attaque'
-              : 'defense'
-            : scene.naturePhase;
+      // questions du joueur demandé (défaut J1) — phase où il est en jeu
+      questionsHumain: (joueur: 'j1' | 'j2' = 'j1') => {
+        const nature = scene.naturePourJoueur(joueur);
         if (!nature || !scene.tourCourant) return [];
         const phase = scene.phasePour(nature);
         return DIFFICULTES.map((d) => ({
@@ -1235,7 +1291,26 @@ export class FightScene extends Phaser.Scene {
         scene.tempsPhase = Math.max(2, Math.min(60, secondes));
       },
       forceFinDePhase: () => scene.finDePhase(),
-      saisie: () => scene.numpadJ1.etatSaisie(),
+      // saisie de la console demandée (défaut J1)
+      saisie: (joueur: 'j1' | 'j2' = 'j1') => scene.zoneDe(joueur).numpad.etatSaisie(),
+      // mode de jeu (§2.6) : lecture + bascule relançant le combat (E08)
+      mode: () => CONFIG.mode,
+      setMode: (mode: ModeJeu) => {
+        CONFIG.mode = mode === 'duel' ? 'duel' : 'solo';
+        scene.lancerCombat();
+      },
+      setRythme: (rythme: Rythme) => {
+        CONFIG.rythme = rythme === 'simultane' ? 'simultane' : 'differe';
+        scene.lancerCombat();
+      },
+      // libellés affichés (PV, énergie, score) — vérifie les libellés J1/J2/IA
+      libelles: () => ({
+        pv1: scene.textePv1.text,
+        pv2: scene.textePv2.text,
+        energie1: scene.texteEnergie1.text,
+        energie2: scene.texteEnergie2.text,
+        score: scene.texteScore.text,
+      }),
       aura: () => ({
         j1: { alpha: scene.j1.aura.alpha, palier: scene.j1.palier, visible: scene.j1.aura.visible },
         j2: { alpha: scene.j2.aura.alpha, palier: scene.j2.palier, visible: scene.j2.aura.visible },

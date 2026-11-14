@@ -10,7 +10,11 @@
  *    une validation.
  *
  * Chaque joueur a SON clavier (aligné vers l'extérieur : J1 à gauche, J2 à
- * droite). Touches physiques mappées pour la version web de debug.
+ * droite). Touches physiques mappées pour la version web de debug, identifiées
+ * par `event.code` (position physique, indépendante du clavier) : **les deux
+ * consoles peuvent être actives en même temps** (duel, rythme SIMULTANÉ) —
+ * J1 = ligne de chiffres principale, J2 = pavé numérique (NumLock activé) —
+ * et aucune frappe n'atteint jamais les deux à la fois.
  */
 import Phaser from 'phaser';
 import type { Difficulte } from '../core/config.ts';
@@ -18,18 +22,45 @@ import { CONFIG } from '../core/config.ts';
 
 export type Alignement = 'gauche' | 'droite';
 
+/**
+ * Touches physiques d'une console (web debug), en `event.code` DOM :
+ * les deux jeux sont disjoints, c'est la garantie d'isolation en duel.
+ */
 export interface TouchePhysique {
-  chiffres: string[]; // noms de touches Phaser ('ZERO'..'NINE')
-  valider: string; // 'ENTER'
-  effacer: string; // 'BACKSPACE'
-  toutEffacer: string; // 'ESC'
+  /** `event.code` des 10 chiffres rangés 0→9 ('Digit0'..'Digit9' / 'Numpad0'..'Numpad9'). */
+  chiffres: string[];
+  /** `event.code` de la validation ('Enter' / 'NumpadEnter'). */
+  valider: string;
+  /** `event.code` de ⌫ Effacer — un seul chiffre. */
+  effacer: string;
+  /** `event.code` de C Tout effacer. */
+  toutEffacer: string;
 }
 
+/** J1 : ligne de chiffres principale du clavier (§2.7). */
 export const TOUCHES_J1: TouchePhysique = {
-  chiffres: ['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'],
-  valider: 'ENTER',
-  effacer: 'BACKSPACE',
-  toutEffacer: 'ESC',
+  chiffres: [
+    'Digit0', 'Digit1', 'Digit2', 'Digit3', 'Digit4',
+    'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
+  ],
+  valider: 'Enter',
+  effacer: 'Backspace',
+  toutEffacer: 'Escape',
+};
+
+/**
+ * J2 : pavé numérique (NumLock activé) — tout est sous la main droite.
+ * ⌫ = touche décimale (sous les chiffres, dégât d'une frappe parasite nul) ;
+ * C = Delete (hors grappe, au-dessus du pavé : impossible à viser par erreur).
+ */
+export const TOUCHES_J2: TouchePhysique = {
+  chiffres: [
+    'Numpad0', 'Numpad1', 'Numpad2', 'Numpad3', 'Numpad4',
+    'Numpad5', 'Numpad6', 'Numpad7', 'Numpad8', 'Numpad9',
+  ],
+  valider: 'NumpadEnter',
+  effacer: 'NumpadDecimal',
+  toutEffacer: 'Delete',
 };
 
 const COULEURS_BOUTONS: Record<Difficulte, number> = {
@@ -62,7 +93,9 @@ export class Numpad {
   private saisie = '';
   private cible: Difficulte = 'facile';
   private actif = true;
-  private touchesClavier: Phaser.Input.Keyboard.Key[] = [];
+  /** Clavier de la scène et handler installés (retirés par `detruire()`). */
+  private clavier: Phaser.Input.Keyboard.KeyboardPlugin | null = null;
+  private onKeydown: ((event: KeyboardEvent) => void) | null = null;
 
   constructor(options: OptionsNumpad) {
     this.onValider = options.onValider;
@@ -133,28 +166,28 @@ export class Numpad {
       bouton.on('pointerdown', () => this.validerPour(difficulte));
     }
 
-    // ---- touches physiques (debug web)
+    // ---- touches physiques (debug web) : filtrées par `event.code` — chaque
+    // console ne réagit qu'à SES touches, les deux joueurs coexistent (duel).
+    // Pas de capture Phaser (`addKey`) : la page n'a aucun champ de saisie HTML
+    // dont le navigateur aurait une action par défaut à neutraliser.
     if (options.touches && scene.input.keyboard) {
       const t = options.touches;
-      const codes = Phaser.Input.Keyboard.KeyCodes as unknown as Record<string, number>;
-      for (let i = 0; i <= 9; i++) {
-        this.touchesClavier.push(scene.input.keyboard.addKey(codes[t.chiffres[i]]));
-      }
-      this.touchesClavier.push(
-        scene.input.keyboard.addKey(codes[t.valider]),
-        scene.input.keyboard.addKey(codes[t.effacer]),
-        scene.input.keyboard.addKey(codes[t.toutEffacer])
-      );
-      scene.input.keyboard.on('keydown', (event: KeyboardEvent) => {
-        if (!this.actif) return;
-        if (event.key >= '0' && event.key <= '9') this.appuyer(event.key);
-        else if (event.key === 'Enter') this.validerPour(this.cible);
-        else if (event.key === 'Backspace') this.appuyer('⌫');
-        else if (event.key === 'Escape') this.appuyer('C');
-      });
+      this.clavier = scene.input.keyboard;
+      this.onKeydown = (event: KeyboardEvent) => this.recevoirTouche(t, event);
+      this.clavier.on('keydown', this.onKeydown);
     }
 
     this.majSaisie();
+  }
+
+  /** Une frappe physique : ignorée s'il n'appartient pas à CE clavier. */
+  private recevoirTouche(t: TouchePhysique, event: KeyboardEvent): void {
+    if (!this.actif) return;
+    const chiffre = t.chiffres.indexOf(event.code);
+    if (chiffre !== -1) this.appuyer(String(chiffre)); // 'Digit3'/'Numpad3' → '3'
+    else if (event.code === t.valider) this.validerPour(this.cible);
+    else if (event.code === t.effacer) this.appuyer('⌫');
+    else if (event.code === t.toutEffacer) this.appuyer('C');
   }
 
   private creerBouton(
@@ -244,7 +277,9 @@ export class Numpad {
   }
 
   detruire(): void {
-    for (const touche of this.touchesClavier) touche.destroy();
+    if (this.clavier && this.onKeydown) this.clavier.off('keydown', this.onKeydown);
+    this.clavier = null;
+    this.onKeydown = null;
     this.conteneur.destroy(true);
   }
 }

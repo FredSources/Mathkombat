@@ -82,6 +82,7 @@ Parcours Puppeteer (chromium headless, config `pptr.json` de l'environnement) :
 | E05 | K.O. et score de manche | forcer l'énergie d'attaque = défense + PV max, résoudre le tour | `fini` = true, gagnant J1, score de manche 1–0, bannière K.O. conservée + capture `e2e-05-ko.png` (I5) |
 | E06 | Tempo configurable | choisir un preset (Rapide 10 s) dans l'écran CONFIG puis lancer une phase | la phase respecte la durée configurée, attaque et défense identiques (logs `combat.phase` + HUD timer) |
 | E07 | Rythme de calcul | sélectionner SIMULTANÉ dans CONFIG puis jouer un tour | les deux zones actives sur le **même chrono**, résolution commune (I15) |
+| E08 | **Mode DUEL (2 joueurs)** — `a`→`g` | bascule de mode ; J1 résout facile+moyen ; frappe du pavé pendant la phase de J1 ; phase de défense ciblée par J2 ; pavé J2 (⌫ décimale, C `Delete`, chiffres + `NumpadEnter`) ; résolution ; bascule SIMULTANÉ puis frappes `Digit5` / `Numpad7` | libellés **J2** (PV, énergie, score), énergies 4 puis 3, solde = 1 dégât sur J2, **isolation stricte des deux consoles dans les deux sens**, saisies vidées après validation + capture `e2e-08-duel.png` |
 
 ## 6. Procédure de pilotage agent
 

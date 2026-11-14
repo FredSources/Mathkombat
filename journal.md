@@ -1257,3 +1257,100 @@ Trouvées par le smoke test L0 puis corrigées (le smoke test en est le test de 
 - **J6** : refonte des planches en **3/4 de face** (MK/SF), puis mode 2 joueurs,
   écrans RUN/CONFIG et sélection de personnage. (Les coups de poing/pied animés,
   gardes et contre sont **livrés** en ce 2026-11-14.)
+
+---
+
+## 2026-11-14 — Jalon J6 (étape 1) — Le duel : mode 2 joueurs + clavier par joueur
+
+### Produits
+
+| Fichier | Rôle |
+|---------|------|
+| `game/src/core/config.ts` | Type `ModeJeu = 'solo' \| 'duel'`, champ **`mode`** dans `ConfigJeu`, défaut `'solo'` |
+| `game/src/ui/numpad.ts` | **`TOUCHES_J1` / `TOUCHES_J2` en `event.code`** (position physique) ; champs `clavier` / `onKeydown` ; `recevoirTouche()` (indexOf des chiffres → digit) ; `detruire()` détache le listener. **Suppression de `addKey`/capture Phaser** — plus aucune référence `touchesClavier` |
+| `game/src/scenes/FightScene.ts` | Mode duel : `numpadJ2` (x = `LARGEUR-40`, aligné à droite, `onValiderSaisie('j2')`), `quizJ2.onCible` ; helpers `joueurDe` / `phasePour` / `estHumain` / `naturePourJoueur` / `eteindreZones` / **`zoneDe`** ; `lancerPhaseUnique` / `lancerPhase` réécrits en boucle **attaquant + défenseur** (chrono selon `estHumain`) ; `preparerJoueur(joueur, nature)` remplace `preparerHumain` ; `resoudreEtContinuer` → `eteindreZones()` ; `finDeCombat` libellé `'JOUEUR 2'` en duel ; `onValiderSaisie(joueur, difficulte)` (quiz/numpad/combattant/journal/log `zone` par joueur) ; `nomJoueur` statique mode-aware (`'IA'` → `'J2'`) ; étiquette du combattant ajoutée au type `Combattant` et rafraîchie dans `lancerCombat` ; hooks `mode` / `setMode` / `setRythme` / `libelles` / `questionsHumain(joueur)` / `saisie(joueur)` |
+| `game/tests/config.test.ts` | +2 tests mode (défaut `'solo'`, `duel` sans casser les autres réglages) |
+| `scripts/e2e.mjs` | En-tête E01→E05 **+ E08** ; helper `questionsDe(joueur)` ; **corps E08a→E08g** ; `e2e-08-duel.png` ajouté aux captures du rapport |
+| `docs/test-plan.md` | Ligne **E08** (E06/E07 restent réservés à l'écran CONFIG — pas de renumérotation) |
+| `docs/wireframes.md` | Bullet « touches physiques mappées » : J1 = ligne de chiffres, J2 = pavé numérique, disjointes par `event.code` |
+| `AGENTS.md` | §2.7 touches J2 détaillées (pavé, décimale = ⌫, `Suppr` = C) ; §8 `E01→E05, E08` |
+| `docs/architecture.md` | **§9 « Modèle de Personnage — interface unique et skins »** (voir Décisions) |
+| `todo.md` | État actuel J6 étape 1 ; case « Mode 2 joueurs » → `[~]` ; tâche classe `Personnage` |
+
+### Décisions
+
+- **ID de test E08, pas E06** : `docs/test-plan.md` réserve déjà E06 (tempo) et
+  E07 (rythme) à l'écran CONFIG — **aucune renumérotation**, E08 = sous-cas E08a→E08g.
+- **Touches J2 sur le pavé numérique**, discriminées par **`event.code`** :
+  chiffres `Numpad0`–`Numpad9`, valider `NumpadEnter`, ⌫ = `NumpadDecimal`,
+  C = `Delete` (choisi pour éviter les frappes accidentelles : `Delete` est hors
+  grappe). J1 : `Digit0`–`Digit9`, `Enter`, `Backspace`, `Escape`.
+  **Jeux strictement disjoints = isolation garantie**, y compris en SIMULTANÉ où les
+  deux consoles sont actives en même temps.
+- **Suppression de `addKey` (capture Phaser)** — vérifié dans la source de Phaser :
+  `KeyboardManager.onKeyDown` fait `queue.push(event)` **inconditionnel** (seule
+  garde : `enabled`), l'événement en file est l'**événement natif** (`.code`
+  lisible) ; `KeyboardPlugin` émet `ANY_KEY_DOWN` (= `'keydown'`) **même sans
+  `addKey`** (condition `(!key || !repeat)`) ; `preventDefault` serait de toute
+  façon trop tardif une fois en file, et la page n'a **aucun champ HTML** dont le
+  navigateur aurait une action par défaut à neutraliser.
+- **Chrono en duel** : `tempsPhase` pour les **2** joueurs (aucun `dureeChronoIA`,
+  via `estHumain(joueur)`) — le chrono immédiat reste l'apanage de l'IA en solo.
+- **Rationalisation du clavier (note d'architecture)** : `Numpad` et `QuizOverlay`
+  sont **une seule classe instanciée deux fois** (réglages `touches` / `alignement`
+  seulement) — aucun code dupliqué par joueur. L'accès est centralisé par le helper
+  **`zoneDe(joueur)`** (quiz + clavier + combattant), qui remplace les ternaires
+  `joueur === 'j1' ? … : …` répétés en 3 endroits.
+- **Héritage `droite`/`gauche` écarté, consigné pour `Personnage`** :
+  l'orientation est un **état** (miroir d'image + table de profondeurs), pas un
+  comportement — dans le code actuel cela se résume à `base * (droite ? -1 : 1)` et
+  à `PROFONDEURS_RIG.persoB` = miroir exact de `persoA` (deux valeurs, pas deux
+  classes). Règle retenue et documentée `docs/architecture.md` §9.4 :
+  **héritage pour le comportement, données pour l'apparence (`SkinPersonnage`),
+  état pour l'orientation** ; l'héritage reste réservé à un skin à comportement
+  propre (`override coupDePoing(...)`).
+- **Race connue gérée dans E08** : le `delayedCall(1800, demarrerTour)` suivant la
+  résolution est **attendu explicitement** (`waitForFunction(tour === 2)`) avant
+  `setRythme()` — sinon double démarrage de tour.
+
+### Tests
+
+- **Batterie complète verte** : typecheck strict ✅ 0 erreur ; Vitest ✅
+  **60/60** (+2 tests mode) ; couverture **100 %**
+  (158/158 statements, 103/103 branches, 32/32 fonctions, 139/139 lines) ;
+  scénarios ✅ **12/12** (`output/reports/scenarios-2026-11-14T10-43-44.md`, 0 FAIL) ;
+  smoke L0 ✅ PASS ; **E2E ✅ 17/17** (`output/reports/e2e-2026-11-14T10-37-48.md`).
+- **E08a→E08g (nouveau cas, tous PASS)** :
+  - **E08a** bascule `setMode('duel')` → `mode=duel`, tour 1, phase `attaque`,
+    attaquant `j1`, `pv2 = "J2 — 100 PV"`, `score = "Manche 2 · J1 1 – 0 J2"` ;
+  - **E08b** J1 résout Facile + Moyen → `énergie = 4` ;
+  - **E08c** `Numpad3` pendant la phase de J1 → `J1=""` **et** `J2=""` (isolation) ;
+  - **E08d** phase `defense`, clic carte MOYEN de J2 à (970, 178) → `cible=moyen`,
+    saisie J1 intacte ;
+  - **E08e1** pavé J2 : `Numpad9` → `NumpadDecimal` → `""` ; `Numpad8` → `"8"` ;
+    `Delete` → `""` ;
+  - **E08e2** réponse MOYEN chiffre par chiffre + `NumpadEnter` → `défense=3`,
+    `J2=""`, `J1=""` ;
+  - **E08f** résolution → `PV={j1:100, j2:99}` (solde 4−3 = 1), `pv2="J2 — 99 PV"`,
+    `energie2="énergie J2 : +3"` + capture `e2e-08-duel.png` ;
+  - **E08g** SIMULTANÉ : `type('5')` → `J1="5"`, `J2=""` ; `Numpad7` → `J2="7"`,
+    `J1="5"` (**isolation bidirectionnelle**), `phase=rythme=simultane`.
+- **Non-régression** : E01→E05 toujours verts (solo vs IA inchangé).
+
+### Anomalies
+
+- `phasePour` avait été **supprimée par erreur** lors du remplacement de
+  `lancerPhaseUnique`/`lancerPhase` (le helper était réécrit sans elle) → réinséré
+  immédiatement, typecheck vert.
+- Appel `this.nomJoueur(...)` sur une méthode **statique** → corrigé en
+  `FightScene.nomJoueur(...)`.
+- Commentaire « l'IA à gauche » devenu faux en duel → neutralisé (« l'adversaire »).
+
+### Prochaine étape
+
+- **J6 étape 2** : **accès à l'écran CONFIG** pour choisir le mode (et le rythme)
+  depuis le menu — le cœur du duel est jouable et testé, mais n'est encore
+  basculable que par hook debug. Puis écrans RUN/CONFIG et sélection de personnage.
+- **Dette d'architecture planifiée** : classe **`Personnage`** (interface unique +
+  skins en données, `docs/architecture.md` §9) — prérequis de la sélection de
+  personnage ; à faire en commit à part (une intention = un commit).

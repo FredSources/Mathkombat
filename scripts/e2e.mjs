@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/e2e.mjs — tests E2E navigateur (L4, docs/test-plan.md) : E01→E05.
+ * scripts/e2e.mjs — tests E2E navigateur (L4, docs/test-plan.md) : E01→E05, E08.
  *
  * Pilote le jeu dans chromium headless (SwiftShader) via puppeteer-core :
  *  - E01 : lancement → scène de combat atteinte (capture) ;
@@ -12,7 +12,10 @@
  *  - E04 : énergie d'attaque forcée à 16 → tier 3 déterministe, impact animé
  *          (étincelles + onde de choc) et dégâts = 16 − défense (capture) ;
  *  - E05 : énergie d'attaque = défense + PV max → K.O., score de manche
- *          incrémenté pour J1 (capture).
+ *          incrémenté pour J1 (capture) ;
+ *  - E08 : mode DUEL — bascule du mode, J2 saisit sur le PAVÉ NUMÉRIQUE,
+ *          isolation des deux consoles (fichiers distincts), libellés J2,
+ *          puis rythme SIMULTANÉ : deux zones actives sans conflit de frappe.
  *
  * Usage : node scripts/e2e.mjs   (démarre le dev server si absent)
  * Sortie : code 0 = tout vert ; artefacts : output/screenshots/e2e-*.png,
@@ -84,6 +87,8 @@ async function main() {
   };
   const etat = () => page.evaluate(() => window.__mathkombat.etat());
   const questions = () => page.evaluate(() => window.__mathkombat.questionsHumain());
+  const questionsDe = (joueur) =>
+    page.evaluate((j) => window.__mathkombat.questionsHumain(j), joueur);
 
   // clic en coordonnées jeu → écran (Scale.FIT)
   async function clicJeu(x, y) {
@@ -345,6 +350,171 @@ async function main() {
         e05Journal.some((l) => l.includes('K.O.')),
       `fini=${e05Etat.fini} gagnant=${e05Etat.gagnant} PV=${JSON.stringify(e05Etat.pv)} score=${JSON.stringify(e05Score)}`
     );
+
+    // ---------------------------------------------------------- E08
+    // Mode DUEL 2 joueurs (§2.6) : bascule de mode, une console par joueur
+    // (J1 = ligne de chiffres, J2 = pavé numérique), isolation stricte des
+    // frappes, libellés « J2 », puis rythme SIMULTANÉ avec deux zones actives.
+
+    // E08a — bascule en duel : combat relancé, tour 1, attaque de J1, libellés J2
+    await page.evaluate(() => window.__mathkombat.setMode('duel'));
+    await attendre(500);
+    const e08a = await etat();
+    const e08aLib = await page.evaluate(() => window.__mathkombat.libelles());
+    verifier(
+      'E08a',
+      'Bascule en mode duel → tour 1, phase d’attaque de J1, libellés « J2 »',
+      e08a.mode === 'duel' &&
+        e08a.tour === 1 &&
+        e08a.phase === 'attaque' &&
+        e08a.attaquant === 'j1' &&
+        e08aLib.pv2.includes('J2') &&
+        e08aLib.score.includes('J2'),
+      `mode=${e08a.mode} tour=${e08a.tour} phase=${e08a.phase} attaquant=${e08a.attaquant} pv2="${e08aLib.pv2}" score="${e08aLib.score}"`
+    );
+
+    // E08b — J1 attaque : facile (+1) puis moyen (+3) au clavier de J1
+    const e08Q1 = await questions();
+    await clicJeu(126, 178); // carte FACILE de J1
+    await attendre(150);
+    await page.keyboard.type(String(e08Q1.find((q) => q.difficulte === 'facile').reponse), {
+      delay: 40,
+    });
+    await page.keyboard.press('Enter');
+    await attendre(250);
+    await clicJeu(310, 178); // carte MOYEN de J1
+    await attendre(150);
+    await page.keyboard.type(String(e08Q1.find((q) => q.difficulte === 'moyen').reponse), {
+      delay: 40,
+    });
+    await page.keyboard.press('Enter');
+    await attendre(300);
+    const e08b = await etat();
+    verifier(
+      'E08b',
+      'J1 résout Facile + Moyen → énergie d’attaque = 4',
+      e08b.energieAttaque === 4,
+      `énergie=${e08b.energieAttaque}`
+    );
+
+    // E08c — pendant la phase de J1, une frappe du PAVÉ (touche de J2) ne doit
+    // atteindre AUCUNE console : les deux saisies restent vides.
+    await page.keyboard.press('Numpad3');
+    await attendre(200);
+    const e08c = await page.evaluate(() => ({
+      j1: window.__mathkombat.saisie('j1').texte,
+      j2: window.__mathkombat.saisie('j2').texte,
+    }));
+    verifier(
+      'E08c',
+      'Isolation : une touche du pavé numérique n’atteint ni J1 ni J2 (phase de J1)',
+      e08c.j1 === '' && e08c.j2 === '',
+      `J1="${e08c.j1}" J2="${e08c.j2}"`
+    );
+
+    // E08d — fin de la phase d’attaque → phase de défense jouée par J2
+    await page.evaluate(() => window.__mathkombat.forceFinDePhase());
+    await page.waitForFunction(() => window.__mathkombat.etat().phase === 'defense', {
+      timeout: 10000,
+    });
+    await clicJeu(970, 178); // carte MOYEN de J2 (zone en miroir)
+    await attendre(250);
+    const e08d = await page.evaluate(() => ({
+      cible: window.__mathkombat.saisie('j2').cible,
+      j1: window.__mathkombat.saisie('j1').texte,
+    }));
+    verifier(
+      'E08d',
+      'Phase de défense → J2 cible son calcul MOYEN, saisie de J1 intacte',
+      e08d.cible === 'moyen' && e08d.j1 === '',
+      `cible J2=${e08d.cible} saisie J1="${e08d.j1}"`
+    );
+
+    // E08e — pavé de J2 : ⌫ (touche décimale) et C (Delete) distincts, puis
+    // réponse chiffre par chiffre + NumpadEnter → +3, saisie vidée, J1 inchangé.
+    await page.keyboard.press('Numpad9');
+    await page.keyboard.press('NumpadDecimal'); // ⌫ Effacer (un chiffre)
+    const e08Erase = await page.evaluate(() => window.__mathkombat.saisie('j2').texte);
+    await page.keyboard.press('Numpad8');
+    const e08Digit = await page.evaluate(() => window.__mathkombat.saisie('j2').texte);
+    await page.keyboard.press('Delete'); // C Tout effacer
+    const e08Clear = await page.evaluate(() => window.__mathkombat.saisie('j2').texte);
+    verifier(
+      'E08e1',
+      'Pavé J2 : ⌫ efface le dernier chiffre, C vide la saisie entière',
+      e08Erase === '' && e08Digit === '8' && e08Clear === '',
+      `après ⌫="${e08Erase}" après 8="${e08Digit}" après C="${e08Clear}"`
+    );
+
+    const e08Q2 = await questionsDe('j2');
+    const e08Rep = String(e08Q2.find((q) => q.difficulte === 'moyen').reponse);
+    for (const chiffre of e08Rep) {
+      await page.keyboard.press(`Numpad${chiffre}`);
+      await attendre(60);
+    }
+    await page.keyboard.press('NumpadEnter');
+    await attendre(350);
+    const e08e = await page.evaluate(() => ({
+      energie: window.__mathkombat.etat().energieDefense,
+      j2: window.__mathkombat.saisie('j2').texte,
+      j1: window.__mathkombat.saisie('j1').texte,
+    }));
+    verifier(
+      'E08e2',
+      'Réponse J2 saisie au pavé → +3 de défense, saisie de J2 vidée, J1 inchangé',
+      e08e.energie === 3 && e08e.j2 === '' && e08e.j1 === '',
+      `défense=${e08e.energie} J2="${e08e.j2}" J1="${e08e.j1}"`
+    );
+
+    // E08f — résolution : solde = 4 − 3 = +1 → 1 dégât sur J2, libellés « J2 »
+    await page.evaluate(() => window.__mathkombat.forceFinDePhase());
+    await attendre(900);
+    const e08f = await etat();
+    const e08fLib = await page.evaluate(() => window.__mathkombat.libelles());
+    await page.screenshot({ path: path.join(SHOTS, 'e2e-08-duel.png') });
+    verifier(
+      'E08f',
+      'Résolution duel : attaque 4 − défense 3 = 1 dégât sur J2, libellés « J2 »',
+      e08f.pv.j1 === 100 &&
+        e08f.pv.j2 === 99 &&
+        e08fLib.pv2.includes('J2') &&
+        e08fLib.energie2.includes('énergie J2'),
+      `PV=${JSON.stringify(e08f.pv)} pv2="${e08fLib.pv2}" energie2="${e08fLib.energie2}"`
+    );
+
+    // E08g — SIMULTANÉ en duel : les deux zones actives, aucune frappe ne doit
+    // franchir d'une console à l'autre (dans les DEUX sens). On laisse d'abord
+    // le delayedCall(1800) du tour suivant se déclencher, sinon double démarrage.
+    await page.waitForFunction(() => window.__mathkombat.etat().tour === 2, {
+      timeout: 15000,
+    });
+    await page.evaluate(() => window.__mathkombat.setRythme('simultane'));
+    await attendre(500);
+    await page.keyboard.type('5', { delay: 40 }); // touche de J1 (Digit5)
+    await attendre(200);
+    const e08ApresJ1 = await page.evaluate(() => ({
+      j1: window.__mathkombat.saisie('j1').texte,
+      j2: window.__mathkombat.saisie('j2').texte,
+    }));
+    await page.keyboard.press('Numpad7'); // touche de J2
+    await attendre(200);
+    const e08g = await page.evaluate(() => ({
+      j1: window.__mathkombat.saisie('j1').texte,
+      j2: window.__mathkombat.saisie('j2').texte,
+      phase: window.__mathkombat.etat().phase,
+      rythme: window.__mathkombat.etat().rythme,
+    }));
+    verifier(
+      'E08g',
+      'SIMULTANÉ en duel : J1 tape « 5 », J2 tape « 7 », isolation bidirectionnelle',
+      e08g.phase === 'simultane' &&
+        e08g.rythme === 'simultane' &&
+        e08ApresJ1.j1 === '5' &&
+        e08ApresJ1.j2 === '' &&
+        e08g.j1 === '5' &&
+        e08g.j2 === '7',
+      `phase=${e08g.phase} rythme=${e08g.rythme} · après J1: J1="${e08ApresJ1.j1}" J2="${e08ApresJ1.j2}" · final: J1="${e08g.j1}" J2="${e08g.j2}"`
+    );
   } finally {
     await navigateur.close();
     if (serveur) serveur.kill();
@@ -360,7 +530,7 @@ async function main() {
     '',
     `**Verdict global** : ${echecs === 0 ? '✅ TOUT VERT' : `❌ ${echecs} échec(s)`}`,
     '',
-    'Captures : `output/screenshots/e2e-01-combat.png`, `e2e-02-energie.png`, `e2e-03-resolution.png`, `e2e-04-frappe.png`, `e2e-05-ko.png`',
+    'Captures : `output/screenshots/e2e-01-combat.png`, `e2e-02-energie.png`, `e2e-03-resolution.png`, `e2e-04-frappe.png`, `e2e-05-ko.png`, `e2e-08-duel.png`',
     '',
   ];
   const rapport = path.join(RAPPORTS, `e2e-${horodatage}.md`);

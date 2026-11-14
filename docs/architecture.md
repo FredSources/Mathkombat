@@ -117,3 +117,105 @@ game/ (TS+Phaser) ── vite build ──► dist/ ── copié dans android/a
 - `scripts/build.sh` : build web (DEBUG ou RELEASE selon `--mode`).
 - `scripts/build-apk.sh` : APK avec **exclusivement** les outils de `tools/`.
 - Sur PC : `android/` s'ouvre dans Android Studio (projet Gradle standard).
+
+---
+
+## 9. Modèle de Personnage — interface unique et skins
+
+**Objectif** : *changer facilement le skin d'un personnage* et n'avoir **qu'une seule
+interface** à appeler pour le faire bouger. Décision d'architecture (session
+2026-11-14), applicable dès J6 (sélection de personnage).
+
+### 9.1 État des lieux (ce que cette section remplace)
+
+Aujourd'hui la responsabilité est éclatée :
+
+| Fragment | Où | Problème |
+|----------|----|----------|
+| `interface Combattant` | `FightScene.ts` | sac de références (corps, aura, rig, membres, teinte, palier…) — pas de comportement |
+| `creerCombattant`, `construireRig`, `animerCoup`, `animerMembre`, `sauter`, `animBlocage`, `animContre`, `animWhiff`, `animFrappe`, `impulsionAura`, `majAura`, `vaciller` | méthodes **privées de `FightScene`** | ~12 méthodes de présentation dans la scène, qui doit rester de l'orchestration (§7) |
+| direction du coup | **paramètre** `droite: boolean` / `versAttaquantDroite` | ré-cheminé à chaque appel, ressemble à du code dupliqué |
+| skin | `texture: string` + `PROFONDEURS_RIG[texture] ?? PROFONDEURS_RIG.persoA` | fallback **codé en dur** : ajouter un skin oblige à toucher au code |
+
+### 9.2 Cible : une classe `Personnage`, une seule interface
+
+Emplacement : `game/src/rig/personnage.ts` (présentation Phaser — **pas** `core/`,
+qui reste pur ; les **intensités** restent dans `config.ts` §2.8, `Personnage` les
+*lit* sans jamais les contenir).
+
+```ts
+export type Orientation = 'gauche' | 'droite';
+export type CoupDePoing = 'direct' | 'uppercut' | 'crochet';
+export type CoupDePied  = 'haut' | 'bas';
+
+export class Personnage {
+  readonly id: string;
+  readonly skin: SkinPersonnage;   // le skin est une DONNÉE, pas du code
+  orientation: Orientation;        // état de l'instance, pas un paramètre
+
+  // déplacement / garde
+  orienter(o: Orientation): void;  // miroir du rig + table de profondeurs
+  vaAGauche(): void;
+  vaADroite(): void;
+  gardeHaute(): void;
+  gardeBasse(): void;
+
+  // vocabulaire de coups — interface UNIQUE, quel que soit le skin
+  coupDePoing(c: CoupDePoing): void;   // direct / uppercut / crochet
+  coupDePied(c: CoupDePied): void;     // haut / bas
+  saut(): void;
+  parade(coup: Coup): void;
+  contre(): void;
+  encaisse(tier: number): void;
+  ko(): void;
+
+  // énergie (§2.8a) — intensité lue dans config.ts
+  charger(energie: number): void;
+  impulsion(gain: number): void;
+}
+```
+
+La scène n'appelle plus que `this.j1.coupDePoing('uppercut')` — **un** point d'accès,
+quelle que soit l'orientation et le skin.
+
+### 9.3 Skin = descripteur de données
+
+```ts
+export interface SkinPersonnage {
+  id: string;                                  // 'persoA' | 'persoB' | …
+  pieces: Record<Membre, string>;              // textures des 5 pièces cut-out
+  meta: MetaRig;                               // pivots épaule / hanche
+  profondeurs: Record<Membre, number>;         // ordre de recouvrement
+  teintes: { lueur: number; coeur: number };   // teinte d'aura
+}
+```
+
+- **changer de skin = changer de descripteur** (une ligne de config / de sélection) ;
+- **ajouter un skin = ajouter un fichier de textures + un descripteur**, sans modifier
+  `FightScene` ni `Personnage` ;
+- le fallback `?? PROFONDEURS_RIG.persoA` codé en dur **disparaît** : un skin non
+  déclaré est une erreur explicite, pas un rendu silencieusement faux.
+
+### 9.4 Héritage : où il sert, où il ne sert pas
+
+Règle retenue — **héritage pour le comportement, données pour l'apparence, état pour
+l'orientation** :
+
+| Distinction | Nature | Mécanisme retenu | Pourquoi |
+|-------------|--------|------------------|----------|
+| **gauche / droite** | **état** : sens de l'image + table de profondeurs miroir | champ `orientation` + `orienter()` | ce n'est pas un comportement : dans le code actuel ça se résume à `base * (droite ? -1 : 1)` et à `PROFONDEURS_RIG.persoB` = miroir exact de `persoA` — **deux valeurs, pas deux classes**. Deux sous-classes `PersonnageDroite`/`PersonnageGauche` obligeraient à surcharger toutes les méthodes (duplication) ou à ne changer qu'un champ (revenu à l'état). |
+| **skin / sprite** | **apparence** | descripteur `SkinPersonnage` (composition) | si un skin ne change que textures, pivots, profondeurs et teintes → c'est de la donnée ; l'héritage y ajouterait des classes vides. |
+| **skin avec comportement propre** (coup exclusif, garde spécifique) | **comportement** | **héritage** : `class PersonnageSpecial extends Personnage { override coupDePoing(...) }` | seul cas où l'héritage est justifié : un *override* réel de méthode. |
+
+Conséquence pratique : l'héritage reste **disponible et prévu** (`Personnage` est la
+classe de base non scellée), mais on n'introduit une sous-classe que le jour où un
+personnage diffère par un **comportement**, jamais par une couleur ou un fichier PNG.
+
+### 9.5 Gains attendus
+
+- `FightScene` perd ses ~12 méthodes d'animation → orchestration seule (§7 : les
+  scènes ne contiennent pas de logique métier ni de logique de présentation fine).
+- Les signatures perdent `droite: boolean` / `versAttaquantDroite` — plus aucun
+  paramètre de sens à ré-cheminer.
+- Ajouter un personnage = **0 modification de scène**, conformément à la règle
+  « aucun code dupliqué : une seule classe, instanciée avec ses données ».

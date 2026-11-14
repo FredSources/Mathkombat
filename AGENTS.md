@@ -241,8 +241,16 @@ l'architecture mais non implémentées (voir `todo.md`, « Idées / dette »).
     cours à la fin de la phase est **abandonnée** (seuls les calculs résolus comptent).
   - Chaque joueur a **son propre clavier** dans sa zone (J1 aligné à gauche, J2 à
     droite) ; en mode Solo, un seul clavier est actif.
-  - Version web de debug : touches physiques 0–9, `Entrée` = valider la cible,
-    `Retour arrière` = ⌫ Effacer, `Échap` = C Tout effacer.
+  - Version web de debug : touches physiques **identifiées par `event.code`** (position
+    physique, indépendante du clavier) — **les deux jeux sont disjoints**, c'est la
+    garantie qu'aucune frappe n'atteint jamais les deux consoles, y compris en duel
+    SIMULTANÉ où elles sont actives en même temps :
+    - **J1 = ligne de chiffres principale** : `0`–`9`, `Entrée` = valider la cible,
+      `Retour arrière` = ⌫ Effacer, `Échap` = C Tout effacer ;
+    - **J2 = pavé numérique (NumLock activé)** : `Numpad0`–`Numpad9`,
+      `NumpadEntrée` = valider, **touche décimale** = ⌫ Effacer (sous les chiffres :
+      dégât d'une frappe parasite nul), `Suppr` = C Tout effacer (hors grappe, au-dessus
+      du pavé : impossible à viser par erreur).
 - **Alignement des claviers** : le clavier de la zone gauche (J1) est **aligné à
   gauche**, celui de la zone droite (J2) **aligné à droite** — chacun plaqué contre
   son bord d'écran, sous la main du joueur (voir `docs/wireframes.md`).
@@ -491,7 +499,7 @@ cd game && npm install && npm run dev  # J1 : dev server web (http://127.0.0.1:5
 bash scripts/build.sh [debug|release]  # J1 : build web → game/dist/
 cd game && npm test                    # J2 : tests Vitest du cœur (+ npm run test:coverage)
 node scripts/run-scenarios.mjs [S01]   # J2 : scénarios headless → output/reports/
-node scripts/e2e.mjs                   # J4/J5 : E2E navigateur (E01→E05) → captures + rapport
+node scripts/e2e.mjs                   # J4/J6 : E2E navigateur (E01→E05, E08) → captures + rapport
 
 # jalons suivants (documentés ici au fur et à mesure) :
 # bash scripts/build-apk.sh            # J7 : APK (SDK local uniquement)

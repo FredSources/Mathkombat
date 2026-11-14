@@ -259,4 +259,10 @@ clavier est plaqué contre le **bord extérieur** de l'écran, sous la main du j
   automatique selon l'écran.
 - Écrans 1–2 en style rétro assumé (fonte pixel, cadre, commandes ◀ ▶, clignotement
   du bouton RUN) ; écrans de jeu en style moderne (animations fluides).
-- Version web de debug : même mise en page, touches physiques mappées (§2.7).
+- Version web de debug : même mise en page, **touches physiques mappées par
+  `event.code`** (§2.7) — jeux strictement disjoints :
+  **J1 = ligne de chiffres principale** (`0`–`9`, `Entrée`, `Retour arrière` = ⌫,
+  `Échap` = C) ; **J2 = pavé numérique** (`Numpad0`–`Numpad9`, `NumpadEntrée`,
+  **touche décimale** = ⌫, `Suppr` = C). En duel SIMULTANÉ les deux jeux sont actifs
+  simultanément : la disjonction des `code` est ce qui empêche une frappe d'atteindre
+  la console de l'autre joueur.

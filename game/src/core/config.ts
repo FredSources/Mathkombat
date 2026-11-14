@@ -10,6 +10,8 @@
 export type Difficulte = 'facile' | 'moyen' | 'difficile';
 export type Niveau = 'debutant' | 'intermediaire' | 'avance';
 export type Rythme = 'differe' | 'simultane';
+/** Mode de jeu (§2.6) : 'solo' (J1 vs IA, défaut) ou 'duel' (2 joueurs, même appareil). */
+export type ModeJeu = 'solo' | 'duel';
 /** Coup articulé du rig cut-out (§2.8b, docs/assets.md §3a). */
 export type Coup = 'poing' | 'pied-bas' | 'pied-haut';
 /** v1 : multiplication + division seules ; addition/soustraction prévues (I14). */
@@ -26,6 +28,8 @@ export interface ConfigJeu {
   tempsPhase: number;
   /** Rythme de calcul : 'differe' (défaut) ou 'simultane' (jamais auto-adapté). */
   rythme: Rythme;
+  /** Mode de jeu (§2.6) : 'solo' (défaut, J1 vs IA) ou 'duel' (2 joueurs). */
+  mode: ModeJeu;
   /** Gain d'énergie / de défense par difficulté (§2.2/§2.3). */
   gains: Record<Difficulte, number>;
   /** Borne du second facteur (×) et du quotient (÷) par niveau (§2.5). */
@@ -143,6 +147,7 @@ export const CONFIG: ConfigJeu = {
   pvMax: 100,
   tempsPhase: 15,
   rythme: 'differe',
+  mode: 'solo',
   gains: { facile: 1, moyen: 3, difficile: 7 },
   bornesNiveau: { debutant: 5, intermediaire: 10, avance: 12 },
   familles: {

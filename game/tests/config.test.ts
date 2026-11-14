@@ -4,6 +4,18 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CONFIG, coupPourTier } from '../src/core/config.ts';
+import type { ModeJeu } from '../src/core/config.ts';
+
+describe('mode de jeu (§2.6)', () => {
+  it('mode par défaut : solo (J1 vs IA)', () => {
+    expect(CONFIG.mode).toBe('solo');
+  });
+
+  it('le mode duel est disponible sans toucher aux autres réglages', () => {
+    const duel: ModeJeu = 'duel';
+    expect({ ...CONFIG, mode: duel }).toMatchObject({ mode: 'duel', rythme: 'differe' });
+  });
+});
 
 describe('coupPourTier — §2.8b (coupsParTier)', () => {
   it('tier 0 (whiff) et tier 1 → poing', () => {
