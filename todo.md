@@ -187,13 +187,13 @@ J6 (contenu complet) ; J8 clôt.
       RÉINITIALISER / VALIDER ; écriture bornée à la validation (I9) ;
       E2E **E06** (tempo) et **E07** (mode + rythme) verts
 - [ ] Sélection de personnage + menu principal + choix de niveau
-- [ ] **Classe `Personnage` — interface unique + skins** (détail `docs/architecture.md` §9) :
-      une seule classe pour J1/J2, orientation en **état** (`gauche`/`droite`), coups
-      nommés (`coupDePoing('direct'|'uppercut'|'crochet')`, `coupDePied('haut'|'bas')`,
-      `saut`, `garde…`), skin = **descripteur de données** (pièces + pivots +
-      profondeurs + teintes) → changer d'habillage = changer de descripteur, aucun
-      code dupliqué ; héritage réservé à un skin à **comportement** propre.
-      Prérequis de la sélection de personnage ; déplace ~12 méthodes hors `FightScene`.
+- [x] **Classe `Personnage` — interface unique + skins** (détail
+      `docs/architecture.md` §9) : **implémentée** dans `game/src/rig/personnage.ts`
+      — skins = descripteurs de données (`SKINS`, erreur explicite si inconnu),
+      orientation **état** (miroir des profondeurs), coups nommés, **déplacements
+      effectifs bornés** (`vaAGauche`/`vaADroite`/`vaEnHaut`/`vaEnBas`), garde,
+      saut, parade, contre, encaisse, ko, énergie (`charger`/`impulsion`) ;
+      `FightScene` allégée de ~450 lignes (orchestration seule)
 - [ ] Best-of-3 manches (option, voir J8)
 
 ### J7 — APK

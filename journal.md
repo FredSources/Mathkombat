@@ -1611,3 +1611,59 @@ score = énergies gagnées (somme des gains +1/+3/+7)
 
 - Sélection de personnage (J6) — dette architecturale `Personnage`
   (`docs/architecture.md` §9) ; puis best-of-3 manches (J8).
+
+---
+
+## 2026-11-14 — Classe `Personnage` (dette §9) + arène recentrée
+
+### Demandes utilisateur
+
+1. **Interface de personnage complète** : déplacements **effectifs** en haut,
+   en bas, à droite, à gauche + les coups définis — « tout ne sera pas utilisé
+   mais je veux l'interface ».
+2. **Arène recentrée** : personnages **plus petits (aux 2/3)**, plus au centre,
+   entre les claviers et sous les fiches de calcul.
+3. **Fiches de calcul remontées** avec le bouton ☰ MENU, **bas du bouton aligné
+   sur le bas des fiches**.
+
+### Produits
+
+| Fichier | Rôle |
+|---------|------|
+| `game/src/rig/personnage.ts` | **Classe `Personnage`** (docs/architecture.md §9) : skins en données (`SKINS`, `skinDe` — erreur explicite si inconnu), orientation **état** (miroir des profondeurs), interface complète — **déplacements effectifs bornés** (`vaAGauche`/`vaADroite`/`vaEnHaut`/`vaEnBas`, tween court), `orienter`, `gardeHaute`/`gardeBasse`, `coupDePoing` (direct/uppercut/crochet), `coupDePied` (haut/bas), `saut`, `frapper`, `encaisse`, `parade`, `contre`, `whiff`, `ko`, `charger`, `impulsion`, `reinitialiser`, `etatRig` — plus la création complète du rig (cut-out, aura 2 couches, particules, respiration) |
+| `game/src/core/config.ts` | `rig.echelle` (0,42 = 2/3 de 0,62), `rig.koChuteY`, `rig.deplacementPas`/`deplacementDureeMs`, `angles.uppercut`/`crochet` |
+| `game/src/scenes/FightScene.ts` | **Allégée de ~450 lignes** : `Combattant` et les 12 méthodes de présentation supprimées → `Personnage` ; orchestration seule (résolution, impacts visuels, juice) ; **personnages recentrés** (X_J1=470, X_J2=810) avec **limites de déplacement** (380–900, sous les fiches) ; fiches de calcul remontées (y=96) et **☰ MENU aligné bas sur bas** (y=164) |
+
+### Décisions
+
+- **Déplacements réellement animés** : chaque `vaAGauche`…`vaEnBas` déplace le
+  corps d'un pas (`rig.deplacementPas`), tween court, **borné** à la zone
+  centrale — l'interface est complète et fonctionnelle même si le gameplay ne
+  l'utilise pas encore.
+- **Orientation = état** (§9.4) : la direction des coups vient de
+  `orientation` ; le miroir de la table de profondeurs ne s'applique que si
+  l'orientation diffère du sens de dessin du skin (aucune texture miroirée
+  inutilement).
+- **Effets d'impact injectés** (`EffetsPersonnage`) : `Personnage` déclenche
+  étincelles/ondes de choc mais la scène les dessine (juice = présentation
+  inter-personnages).
+- **Positions de mise en page** en constantes de scène (X_J1/X_J2/LIMITES) —
+  intensités d'animation et tailles dans `config.ts`.
+
+### Tests
+
+- **Batterie complète verte** : typecheck ✅ 0 erreur ; Vitest ✅ **83/83** ;
+  couverture **100 %** (188/188 statements, 118/118 branches, 40/40 fonctions,
+  166/166 lines) ; scénarios ✅ **12/12** ; smoke L0 ✅ PASS ; **E2E ✅ 23/23**
+  (`output/reports/e2e-2026-11-14T14-08-31.md`).
+- **Non-régression visuelle** : captures vérifiées — personnages aux 2/3,
+  recentrés entre les claviers, fiches remontées, ☰ MENU aligné bas sur bas,
+  pause et fin de combat inchangées.
+- Coordonnées E2E : ☰ MENU → (640, 164) ; clics de cartes inchangés (les
+  nouvelles cartes les couvrent).
+
+### Prochaine étape
+
+- **Sélection de personnage + de niveau** (wireframes §3) — fin J6.
+- Puis **certification RELEASE zéro log** (T04, I10) et **APK release**
+  (wrapper WebView + `scripts/build-apk.sh`).

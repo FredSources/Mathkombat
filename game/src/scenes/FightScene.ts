@@ -36,6 +36,8 @@ import { declarerEcran } from '../ui/ecran.ts';
 import { enregistrerRecord } from '../ui/record.ts';
 import { PauseOverlay } from '../ui/pause-overlay.ts';
 import { RETRO, creerBoutonRetro } from '../ui/retro.ts';
+import { Personnage, skinDe } from '../rig/personnage.ts';
+import type { EffetsPersonnage } from '../rig/personnage.ts';
 
 declare const __BUILD_MODE__: string | undefined;
 
@@ -45,107 +47,22 @@ const LARGEUR = 1280;
 const HAUTEUR = 720;
 const SOL = 686;
 const DIFFICULTES: Difficulte[] = ['facile', 'moyen', 'difficile'];
-
-/**
- * Emplacement des langues de flamme autour du personnage (§2.8a, style
- * Dragon Ball : l'enveloppe suit la silhouette). Coords locales du conteneur
- * (pieds = 0, tête ≈ −420, demi-largeur ≈ 95) ; `l`×`h` = taille affichée,
- * `d` = densité d'éclat (0..1). Le vacillement est animé par tweens.
- */
-const FLAMMES: readonly { x: number; y: number; l: number; h: number; d: number }[] = [
-  { x: -52, y: 6, l: 86, h: 180, d: 1.0 }, // pied gauche
-  { x: 52, y: 6, l: 86, h: 180, d: 1.0 }, // pied droit
-  { x: -86, y: -30, l: 74, h: 195, d: 0.95 }, // jambe gauche
-  { x: 86, y: -30, l: 74, h: 195, d: 0.95 }, // jambe droite
-  { x: -100, y: -170, l: 66, h: 185, d: 0.85 }, // torse gauche
-  { x: 100, y: -170, l: 66, h: 185, d: 0.85 }, // torse droit
-  { x: -78, y: -300, l: 62, h: 170, d: 0.75 }, // épaule gauche
-  { x: 78, y: -300, l: 62, h: 170, d: 0.75 }, // épaule droite
-  { x: -34, y: -400, l: 66, h: 175, d: 0.8 }, // tête gauche
-  { x: 34, y: -400, l: 66, h: 175, d: 0.8 }, // tête droite
-  { x: 0, y: -435, l: 78, h: 185, d: 0.85 }, // couronne
-];
-
-/** Mélange une teinte vers le blanc : la lueur reste lisible sur décor clair. */
-function melangerVersBlanc(couleur: number, ratio: number): number {
-  const m = (v: number): number => Math.round(v + (255 - v) * ratio);
-  const r = m((couleur >> 16) & 0xff);
-  const g = m((couleur >> 8) & 0xff);
-  const b = m(couleur & 0xff);
-  return (r << 16) | (g << 8) | b;
-}
+/** Combattants recentrés dans la zone centrale de l'arène (demande utilisateur). */
+const X_J1 = 470;
+const X_J2 = 810;
+/** Déplacements bornés entre les claviers et sous les fiches de calcul. */
+const LIMITES_PERSONNAGE = {
+  xMin: 380,
+  xMax: 900,
+  yMin: SOL - 60,
+  yMax: SOL,
+} as const;
 
 type NaturePhase = 'attaque' | 'defense' | 'simultane';
 
-/** Pièces du rig cut-out articulé (scripts/assets-rig.py, docs/assets.md §3a). */
-type Membre = 'buste' | 'bras-g' | 'bras-d' | 'jambe-g' | 'jambe-d';
-
-const PIECES_RIG: readonly Membre[] = ['buste', 'bras-g', 'bras-d', 'jambe-g', 'jambe-d'];
-
-/** Meta d'une pièce telle que produite par scripts/assets-rig.py (rig-meta.json). */
-interface MetaPiece {
-  fichier: string;
-  x: number;
-  y: number;
-  largeur: number;
-  hauteur: number;
-  pivotX?: number;
-  pivotY?: number;
-}
-
-interface MetaRig {
-  largeur: number;
-  hauteur: number;
-  pieces: Record<Membre, MetaPiece>;
-}
-
-/**
- * Profondeurs des pièces dans le rig : le côté qui frappe (« face avant »)
- * passe devant le buste. persoA frappe à droite → côté « d » devant ; persoB
- * frappe à gauche → côté « g » devant. Le membre animé est porté à
- * PROFONDEUR_ANIME (les bandes de recouvrement sont identiques au repos :
- * aucune restauration nécessaire).
- */
-const PROFONDEURS_RIG: Record<string, Record<Membre, number>> = {
-  persoA: { 'bras-g': 5, 'jambe-g': 8, buste: 10, 'jambe-d': 12, 'bras-d': 15 },
-  persoB: { 'bras-g': 15, 'jambe-g': 12, buste: 10, 'jambe-d': 8, 'bras-d': 5 },
-};
-const PROFONDEUR_ANIME = 16;
-
-/** État du rig d'un combattant (hook de debug) : angles arrondis + saut. */
-function etatRig(c: Combattant): { saut: number; angles: Record<string, number> } | null {
-  if (!c.membres) return null;
-  const angles: Record<string, number> = {};
-  for (const p of PIECES_RIG) angles[p] = Math.round(c.membres[p].angle * 10) / 10;
-  return { saut: Math.round(c.rig.y), angles };
-}
-
-interface Combattant {
-  nom: string;
-  /** Étiquette de nom sous le personnage (libellé J1 / IA / J2). */
-  etiquette: Phaser.GameObjects.Text;
-  corps: Phaser.GameObjects.Container;
-  /** Conteneur des flammes (fusion ADD) : alpha = palier, échelle = intensité. */
-  aura: Phaser.GameObjects.Container;
-  /** Vignette sombre feutrée derrière le personnage (contraste WCAG, normal blend). */
-  ombre: Phaser.GameObjects.Graphics;
-  /** Image plate du personnage (masquée quand le rig articulé est présent). */
-  sprite: Phaser.GameObjects.Image;
-  /** Conteneur du rig cut-out : pièces articulées, ou l'image plate en repli. */
-  rig: Phaser.GameObjects.Container;
-  /** Pièces articulées (pivots épaule/hanche) — null = repli image plate. */
-  membres: Record<Membre, Phaser.GameObjects.Image> | null;
-  /** Étincelles montantes (particules d'aura). */
-  particules: Phaser.GameObjects.Ellipse[];
-  teinte: number;
-  /** Teinte éclaircie vers le blanc (couleur des flammes). */
-  lueur: number;
-  palier: number;
-  /** Alpha cible du palier courant : l'impulsion doit y revenir en fin de tween. */
-  alphaPalier: number;
-  /** Tween d'impulsion en cours (une seule à la fois). */
-  impulsion: Phaser.Tweens.Tween | null;
-}
+// Les modèles de combattant (rig cut-out, skins, aura) vivent dans
+// `rig/personnage.ts` (docs/architecture.md §9) : `FightScene` n'en contient
+// plus la présentation fine.
 
 export class FightScene extends Phaser.Scene {
   private engine!: CombatEngine;
@@ -157,8 +74,8 @@ export class FightScene extends Phaser.Scene {
   private chronoRestant = 0;
   private minuteur: Phaser.Time.TimerEvent | null = null;
 
-  private j1!: Combattant;
-  private j2!: Combattant;
+  private j1!: Personnage;
+  private j2!: Personnage;
   private barre1!: Phaser.GameObjects.Graphics;
   private barre2!: Phaser.GameObjects.Graphics;
   private textePv1!: Phaser.GameObjects.Text;
@@ -177,8 +94,6 @@ export class FightScene extends Phaser.Scene {
   private ralentiActif = false;
   /** Nombre de sprites de coup vivants (diagnostic). */
   private coupsActifs = 0;
-  /** Membres du rig en cours d'animation — `${nom}:${pièce}` (diagnostic). */
-  private membresActifs = new Set<string>();
   private manches = { j1: 0, j2: 0 };
   /** Mesures de score par joueur (§2.7) : énergies gagnées + secondes restantes. */
   private scores: Record<'j1' | 'j2', MesuresScore> = {
@@ -211,14 +126,34 @@ export class FightScene extends Phaser.Scene {
   create(): void {
     declarerEcran('fight');
     this.dessinerArene();
-    this.j1 = this.creerCombattant(FightScene.nomJoueur('j1'), 360, 0x3f7fe0, 'persoA');
-    this.j2 = this.creerCombattant(FightScene.nomJoueur('j2'), 920, 0xd4433a, 'persoB');
+    this.j1 = new Personnage({
+      scene: this,
+      id: 'j1',
+      skin: skinDe('persoA'),
+      x: X_J1,
+      y: SOL,
+      nom: FightScene.nomJoueur('j1'),
+      orientation: 'droite',
+      limites: LIMITES_PERSONNAGE,
+      effets: this.effetsPersonnage(),
+    });
+    this.j2 = new Personnage({
+      scene: this,
+      id: 'j2',
+      skin: skinDe('persoB'),
+      x: X_J2,
+      y: SOL,
+      nom: FightScene.nomJoueur('j2'),
+      orientation: 'gauche',
+      limites: LIMITES_PERSONNAGE,
+      effets: this.effetsPersonnage(),
+    });
     this.dessinerHud();
 
-    this.quizJ1 = new QuizOverlay(this, 40, 130, 'gauche', (d) =>
+    this.quizJ1 = new QuizOverlay(this, 40, 96, 'gauche', (d) =>
       this.numpadJ1.setCible(d)
     );
-    this.quizJ2 = new QuizOverlay(this, LARGEUR - 40, 130, 'droite', (d) =>
+    this.quizJ2 = new QuizOverlay(this, LARGEUR - 40, 96, 'droite', (d) =>
       this.numpadJ2.setCible(d)
     );
     this.numpadJ1 = new Numpad({
@@ -310,236 +245,6 @@ export class FightScene extends Phaser.Scene {
     g.fillRect(0, SOL, LARGEUR, 6);
   }
 
-  /** Crée (une seule fois) une copie teintée d'une texture de flamme, par
-   *  multiplication CPU par pixel — le tint WebGL (`setTint`) n'est pas fiable
-   *  sous tous les rendus (captures headless, certains WebView). */
-  private textureTeintee(source: string, couleur: number, cible: string): string {
-    if (this.textures.exists(cible)) return cible;
-    const img = this.textures.get(source).getSourceImage() as HTMLImageElement;
-    const canvas = document.createElement('canvas');
-    canvas.width = img.width;
-    canvas.height = img.height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return source;
-    ctx.drawImage(img, 0, 0);
-    const donnees = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const tr = (couleur >> 16) & 0xff;
-    const tg = (couleur >> 8) & 0xff;
-    const tb = couleur & 0xff;
-    for (let i = 0; i < donnees.data.length; i += 4) {
-      donnees.data[i] = (donnees.data[i] * tr) / 255;
-      donnees.data[i + 1] = (donnees.data[i + 1] * tg) / 255;
-      donnees.data[i + 2] = (donnees.data[i + 2] * tb) / 255;
-    }
-    ctx.putImageData(donnees, 0, 0);
-    this.textures.addCanvas(cible, canvas);
-    return cible;
-  }
-
-  private creerCombattant(
-    nom: string,
-    x: number,
-    teinte: number,
-    texture: string
-  ): Combattant {
-    const conteneur = this.add.container(x, SOL);
-    conteneur.setScale(0.62);
-    const lueur = melangerVersBlanc(teinte, 0.55); // couche colorée (bleu/rouge franc, contraste WCAG ≥ 3:1)
-    const coeur = melangerVersBlanc(teinte, 0.85); // noyau blanc chaud (flamme à 2 couches)
-    // teinte CPU : le tint WebGL (`setTint`) n'est pas appliqué par certains
-    // rendus (captures headless, certains WebView) → couleurs cuites dans la texture
-    const suffixe = teinte.toString(16).padStart(6, '0');
-    const texLueur = [1, 2].map((v) => this.textureTeintee(`flamme${v}`, lueur, `flamme${v}-l${suffixe}`));
-    const texCoeur = [1, 2].map((v) => this.textureTeintee(`flamme${v}`, coeur, `flamme${v}-c${suffixe}`));
-
-    // vignette sombre feutrée (7 anneaux emboîtés) : arrière-plan assombri qui
-    // garantit le contraste ≥ 3:1 des flammes sur le décor clair (WCAG 1.4.11)
-    const ombre = this.add.graphics();
-    for (let i = 0; i < 7; i++) {
-      ombre.fillStyle(0x18102e, 0.07);
-      ombre.fillEllipse(0, -180, 330 - i * 30, 560 - i * 50);
-    }
-    ombre.fillStyle(0x000000, 0.5);
-    ombre.fillEllipse(0, -4, 130, 26); // ombre portée au sol
-
-    // enveloppe de flammes (style Dragon Ball) : textures douces en fusion
-    // additive, vacillement par tweens — alpha/échelle = palier (§2.8a).
-    // Flamme à DEUX couches : langue colorée (enveloppe) + noyau blanc chaud.
-    const aura = this.add.container(0, 0).setAlpha(0);
-    FLAMMES.forEach((f, i) => {
-      const flamme = this.add
-        .image(f.x, f.y, texLueur[i % 2])
-        .setOrigin(0.5, 1)
-        // fusion NORMALE : la langue garde sa couleur sur le décor clair
-        // (l'ADD la délavait en blanc) — le noyau, lui, reste en ADD.
-        .setBlendMode(Phaser.BlendModes.NORMAL)
-        .setDisplaySize(f.l, f.h)
-        .setAlpha(f.d * 0.9);
-      aura.add(flamme);
-      this.vaciller(flamme, f.d * 0.9, i);
-      // noyau incandescent sur les langues épaisses (pieds, jambes, torses, tête, couronne)
-      if (f.d >= 0.8) {
-        const noyau = this.add
-          .image(f.x * 0.68, f.y, texCoeur[i % 2])
-          .setBlendMode(Phaser.BlendModes.ADD)
-          .setDisplaySize(f.l * 0.45, f.h * 0.55)
-          .setAlpha(f.d * 0.6);
-        noyau.setOrigin(0.5, 1);
-        aura.add(noyau);
-        this.vaciller(noyau, f.d * 0.6, i + 4);
-      }
-    });
-
-    // étincelles montantes (§2.8a : « quelques particules qui montent »)
-    const particules: Phaser.GameObjects.Ellipse[] = [];
-    for (let i = 0; i < 6; i++) {
-      const p = this.add
-        .ellipse((i % 2 ? -1 : 1) * (24 + ((i * 17) % 50)), -30, 6 + (i % 3) * 3, 6 + (i % 3) * 3, lueur)
-        .setAlpha(0)
-        .setBlendMode(Phaser.BlendModes.ADD);
-      // cycle synchronisé : montée linéaire 1,6 s + alpha en yoyo (0 → 0.85 → 0)
-      this.tweens.add({
-        targets: p,
-        y: -320,
-        duration: 1600,
-        ease: 'linear',
-        repeat: -1,
-        delay: i * 267,
-      });
-      this.tweens.add({
-        targets: p,
-        alpha: 0.85,
-        duration: 800,
-        ease: 'sine.inout',
-        yoyo: true,
-        repeat: -1,
-        delay: i * 267,
-      });
-      particules.push(p);
-    }
-
-    const sprite = this.add.image(0, 0, texture).setOrigin(0.5, 1);
-    // rig cut-out articulé : 5 pièces posées par bbox source et pivotées autour
-    // de leurs articulations ; si les textures sont absentes, l'image plate
-    // reste visible (repli sans dégradation du rendu)
-    const rig = this.add.container(0, 0);
-    const membres = this.construireRig(rig, texture);
-    if (membres) sprite.setVisible(false);
-    rig.add(sprite);
-    const etiquette = this.add
-      .text(0, 18, nom, {
-        fontFamily: 'monospace', fontSize: '17px', color: '#ffffff',
-        backgroundColor: '#1b2a52', padding: { x: 6, y: 2 },
-      })
-      .setOrigin(0.5, 0);
-    aura.add(particules);
-    conteneur.add([ombre, aura, rig, etiquette]);
-
-    // respiration (idle) — mouvement permanent, non bloquant
-    this.tweens.add({
-      targets: conteneur,
-      y: SOL - 5,
-      duration: 1300,
-      ease: 'sine.inout',
-      yoyo: true,
-      repeat: -1,
-    });
-
-    return {
-      nom,
-      etiquette,
-      corps: conteneur,
-      aura,
-      ombre,
-      sprite,
-      rig,
-      membres,
-      particules,
-      teinte,
-      lueur,
-      palier: -1,
-      alphaPalier: 0,
-      impulsion: null,
-    };
-  }
-
-  /**
-   * Montage du rig cut-out d'un combattant (docs/assets.md §3a) : chaque pièce
-   * est posée dans le repère de l'image plate (origine 0.5/1 aux pieds) et
-   * pivotée autour de son point d'articulation (origin déplacée sur le pivot).
-   * Retourne null si la meta ou les textures sont absentes → repli image plate.
-   */
-  private construireRig(
-    rig: Phaser.GameObjects.Container,
-    texture: string
-  ): Record<Membre, Phaser.GameObjects.Image> | null {
-    const metaGlobal = this.cache.json.get('rigMeta') as Record<string, MetaRig> | undefined;
-    const meta = metaGlobal?.[texture];
-    if (!meta) return null;
-    // vérification d'abord : on ne monte que si les 5 pièces sont présentes
-    const clesTex = new Map<Membre, string>();
-    for (const cle of PIECES_RIG) {
-      const p = meta.pieces[cle];
-      if (!p) return null;
-      const cleTex = p.fichier.replace('/', '-').replace(/\.png$/, '');
-      if (!this.textures.exists(cleTex)) return null;
-      clesTex.set(cle, cleTex);
-    }
-    const membres = {} as Record<Membre, Phaser.GameObjects.Image>;
-    const profondeurs = PROFONDEURS_RIG[texture] ?? PROFONDEURS_RIG.persoA;
-    const demiLargeur = meta.largeur / 2;
-    for (const cle of PIECES_RIG) {
-      const p = meta.pieces[cle];
-      const cleTex = clesTex.get(cle)!;
-      const img =
-        p.pivotX !== undefined && p.pivotY !== undefined
-          ? this.add
-              .image(p.pivotX - demiLargeur, p.pivotY - meta.hauteur, cleTex)
-              .setOrigin((p.pivotX - p.x) / p.largeur, (p.pivotY - p.y) / p.hauteur)
-          : this.add.image(p.x - demiLargeur, p.y - meta.hauteur, cleTex).setOrigin(0, 0);
-      img.setDepth(profondeurs[cle]);
-      rig.add(img);
-      membres[cle] = img;
-    }
-    return membres;
-  }
-
-  /** Vacillement déterministe d'une langue de flamme (phases décalées par
-   *  index) : hauteur, largeur, éclat (autour de l'alpha de base), balancement. */
-  private vaciller(flamme: Phaser.GameObjects.Image, alphaBase: number, i: number): void {
-    const bx = flamme.scaleX;
-    const by = flamme.scaleY;
-    this.tweens.add({ targets: flamme, scaleY: by * 1.18, duration: 430 + i * 47, ease: 'sine.inout', yoyo: true, repeat: -1, delay: (i * 80) % 420 });
-    this.tweens.add({ targets: flamme, scaleX: bx * 1.08, duration: 560 + i * 39, ease: 'sine.inout', yoyo: true, repeat: -1, delay: (i * 60) % 380 });
-    this.tweens.add({ targets: flamme, alpha: Math.min(1, alphaBase * 1.3), duration: 370 + i * 53, ease: 'sine.inout', yoyo: true, repeat: -1, delay: (i * 70) % 400 });
-    this.tweens.add({ targets: flamme, angle: i % 2 ? 7 : -7, duration: 690 + i * 41, ease: 'sine.inout', yoyo: true, repeat: -1, delay: (i * 55) % 360 });
-  }
-
-  /** Aura (§2.8a) : intensité = palier déterministe (alpha + taille de l'enveloppe). */
-  private majAura(combattant: Combattant, energie: number): void {
-    const palier = palierAura(energie);
-    if (palier === combattant.palier) return;
-    combattant.palier = palier;
-    combattant.aura.setAlpha(CONFIG.auraAlphas[palier]);
-    combattant.aura.setScale(0.7 + palier * 0.18); // flammes qui grandissent avec l'énergie
-    combattant.alphaPalier = CONFIG.auraAlphas[palier];
-  }
-
-  /** Impulsion d'aura sur un calcul réussi (§2.8a : +1 petite, +7 marquée).
-   *  Revient à l'alpha cible du palier COURANT (mis à jour par majAura entre-temps),
-   *  jamais à la valeur figée au lancement du tween. */
-  private impulsionAura(combattant: Combattant, gain: number): void {
-    const saut = gain >= 7 ? 0.3 : gain >= 3 ? 0.18 : 0.1;
-    // une seule impulsion à la fois sur l'alpha (le vacillement est sur l'échelle)
-    combattant.impulsion?.stop();
-    combattant.impulsion = this.tweens.add({
-      targets: combattant.aura,
-      alpha: Math.min(1, combattant.alphaPalier + saut),
-      duration: 90,
-      yoyo: true,
-      onComplete: () => combattant.aura.setAlpha(combattant.alphaPalier),
-    });
-  }
 
   /** Joue un effet s'il est préchargé ; silencieux sinon (boot partiel, couverture). */
   private jouerSon(nom: string): void {
@@ -583,11 +288,11 @@ export class FightScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '20px', color: '#ffd76b',
     }).setOrigin(1, 0);
     // ☰ MENU (§8 wireframes) : dans le couloir central ENTRE les deux blocs de
-    // calculs — aucune superposition avec les opérations ni le HUD.
+    // calculs — son bas est aligné sur le bas des fiches de calcul (demande).
     creerBoutonRetro({
       scene: this,
       x: 640,
-      y: 174,
+      y: 164,
       largeur: 170,
       hauteur: 40,
       libelle: '☰  MENU',
@@ -748,25 +453,10 @@ export class FightScene extends Phaser.Scene {
     this.journalText.setText('');
     this.bandeauResolution.setAlpha(0);
     // remise à pied des combattants (rejeu après K.O.) — rig et membres au repos
-    this.j1.corps.setPosition(360, SOL).setAngle(0).setScale(0.62);
-    this.j2.corps.setPosition(920, SOL).setAngle(0).setScale(0.62);
-    for (const c of [this.j1, this.j2]) {
-      this.tweens.killTweensOf([c.rig, c.aura]);
-      c.rig.setPosition(0, 0);
-      c.aura.setPosition(0, 0);
-      if (c.membres) {
-        for (const piece of Object.values(c.membres)) {
-          this.tweens.killTweensOf(piece);
-          piece.setAngle(0);
-        }
-      }
-    }
-    this.j1.palier = -1;
-    this.j2.palier = -1;
+    this.j1.reinitialiser();
+    this.j2.reinitialiser();
     // libellés du mode courant (solo = IA, duel = J2) : étiquette et score
-    const nomJ2 = FightScene.nomJoueur('j2');
-    this.j2.nom = nomJ2;
-    this.j2.etiquette.setText(nomJ2);
+    this.j2.nom = FightScene.nomJoueur('j2');
     this.mettreAJourScore();
     this.demarrerTour();
   }
@@ -854,7 +544,7 @@ export class FightScene extends Phaser.Scene {
   private zoneDe(joueur: 'j1' | 'j2'): {
     quiz: QuizOverlay;
     numpad: Numpad;
-    combattant: Combattant;
+    combattant: Personnage;
   } {
     return joueur === 'j1'
       ? { quiz: this.quizJ1, numpad: this.numpadJ1, combattant: this.j1 }
@@ -992,7 +682,9 @@ export class FightScene extends Phaser.Scene {
       const tier = tierFrappe(r.defense);
       this.noterJournal(`CONTRE de ${FightScene.nomJoueur(r.defenseur)} (+${r.degats})`);
       this.jouerSon('frappe');
-      this.animContre(attaquant, defenseur, tier);
+      defenseur.contre(attaquant, tier, (droite) =>
+        this.apresImpact(() => this.impactVisuel(attaquant, tier, true, 'pied-haut', droite))
+      );
       this.juiceTier(tier, juice);
       this.afficherDegatsFlottants(attaquant, r.degats, tier, true);
     } else if (r.solde === 0 && r.attaque > 0) {
@@ -1001,23 +693,26 @@ export class FightScene extends Phaser.Scene {
       this.jouerSon('blocage');
       const tierBlocage = tierFrappe(r.attaque);
       // garde côté attaquant : bras contre un coup haut, jambe contre un coup bas
-      this.animBlocage(
-        defenseur,
-        tierBlocage,
+      defenseur.parade(
         coupPourTier(tierBlocage),
+        tierBlocage,
         attaquant.corps.x > defenseur.corps.x
       );
     } else if (r.degats > 0) {
       this.noterJournal(`${FightScene.nomJoueur(r.defenseur)} encaisse ${r.degats}`);
       this.jouerSon('frappe');
-      this.animFrappe(attaquant, defenseur, tierFrappe(r.attaque));
-      this.juiceTier(tierFrappe(r.attaque), juice);
-      this.afficherDegatsFlottants(defenseur, r.degats, tierFrappe(r.attaque), false);
+      const tierFrappeCourant = tierFrappe(r.attaque);
+      const { coup, droite } = attaquant.frapper(defenseur, tierFrappeCourant);
+      this.apresImpact(() =>
+        this.impactVisuel(defenseur, tierFrappeCourant, false, coup, droite)
+      );
+      this.juiceTier(tierFrappeCourant, juice);
+      this.afficherDegatsFlottants(defenseur, r.degats, tierFrappeCourant, false);
     } else {
       // coup raté (attaque nulle) : l'attaquant échoue à se projeter
       this.noterJournal(`${FightScene.nomJoueur(r.attaquant)} rate son coup`);
       this.jouerSon('blocage');
-      this.animWhiff(attaquant);
+      attaquant.whiff();
     }
   }
 
@@ -1053,177 +748,20 @@ export class FightScene extends Phaser.Scene {
     });
   }
 
-  /** Élan de frappe : le membre du rig sort vers la cible, la cible encaisse. */
-  private animFrappe(attaquant: Combattant, cible: Combattant, tier: number): void {
-    const droite = cible.corps.x > attaquant.corps.x;
-    const avance = droite ? 1 : -1;
-    const direction = droite ? 1 : -1; // recul de la cible, à l'opposé de l'attaque
-    this.tweens.add({
-      targets: attaquant.corps,
-      x: attaquant.corps.x + avance * (16 + tier * 10),
-      duration: 90,
-      yoyo: true,
-    });
-    const coup = coupPourTier(tier);
-    this.animerCoup(attaquant, coup, droite);
-    this.tweens.add({
-      targets: cible.corps,
-      x: cible.corps.x + direction * (10 + tier * 8),
-      duration: 110,
-      yoyo: true,
-      delay: 70,
-    });
-    this.apresImpact(() => this.impactVisuel(cible, tier, false, coup, droite));
-  }
-
   /** Déclenche l'impact une fois le membre du rig pleinement sorti (§2.8b). */
   private apresImpact(action: () => void): void {
     this.time.delayedCall(CONFIG.rig.dureeExtensionMs, action);
   }
 
   /**
-   * Extension d'un membre du rig vers la cible (docs/assets.md §3a) :
-   * angle négatif vers la droite, positif vers la gauche (Phaser : horaire
-   * positif). No-op en repli image plate. `angleForce` imposé la base d'angle
-   * (CONTRE : coup de pied de la riposte).
+   * Effets d'impact injectés dans les `Personnage` (§2.8b/c) : étincelles et
+   * ondes de choc restent dessinés par la scène (juice inter-personnages).
    */
-  private animerCoup(c: Combattant, coup: Coup, droite: boolean, angleForce?: number): void {
-    const membre: Membre =
-      coup === 'poing' ? (droite ? 'bras-d' : 'bras-g') : droite ? 'jambe-d' : 'jambe-g';
-    const angles = CONFIG.rig.angles;
-    const base =
-      angleForce ??
-      (coup === 'poing' ? angles.poing : coup === 'pied-haut' ? angles.piedHaut : angles.piedBas);
-    this.animerMembre(c, membre, base * (droite ? -1 : 1));
-  }
-
-  /** Rotation d'une pièce autour de son pivot : extension puis retour au repos. */
-  private animerMembre(c: Combattant, cle: Membre, angle: number): void {
-    const piece = c.membres?.[cle];
-    if (!piece) return; // repli image plate : l'élan du corps suffit
-    const rig = CONFIG.rig;
-    const suivi = `${c.nom}:${cle}`;
-    this.membresActifs.add(suivi);
-    this.tweens.killTweensOf(piece);
-    piece.setDepth(PROFONDEUR_ANIME); // le membre animé passe devant (§3a)
-    this.tweens.add({
-      targets: piece,
-      angle,
-      duration: rig.dureeExtensionMs,
-      ease: 'quad.out',
-      onComplete: () => {
-        this.tweens.add({
-          targets: piece,
-          angle: 0,
-          duration: rig.dureeRetourMs,
-          ease: 'sine.inout',
-          onComplete: () => this.membresActifs.delete(suivi),
-        });
-      },
-    });
-  }
-
-  /** Saut du CONTRE : rig + aura montent (l'ombre reste au sol, §2.8c). */
-  private sauter(c: Combattant): void {
-    const rig = CONFIG.rig;
-    this.tweens.add({
-      targets: [c.rig, c.aura],
-      y: -rig.sautHauteur,
-      duration: rig.sautDureeMs / 2,
-      ease: 'quad.out',
-      yoyo: true,
-    });
-  }
-
-  /**
-   * Parade : garde côté attaquant — bras levé contre un coup haut, jambe
-   * levée contre un coup bas (§2.8c) — étincelles à la hauteur du coup,
-   * aucune perte de position.
-   */
-  private animBlocage(
-    defenseur: Combattant,
-    tier: number,
-    coup: Coup,
-    versAttaquantDroite: boolean
-  ): void {
-    const haut = coup !== 'pied-bas';
-    const membre: Membre = haut
-      ? versAttaquantDroite
-        ? 'bras-d'
-        : 'bras-g'
-      : versAttaquantDroite
-        ? 'jambe-d'
-        : 'jambe-g';
-    const base = haut ? CONFIG.rig.angles.gardeHaute : CONFIG.rig.angles.gardeBasse;
-    this.animerMembre(defenseur, membre, base * (versAttaquantDroite ? -1 : 1));
-    this.tweens.add({
-      targets: defenseur.corps,
-      scaleX: defenseur.corps.scaleX * 1.06,
-      scaleY: defenseur.corps.scaleY * 0.96,
-      duration: 60,
-      yoyo: true,
-      repeat: 1,
-    });
-    this.tweens.add({
-      targets: defenseur.aura,
-      alpha: 0.95,
-      duration: 60,
-      yoyo: true,
-      repeat: 2,
-    });
-    const y = SOL - CONFIG.rig.impactY[coup];
-    this.etincelles(defenseur.corps.x, y, Math.max(3, tier * 2), '#9fd8ff');
-    if (tier >= 2) this.ondeDeChoc(defenseur.corps.x, y, tier);
-  }
-
-  /**
-   * CONTRE : l'attaquant frappe dans le vide, le défenseur saut et riposte
-   * d'un coup de pied (§2.8c, priorité visuelle).
-   */
-  private animContre(attaquant: Combattant, riposte: Combattant, tier: number): void {
-    const versAvant = attaquant === this.j1 ? 1 : -1;
-    // 1. l'attaquant avance en frappant… et rate la cible (esquive)
-    this.animerCoup(attaquant, 'poing', riposte.corps.x > attaquant.corps.x);
-    this.tweens.add({
-      targets: attaquant.corps,
-      x: attaquant.corps.x + versAvant * 34,
-      duration: 120,
-      ease: 'quad.out',
-    });
-    // 2. le défenseur se décale, saut et frappe dans la foulée
-    this.tweens.add({
-      targets: riposte.corps,
-      x: riposte.corps.x + (riposte === this.j1 ? 1 : -1) * -22,
-      duration: 120,
-      yoyo: true,
-      onComplete: () => {
-        // la riposte part vers l'attaquant : J1 fait face à droite, l'adversaire à gauche
-        const droite = attaquant.corps.x > riposte.corps.x;
-        this.sauter(riposte);
-        this.animerCoup(riposte, 'pied-haut', droite, CONFIG.rig.angles.contrePied);
-        this.tweens.add({
-          targets: attaquant.corps,
-          x: attaquant.corps.x - versAvant * (14 + tier * 9),
-          duration: 110,
-          yoyo: true,
-        });
-        this.apresImpact(() => this.impactVisuel(attaquant, tier, true, 'pied-haut', droite));
-      },
-    });
-  }
-
-  /** Coup raté : le poing sort dans le vide, l'attaquant s'arrête net. */
-  private animWhiff(attaquant: Combattant): void {
-    const versAvant = attaquant === this.j1 ? 1 : -1;
-    this.animerCoup(attaquant, 'poing', versAvant > 0);
-    this.tweens.add({
-      targets: attaquant.corps,
-      x: attaquant.corps.x + versAvant * 20,
-      duration: 140,
-      ease: 'sine.out',
-      yoyo: true,
-      onComplete: () => this.etincelles(attaquant.corps.x, SOL - 150, 3, '#8fa8d8'),
-    });
+  private effetsPersonnage(): EffetsPersonnage {
+    return {
+      etincelles: (x, y, nombre, couleur) => this.etincelles(x, y, nombre, couleur),
+      ondeDeChoc: (x, y, tier) => this.ondeDeChoc(x, y, tier),
+    };
   }
 
   /**
@@ -1231,7 +769,7 @@ export class FightScene extends Phaser.Scene {
    * coup, + cercle, étincelles radiales et onde de choc aux tiers élevés.
    */
   private impactVisuel(
-    cible: Combattant,
+    cible: Personnage,
     tier: number,
     contre: boolean,
     coup: Coup,
@@ -1314,7 +852,7 @@ export class FightScene extends Phaser.Scene {
 
   /** Dégâts flottants au-dessus de la cible (valeur = solde, §2.8b). */
   private afficherDegatsFlottants(
-    cible: Combattant,
+    cible: Personnage,
     degats: number,
     tier: number,
     contre: boolean
@@ -1347,13 +885,7 @@ export class FightScene extends Phaser.Scene {
     // K.O. : flash + chute animée du perdant (§2.8d)
     this.cameras.main.flash(240, 255, 255, 255);
     const perdant = gagnant === 'j1' ? this.j2 : this.j1;
-    this.tweens.add({
-      targets: perdant.corps,
-      y: SOL + 26,
-      angle: perdant === this.j1 ? -80 : 80,
-      duration: 550,
-      ease: 'quad.in',
-    });
+    perdant.ko();
     // on retire le fade du bandeau : la bannière K.O. doit rester lisible
     this.tweens.killTweensOf(this.bandeauResolution);
     this.bandeauResolution
@@ -1408,7 +940,7 @@ export class FightScene extends Phaser.Scene {
       quiz.mettreAJour({ difficulte, enonce: q.enonce, gain: q.gain });
       numpad.reset();
       this.scores[joueur].energieGagnee += q.gain; // score de combat (§2.7)
-      this.impulsionAura(combattant, q.gain); // impulsion d'aura (§2.8a)
+      combattant.impulsion(q.gain); // impulsion d'aura (§2.8a)
       this.noterJournal(`${FightScene.nomJoueur(joueur)} : juste (+${q.gain})`);
       this.jouerSon('reussite');
     } else {
@@ -1440,8 +972,8 @@ export class FightScene extends Phaser.Scene {
     const afficheJ2 = this.iaEnCours ? this.progressionIA : phaseJ2.energie();
     this.texteEnergie2.setText(`énergie ${FightScene.nomJoueur('j2')} : +${afficheJ2}`);
     // auras en temps réel (§2.8a) — intensité = palier de l'énergie courante
-    this.majAura(this.j1, phaseJ1.energie());
-    this.majAura(this.j2, afficheJ2);
+    this.j1.charger(phaseJ1.energie());
+    this.j2.charger(afficheJ2);
   }
 
   // ============================================================== hook debug (DEBUG)
@@ -1564,10 +1096,10 @@ export class FightScene extends Phaser.Scene {
       // cours d'animation, angles des pièces, saut du contre, textures
       coups: () => ({
         actifs: scene.coupsActifs,
-        membresActifs: [...scene.membresActifs],
+        membresActifs: [...scene.j1.membresActifs, ...scene.j2.membresActifs],
         timeScale: scene.tweens.timeScale,
         textures: ['coups-poing', 'coups-pied'].filter((k) => scene.textures.exists(k)),
-        rig: { j1: etatRig(scene.j1), j2: etatRig(scene.j2) },
+        rig: { j1: scene.j1.etatRig(), j2: scene.j2.etatRig() },
       }),
       // force l'énergie de défense du tour en cours (captures E04)
       forcerEnergieDefense: (v: number) => {

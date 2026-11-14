@@ -739,7 +739,7 @@ async function main() {
     await clicJeu(640, 310); // RUN
     await attendreHook();
     await attendre(400);
-    await clicJeu(640, 174); // ☰ MENU
+    await clicJeu(640, 164); // ☰ MENU
     await attendre(300);
     const e10Pause = await page.evaluate(() => ({
       ouverte: window.__mathkombat.pause().ouverte,
@@ -756,7 +756,7 @@ async function main() {
     }));
     await attendre(1300); // le chrono doit avoir REPARTI
     const e10Reparti = await page.evaluate(() => window.__mathkombat.etat().chrono);
-    await clicJeu(640, 174); // ☰ MENU
+    await clicJeu(640, 164); // ☰ MENU
     await attendre(250);
     await clicJeu(640, 445); // [ QUITTER → MENU ]
     await attendreEcran('menu');

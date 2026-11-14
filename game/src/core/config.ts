@@ -121,6 +121,10 @@ export interface ConfigJeu {
     angles: {
       /** Coup de poing : bras du côté de la frappe. */
       poing: number;
+      /** Uppercut : coup de poing vers le haut (§9.2 `coupDePoing`). */
+      uppercut: number;
+      /** Crochet : coup de poing latéral (§9.2 `coupDePoing`). */
+      crochet: number;
       /** Coup de pied haut : jambe du côté de la frappe. */
       piedHaut: number;
       /** Coup de pied bas : jambe du côté de la frappe. */
@@ -135,6 +139,13 @@ export interface ConfigJeu {
     /** Saut du CONTRE : hauteur (unités rig) et durée totale (ms). */
     sautHauteur: number;
     sautDureeMs: number;
+    /** Échelle du personnage dans l'arène (demande : aux 2/3 — 0,62 → 0,42). */
+    echelle: number;
+    /** Chute du K.O. : enfoncement sous le sol (px). */
+    koChuteY: number;
+    /** Déplacement libre du personnage (§9.2 `vaAGauche`…`vaEnBas`). */
+    deplacementPas: number;
+    deplacementDureeMs: number;
     /** Hauteur d'impact au-dessus du sol (px) selon le coup. */
     impactY: Record<Coup, number>;
   };
@@ -231,6 +242,8 @@ export const CONFIG: ConfigJeu = {
     flashCoupMs: 150,
     angles: {
       poing: 92,
+      uppercut: 92,
+      crochet: 92,
       piedHaut: 78,
       piedBas: 36,
       gardeHaute: 150,
@@ -239,6 +252,10 @@ export const CONFIG: ConfigJeu = {
     },
     sautHauteur: 140,
     sautDureeMs: 260,
+    echelle: 0.42,
+    koChuteY: 26,
+    deplacementPas: 36,
+    deplacementDureeMs: 120,
     impactY: { poing: 185, 'pied-haut': 100, 'pied-bas': 40 },
   },
   saisieMaxChiffres: 3,

@@ -122,6 +122,11 @@ game/ (TS+Phaser) ── vite build ──► dist/ ── copié dans android/a
 
 ## 9. Modèle de Personnage — interface unique et skins
 
+> **Statut : IMPLÉMENTÉ** (2026-11-14) dans `game/src/rig/personnage.ts` — avec
+> l'interface de **déplacements effectifs** (`vaAGauche`/`vaADroite`/`vaEnHaut`/
+> `vaEnBas`, bornés à l'arène), exigée complète même avant d'être utilisée par
+> le gameplay.
+
 **Objectif** : *changer facilement le skin d'un personnage* et n'avoir **qu'une seule
 interface** à appeler pour le faire bouger. Décision d'architecture (session
 2026-11-14), applicable dès J6 (sélection de personnage).
