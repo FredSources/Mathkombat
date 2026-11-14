@@ -24,3 +24,8 @@ android/build/
 android/app/build/
 android/.gradle/
 *.apk
+
+# artefacts de build (recopiés de game/dist/ par scripts/build-apk.sh)
+android/app/src/main/assets/
+android/local.properties
+android/app/build/
