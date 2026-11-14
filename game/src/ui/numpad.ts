@@ -174,10 +174,14 @@ export class Numpad {
     }
 
     // ---- SOUS le clavier : les 3 boutons VALIDER colorés (un par calcul),
-    // alignés sur les colonnes du pavé
+    // alignés sur les colonnes du pavé. Côté droit (J2 / IA), l'ordre suit le
+    // miroir des fiches de calcul : FACILE à droite, sous la fiche FACILE.
     const yValider = 54 + 4 * (HAUTEUR_BOUTON + ECART) + 8;
     const largeurValider = LARGEUR_BOUTON;
-    const cibles: Difficulte[] = ['facile', 'moyen', 'difficile'];
+    const cibles: Difficulte[] =
+      options.alignement === 'droite'
+        ? ['difficile', 'moyen', 'facile']
+        : ['facile', 'moyen', 'difficile'];
     const libellesBoutons: Record<Difficulte, string> = {
       facile: 'VALIDER\n+1',
       moyen: 'VALIDER\n+3',

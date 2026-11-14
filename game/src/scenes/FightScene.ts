@@ -278,19 +278,18 @@ export class FightScene extends Phaser.Scene {
     this.textePhase = this.add.text(LARGEUR / 2, 62, '', {
       fontFamily: 'monospace', fontSize: '20px', color: '#7bd4ff',
     }).setOrigin(0.5, 0);
-    // Énergie : sous les boutons VALIDER, dans la zone basse de chaque côté
-    // (remontée : les petits textes trop bas étaient tronqués sur appareil)
-    this.texteEnergie1 = this.add.text(40, 552, '', {
+    // Énergie : sous les boutons VALIDER, bas de chaque zone (place d'origine)
+    this.texteEnergie1 = this.add.text(40, 578, '', {
       fontFamily: 'monospace', fontSize: '20px', color: '#7bd4ff',
     });
-    this.texteEnergie2 = this.add.text(LARGEUR - 40, 552, '', {
+    this.texteEnergie2 = this.add.text(LARGEUR - 40, 578, '', {
       fontFamily: 'monospace', fontSize: '20px', color: '#7bd4ff',
     }).setOrigin(1, 0);
     // Score de combat en temps réel (§2.7) : énergies gagnées + secondes restantes
-    this.texteScoreJ1 = this.add.text(40, 578, '', {
+    this.texteScoreJ1 = this.add.text(40, 606, '', {
       fontFamily: 'monospace', fontSize: '20px', color: '#ffd76b',
     });
-    this.texteScoreJ2 = this.add.text(LARGEUR - 40, 578, '', {
+    this.texteScoreJ2 = this.add.text(LARGEUR - 40, 606, '', {
       fontFamily: 'monospace', fontSize: '20px', color: '#ffd76b',
     }).setOrigin(1, 0);
     // ☰ MENU (§8 wireframes) : dans le couloir central ENTRE les deux blocs de

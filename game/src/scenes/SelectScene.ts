@@ -41,7 +41,7 @@ export const PLACE_SELECT = {
   flecheDroite: 1100,
   valeur: 900,
   libelle: 110,
-  lancer: { x: 640, y: 520, largeur: 520, hauteur: 64 },
+  lancer: { x: 640, y: 520, largeur: 700, hauteur: 92 },
 } as const;
 
 /** Voisin dans une liste bornée (les extrémités restent sur place). */
@@ -158,7 +158,7 @@ export class SelectScene extends Phaser.Scene {
       largeur: p.lancer.largeur,
       hauteur: p.lancer.hauteur,
       libelle: '[  ▶  L A N C E R   L E   C O M B A T  ]',
-      taille: 26,
+      taille: 32,
       couleur: RETRO.boutonLancer,
       onClic: () => this.lancer(),
     });
