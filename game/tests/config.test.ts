@@ -17,6 +17,18 @@ describe('mode de jeu (§2.6)', () => {
   });
 });
 
+describe('interface — surbrillance des touches (§2.7)', () => {
+  it('durée de surbrillance strictement positive et bornée', () => {
+    expect(CONFIG.ui.surbrillanceMs).toBeGreaterThan(0);
+    expect(CONFIG.ui.surbrillanceMs).toBeLessThanOrEqual(1000);
+  });
+
+  it('teinte de surbrillance dans ]0, 1] : éclaircit sans blanchir totalement', () => {
+    expect(CONFIG.ui.surbrillanceTeinte).toBeGreaterThan(0);
+    expect(CONFIG.ui.surbrillanceTeinte).toBeLessThanOrEqual(1);
+  });
+});
+
 describe('coupPourTier — §2.8b (coupsParTier)', () => {
   it('tier 0 (whiff) et tier 1 → poing', () => {
     expect(coupPourTier(0)).toBe('poing');

@@ -231,6 +231,10 @@ l'architecture mais non implémentées (voir `todo.md`, « Idées / dette »).
   - **sous le clavier, les 3 boutons VALIDER colorés** (vert/jaune/rouge — un par
     calcul, libellés « VALIDER FACILE +1 / MOYEN +3 / DIFFICILE +7 ») : on sait
     **quel calcul on valide** ; la touche **Entrée** valide le calcul ciblé ;
+  - **surbrillance à l'appui** : la touche pressée — clic **ou** touche physique —
+    **s'éclaircit avec un contour blanc** puis revient au repos. Le retour est
+    instantané et concerne **la console pressée seule** (en duel, la frappe de J1
+    n'allume rien chez J2) ; durée et intensité dans `config.ts` (section `ui`).
   - tap sur un calcul = le **cibler** (bordure renforcée — la validation par
     Entrée le concerne) ; **changer de calcul ciblé efface la saisie en cours**
     (la saisie appartient au calcul).

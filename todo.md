@@ -5,6 +5,15 @@ Une case ne se coche que si : code produit + tests verts + entrée dans `journal
 
 ## État actuel
 
+**Retour utilisateur « surbrillance des touches » : LIVRÉ ✅** — la touche pressée
+(clic **ou** frappe physique) s'éclaircit avec un contour blanc puis revient au
+repos après `CONFIG.ui.surbrillanceMs` (160 ms), **uniquement sur la console
+pressée** ; réglages dans `config.ts` section `ui`, registre `boutons` dans
+`Numpad`, points d'appel uniques `appuyer()` / `validerPour()`.
+Vérifications : typecheck ✅ · Vitest **62/62** ✅ · couverture **100 %** (158/158,
+103/103 branches) ✅ · scénarios **12/12** ✅ · smoke L0 ✅ · E2E **18/18** ✅
+(nouveau sous-cas **E08h**).
+
 **Jalon J6 — étape 1 « le duel (mode 2 joueurs) » : LIVRÉE ✅** —
 `CONFIG.mode: 'solo' | 'duel'`, **une seule classe `Numpad`/`QuizOverlay` instanciée
 deux fois** (J1 = ligne de chiffres, J2 = pavé numérique, `event.code` strictement
@@ -12,11 +21,11 @@ disjoints), helpers `joueurDe` / `naturePourJoueur` / `estHumain` / `zoneDe`,
 chrono = `tempsPhase` pour **les deux** joueurs en duel, libellés mode-aware
 (`'IA'` → `'J2'`), hooks debug `mode` / `setMode` / `setRythme` / `libelles` /
 `questionsHumain(joueur)` / `saisie(joueur)`.
-Vérifications : typecheck ✅ · Vitest **60/60** ✅ · couverture **100 %** (158/158,
-103/103 branches) ✅ · scénarios **12/12** ✅ · smoke L0 ✅ · E2E **17/17** ✅
-(nouveau cas **E08a→E08g**, capture `e2e-08-duel.png`).
-Prochaine étape J6 : **accès à l'écran CONFIG** (choix du mode + rythme depuis le
-menu) — le cœur du duel est jouable, mais pas encore sélectionnable dans l'UI.
+
+**En cours** : bouton ☰ MENU en cours de jeu (overlay pause « RETOUR AU JEU » /
+« QUITTER → MENU »), puis **J6 étape 2** : écrans RUN/CONFIG (choix du mode + du
+rythme depuis le menu) — le cœur du duel est jouable, mais pas encore sélectionnable
+dans l'UI.
 
 **Rappel J5 (présentation)** : arène + sprites cut-out, aura « Dragon Ball » à
 2 couches (4 paliers, contraste WCAG ≥ 3:1), frappe graduée, K.O. animé —
@@ -118,6 +127,15 @@ J6 (contenu complet) ; J8 clôt.
       alternés, chrono unique, libellés J2, E2E **E08a→E08g** vert. **Reste** :
       rendre le mode **choisissable depuis l'écran CONFIG** (et non plus par hook
       debug) — dépend de l'écran CONFIG ci-dessous.
+- [x] **Surbrillance des touches du clavier à l'appui** — demande utilisateur :
+      touche pressée (clic **ou** frappe physique) éclaircie + contour blanc, retour
+      au repos après `CONFIG.ui.surbrillanceMs` (160 ms), **console pressée seule** ;
+      durée/teinte dans `config.ts` section `ui` ; E2E **E08h** vert
+- [ ] **Bouton ☰ MENU en cours de jeu** — demande utilisateur : bouton en HUD →
+      overlay pause avec **[ RETOUR AU JEU ]** et **[ QUITTER → MENU ]**.
+      Vigilance : `Échap` est déjà « C Tout effacer » de J1 → raccourci distinct
+      (piste `M`) ; à vérifier avant : `this.time.timeScale = 0` gèle-t-il bien
+      les `delayedCall` (`Clock` de Phaser)
 - [ ] Écran de lancement rétro (bouton **RUN** clignotant au-dessus, **CONFIG** au-dessous, style borne d'arcade)
 - [ ] Écran CONFIG des règles (commandes ◀ ▶ rétro) : mode, tempo (durée unique attaque = défense : Rapide 10 s, Normal 15 s, Long 25 s + curseur borné 5–60 s), rythme de calcul (Différé/Simultané), PV, niveau, difficulté IA
 - [ ] Sélection de personnage + menu principal + choix de niveau

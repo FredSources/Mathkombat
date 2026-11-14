@@ -118,6 +118,13 @@ export interface ConfigJeu {
   saisieMaxChiffres: number;
   /** Cadence humaine de référence : 1 calcul réussi toutes les N secondes. */
   cadenceHumaineReference: number;
+  /** Interface (§2.7) — intensités d'animation des retours visuels des boutons. */
+  ui: {
+    /** Durée (ms) de la surbrillance d'une touche du clavier quand on l'appuie. */
+    surbrillanceMs: number;
+    /** Mélange vers le blanc (0..1) appliqué à la teinte de la touche pressée. */
+    surbrillanceTeinte: number;
+  };
   /** IA « gentille » (§2.6) : battable, suspense garanti. */
   ia: {
     /** Difficulté par défaut (CONFIG écran). */
@@ -198,6 +205,10 @@ export const CONFIG: ConfigJeu = {
   },
   saisieMaxChiffres: 3,
   cadenceHumaineReference: 3,
+  ui: {
+    surbrillanceMs: 160,
+    surbrillanceTeinte: 0.45,
+  },
   ia: {
     difficulte: 'moyen',
     rendementMax: 0.7,

@@ -251,6 +251,10 @@ clavier est plaqué contre le **bord extérieur** de l'écran, sous la main du j
   gauche** ; zone droite (J2) = clavier **aligné à droite** — chacun plaqué contre
   son bord d'écran, sous la main du joueur concerné.
 - La **zone active** est surlignée (bordure/lueur) ; la zone en veille est atténuée.
+- **Touches du clavier en surbrillance** : au moment où l'on appuie (clic ou touche
+  physique), la touche s'éclaircit (teinte mélangée vers le blanc) avec un contour
+  blanc, puis revient au repos — **uniquement sur la console pressée**. Le retour
+  visuel est immédiat : le joueur sait que sa frappe a été reçue.
 - L'arène reste visible en permanence sous les zones de calcul (§2.8).
 - Aucun élément ne masque les barres de vie ni le timer.
 - **Rythme de calcul** : déterminé **uniquement par la configuration choisie**

@@ -515,6 +515,43 @@ async function main() {
         e08g.j2 === '7',
       `phase=${e08g.phase} rythme=${e08g.rythme} · après J1: J1="${e08ApresJ1.j1}" J2="${e08ApresJ1.j2}" · final: J1="${e08g.j1}" J2="${e08g.j2}"`
     );
+
+    // E08h — surbrillance des touches (§2.7) : la touche pressée s'allume sur
+    // SA console uniquement, puis revient au repos après CONFIG.ui.surbrillanceMs.
+    // Lecture immédiate (fenêtre de 160 ms) puis contrôle du retour au repos.
+    await page.keyboard.press('Digit6');
+    const e08hJ1 = await page.evaluate(() => ({
+      feu: window.__mathkombat.saisie('j1').surbrillance,
+      texte: window.__mathkombat.saisie('j1').texte,
+      voisin: window.__mathkombat.saisie('j2').surbrillance,
+    }));
+    await attendre(400);
+    const e08hJ1Repos = await page.evaluate(() => window.__mathkombat.saisie('j1').surbrillance);
+    await page.keyboard.press('Numpad4');
+    const e08hJ2 = await page.evaluate(() => ({
+      feu: window.__mathkombat.saisie('j2').surbrillance,
+      texte: window.__mathkombat.saisie('j2').texte,
+      voisin: window.__mathkombat.saisie('j1').surbrillance,
+    }));
+    await attendre(400);
+    const e08hRepos = await page.evaluate(() => ({
+      j1: window.__mathkombat.saisie('j1').surbrillance,
+      j2: window.__mathkombat.saisie('j2').surbrillance,
+    }));
+    verifier(
+      'E08h',
+      'Surbrillance : touche pressée allumée sur SA console seule, puis retour au repos',
+      e08hJ1.feu === '6' &&
+        e08hJ1.texte === '56' &&
+        e08hJ1.voisin === null &&
+        e08hJ1Repos === null &&
+        e08hJ2.feu === '4' &&
+        e08hJ2.texte === '74' &&
+        e08hJ2.voisin === null &&
+        e08hRepos.j1 === null &&
+        e08hRepos.j2 === null,
+      `J1: feu=${e08hJ1.feu} texte="${e08hJ1.texte}" voisin=${e08hJ1.voisin} repos=${e08hJ1Repos} · J2: feu=${e08hJ2.feu} texte="${e08hJ2.texte}" voisin=${e08hJ2.voisin} · final j1=${e08hRepos.j1} j2=${e08hRepos.j2}`
+    );
   } finally {
     await navigateur.close();
     if (serveur) serveur.kill();

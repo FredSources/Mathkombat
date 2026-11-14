@@ -1354,3 +1354,66 @@ Trouvées par le smoke test L0 puis corrigées (le smoke test en est le test de 
 - **Dette d'architecture planifiée** : classe **`Personnage`** (interface unique +
   skins en données, `docs/architecture.md` §9) — prérequis de la sélection de
   personnage ; à faire en commit à part (une intention = un commit).
+
+---
+
+## 2026-11-14 — Retour utilisateur — Surbrillance des touches du clavier
+
+### Produits
+
+| Fichier | Rôle |
+|---------|------|
+| `game/src/core/config.ts` | Nouvelle section **`ui`** : `surbrillanceMs` (160 ms) et `surbrillanceTeinte` (0,45 — mélange vers le blanc) — intensité d'animation hors code, conforme §2.9 |
+| `game/src/ui/numpad.ts` | **Surbrillance à l'appui** : helper `eclaircir(couleur, part)`, registre `boutons` (`Map<clé, { fond, couleur }>` — clés = libellés de grille `'0'..'9'`, `'⌫'`, `'C'` et `` `valider:<difficulté>` ``), `surligner(cle)` (teinte éclaircie + contour blanc 3 px, retour au repos par `time.delayedCall`), appel unique dans **`appuyer()`** et **`validerPour()`** (clic **et** touche physique), `surbrillance` exposé par `etatSaisie()`, minuteur annulé par `detruire()` |
+| `game/tests/config.test.ts` | +2 tests : durée strictement positive et ≤ 1000 ms, teinte dans `]0, 1]` |
+| `scripts/e2e.mjs` | Sous-cas **E08h** : `Digit6` → `surbrillance = '6'` sur J1 seul (J2 = `null`), retour au repos à 400 ms, puis `Numpad4` → `'4'` sur J2 seul |
+| `AGENTS.md` §2.7 | Bullet « surbrillance à l'appui » (clic ou touche physique, console pressée seule, réglages `config.ts` section `ui`) |
+| `docs/wireframes.md` | Règle « Touches du clavier en surbrillance » dans les règles de l'écran de combat |
+| `docs/test-plan.md` | Ligne **E08** étendue `a`→`h` |
+| `journal.md`, `todo.md` | Cette entrée + état |
+
+### Décisions
+
+- **Deux points d'appel uniques** : `appuyer(libelle)` (clic de grille, chiffres,
+  ⌫, C **et** leurs touches physiques) et `validerPour(difficulte)` (bouton coloré
+  **et** `Entrée`/`NumpadEntrée`). Aucun autre appel — la surbrillance suit
+  exactement la logique de saisie, jamais l'inverse.
+- **Registre des boutons** : `creerBouton()` reçoit une `cle` (par défaut le
+  libellé) et dépose `{ fond, couleur }` dans une `Map` — la couleur d'origine est
+  conservée pour un retour au repos exact (pas de recalcul, pas de dérive).
+- **Intensité dans `config.ts`** : durée et teinte de surbrillance ajoutées à la
+  section `ui` plutôt qu'en dur dans `numpad.ts` (règle §2/§7 : aucune constante
+  magique hors `config.ts`).
+- **Retour au repos = contour d'origine** : `setStrokeStyle(3, 0xffffff)` pendant
+  l'appui, `setStrokeStyle(2, 0x4c63a8)` au retour — le contour des VALIDER est
+  identique à celui des chiffres, donc un seul code de restauration.
+- **Annulation à la destruction** : `detruire()` retire le minuteur ; et à l'arrêt
+  de scène, `Clock.shutdown` (vérifié dans `phaser.js`) détruit les `TimerEvent`
+  restants → aucun callback sur objet détruit.
+
+### Tests
+
+- **Batterie complète verte** : typecheck strict ✅ 0 erreur ; Vitest ✅
+  **62/62** (60 + 2 tests `ui`) ; couverture **100 %**
+  (158/158 statements, 103/103 branches, 32/32 fonctions, 139/139 lines) ;
+  scénarios ✅ **12/12** (`output/reports/scenarios-2026-11-14T11-20-28.md`, 0 ❌) ;
+  smoke L0 ✅ PASS ; **E2E ✅ 18/18** (`output/reports/e2e-2026-11-14T11-18-07.md`).
+- **E08h (nouveau, PASS)** : `Digit6` → `J1.surbrillance = '6'`, `J2 = null`,
+  saisie `'56'` ; 400 ms plus tard `J1 = null` ; `Numpad4` → `J2 = '4'`,
+  `J1 = null`, saisie `'74'` ; retour au repos des deux consoles.
+- **Non-régression** : E01→E05 et E08a→E08g toujours verts.
+
+### Anomalies
+
+- **Faute de syntaxe injectée puis corrigée** : `difficile: 0xa83a3a;` au lieu d'une
+  virgule dans `COULEURS_BOUTONS` → `PARSE_ERROR` oxc affiché en overlay par Vite.
+  Corrigé en `,` ; vérifié en rechargeant le transform (`/src/ui/numpad.ts` servie
+  sans erreur) et par typecheck. Signalée par l'utilisateur (« tu as dû faire une
+  erreur de syntaxe, regarde l'écran »).
+
+### Prochaine étape
+
+- **Bouton ☰ MENU en cours de jeu** → overlay pause avec « RETOUR AU JEU » et
+  « QUITTER → MENU » (demande utilisateur). Point de vigilance : `Échap` est déjà
+  « C Tout effacer » de J1 → raccourci clavier distinct (piste `M`).
+- Puis **J6 étape 2** : écrans RUN/CONFIG (E06 tempo, E07 rythme).

@@ -7,7 +7,10 @@
  *  - **sous le clavier, les 3 boutons VALIDER colorés** (vert/jaune/rouge, un par
  *    calcul) : on sait exactement quel calcul on valide ;
  *  - la touche **Entrée** valide le calcul ciblé ; la saisie n'est évaluée qu'à
- *    une validation.
+ *    une validation ;
+ *  - **surbrillance à l'appui** : la touche pressée (clic ou touche physique)
+ *    s'éclaircit avec un contour blanc puis revient au repos — la console montre
+ *    instantanément que la frappe a été reçue (durée et teinte : `config.ts` `ui`).
  *
  * Chaque joueur a SON clavier (aligné vers l'extérieur : J1 à gauche, J2 à
  * droite). Touches physiques mappées pour la version web de debug, identifiées
@@ -69,6 +72,18 @@ const COULEURS_BOUTONS: Record<Difficulte, number> = {
   difficile: 0xa83a3a,
 };
 
+/**
+ * Mélange une teinte vers le blanc : la touche pressée s'éclaircit (lisible sur
+ * la teinte foncée du pavé comme sur les couleurs des boutons VALIDER).
+ */
+function eclaircir(couleur: number, part: number): number {
+  const canal = (decalage: number): number => {
+    const v = (couleur >> decalage) & 0xff;
+    return Math.round(v + (255 - v) * part);
+  };
+  return (canal(16) << 16) | (canal(8) << 8) | canal(0);
+}
+
 export interface OptionsNumpad {
   scene: Phaser.Scene;
   x: number;
@@ -86,13 +101,19 @@ const ECART = 6;
 const LARGEUR_CONSOLE = 3 * LARGEUR_BOUTON + 2 * ECART; // 198 px
 
 export class Numpad {
+  private readonly scene: Phaser.Scene;
   private readonly conteneur: Phaser.GameObjects.Container;
   private readonly texteSaisie: Phaser.GameObjects.Text;
   private readonly fondSaisie: Phaser.GameObjects.Rectangle;
   private readonly onValider: (difficulte: Difficulte) => void;
+  /** Boutons de la console indexés par touche : chiffres/⌫/C + `valider:<diff>`. */
+  private readonly boutons = new Map<string, { fond: Phaser.GameObjects.Rectangle; couleur: number }>();
   private saisie = '';
   private cible: Difficulte = 'facile';
   private actif = true;
+  /** Touche actuellement en surbrillance (null : aucune) — debug/E2E. */
+  private surbrillance: string | null = null;
+  private minuteurSurbrillance: Phaser.Time.TimerEvent | null = null;
   /** Clavier de la scène et handler installés (retirés par `detruire()`). */
   private clavier: Phaser.Input.Keyboard.KeyboardPlugin | null = null;
   private onKeydown: ((event: KeyboardEvent) => void) | null = null;
@@ -100,6 +121,7 @@ export class Numpad {
   constructor(options: OptionsNumpad) {
     this.onValider = options.onValider;
     const scene = options.scene;
+    this.scene = scene;
     this.conteneur = scene.add.container(options.x, options.y);
     const xBase = options.alignement === 'gauche' ? 0 : -LARGEUR_CONSOLE;
 
@@ -135,6 +157,9 @@ export class Numpad {
           54 + ligne * (HAUTEUR_BOUTON + ECART),
           LARGEUR_BOUTON,
           HAUTEUR_BOUTON,
+          libelle,
+          0x2a3b6b,
+          22,
           libelle
         );
         bouton.on('pointerdown', () => this.appuyer(libelle));
@@ -161,7 +186,8 @@ export class Numpad {
         48,
         libellesBoutons[difficulte],
         COULEURS_BOUTONS[difficulte],
-        11
+        11,
+        `valider:${difficulte}`
       );
       bouton.on('pointerdown', () => this.validerPour(difficulte));
     }
@@ -198,7 +224,8 @@ export class Numpad {
     hauteur: number,
     libelle: string,
     teinte = 0x2a3b6b,
-    taille = 22
+    taille = 22,
+    cle = libelle
   ): Phaser.GameObjects.Container {
     const fond = scene.add
       .rectangle(0, 0, largeur, hauteur, teinte)
@@ -214,13 +241,35 @@ export class Numpad {
     // on re-émet explicitement pour que le handler du conteneur s'exécute.
     fond.on('pointerdown', () => bouton.emit('pointerdown'));
     this.conteneur.add(bouton);
+    this.boutons.set(cle, { fond, couleur: teinte });
     return bouton;
+  }
+
+  /**
+   * Surbrillance d'une touche (clic **et** touche physique) : teinte éclaircie +
+   * contour blanc, puis retour au repos après `CONFIG.ui.surbrillanceMs`.
+   * Une nouvelle pression sur la même touche relance le minuteur.
+   */
+  private surligner(cle: string): void {
+    const entree = this.boutons.get(cle);
+    if (!entree) return;
+    this.minuteurSurbrillance?.remove(false);
+    entree.fond.setFillStyle(eclaircir(entree.couleur, CONFIG.ui.surbrillanceTeinte));
+    entree.fond.setStrokeStyle(3, 0xffffff);
+    this.surbrillance = cle;
+    this.minuteurSurbrillance = this.scene.time.delayedCall(CONFIG.ui.surbrillanceMs, () => {
+      entree.fond.setFillStyle(entree.couleur);
+      entree.fond.setStrokeStyle(2, 0x4c63a8);
+      if (this.surbrillance === cle) this.surbrillance = null;
+      this.minuteurSurbrillance = null;
+    });
   }
 
   // ------------------------------------------------------------- saisie
 
   private appuyer(libelle: string): void {
     if (!this.actif) return;
+    this.surligner(libelle); // retour visuel immédiat, clic comme touche physique
     if (libelle === '⌫') this.saisie = this.saisie.slice(0, -1); // un chiffre
     else if (libelle === 'C') this.saisie = ''; // tout effacer
     else if (this.saisie.length < CONFIG.saisieMaxChiffres) this.saisie += libelle;
@@ -250,6 +299,7 @@ export class Numpad {
   /** Valider la saisie pour un calcul précis (bouton coloré / touche Entrée). */
   validerPour(difficulte: Difficulte): void {
     if (!this.actif) return;
+    this.surligner(`valider:${difficulte}`); // surbrillance du bouton pressé
     this.cible = difficulte;
     this.onValider(difficulte);
     this.majSaisie();
@@ -260,9 +310,14 @@ export class Numpad {
     return this.saisie === '' ? null : parseInt(this.saisie, 10);
   }
 
-  /** État de saisie (debug/E2E). */
-  etatSaisie(): { cible: Difficulte; texte: string; valeur: number | null } {
-    return { cible: this.cible, texte: this.saisie, valeur: this.valeur };
+  /** État de saisie (debug/E2E) — `surbrillance` = touche actuellement éclairée. */
+  etatSaisie(): { cible: Difficulte; texte: string; valeur: number | null; surbrillance: string | null } {
+    return {
+      cible: this.cible,
+      texte: this.saisie,
+      valeur: this.valeur,
+      surbrillance: this.surbrillance,
+    };
   }
 
   reset(): void {
@@ -277,6 +332,9 @@ export class Numpad {
   }
 
   detruire(): void {
+    this.minuteurSurbrillance?.remove(false);
+    this.minuteurSurbrillance = null;
+    this.surbrillance = null;
     if (this.clavier && this.onKeydown) this.clavier.off('keydown', this.onKeydown);
     this.clavier = null;
     this.onKeydown = null;
