@@ -5,6 +5,15 @@ Une case ne se coche que si : code produit + tests verts + entrée dans `journal
 
 ## État actuel
 
+**Jalon J7 — APK RELEASE : LIVRÉ ✅** — `output/MathKombat.apk` (7,2 Mo) construit
+par `scripts/build-apk.sh` : wrapper WebView Kotlin plein écran/paysage (zéro
+permission, hors-ligne), jeu web RELEASE certifié embarqué (`game/dist/`),
+keystore local, SDK/Gradle/JDK du projet. Sur hôte aarch64, les binaires SDK
+x86-64 sont émulés par `scripts/setup-sdk-qemu.sh` (wrappers qemu idempotents).
+Vérifications : BUILD SUCCESSFUL · `aapt dump badging` conforme ·
+signature `apksigner` valide · contenu complet (index.html, assets, classes.dex).
+Reste manuel : grille L5 sur appareil + build Android Studio (PC).
+
 **Menu de pause + boutons de fin de combat : LIVRÉS ✅** (demandes utilisateur) —
 **☰ MENU entre les deux blocs de calculs** (raccourci `M`) → overlay pause
 [ RETOUR AU JEU ] / [ QUITTER → MENU ], pause réelle (chrono et tweens figés) ;
@@ -199,12 +208,22 @@ J6 (contenu complet) ; J8 clôt.
       `FightScene` allégée de ~450 lignes (orchestration seule)
 - [ ] Best-of-3 manches (option, voir J8)
 
-### J7 — APK
+### J7 — APK — LIVRÉ ✅
 
-- [ ] Wrapper WebView Kotlin (`android/`) plein écran, assets embarqués
-- [ ] `scripts/build-apk.sh` (SDK local uniquement) → `output/MathKombat.apk`
+- [x] Wrapper WebView Kotlin (`android/`) plein écran, assets embarqués —
+      `MainActivity` (immersif, JS + DOM storage, sons, `file:///android_asset`),
+      manifest paysage **zéro permission**, AGP 8.5.2 + Kotlin 1.9.24, zéro
+      dépendance AndroidX
+- [x] `scripts/build-apk.sh` (SDK local uniquement) → `output/MathKombat.apk` —
+      jeu RELEASE certifié copié en assets, keystore local, Gradle embarqué,
+      contrôle `aapt dump badging`
+- [x] **APK release construite et vérifiée** : 7,2 Mo, `fr.mathkombat` v0.1.0,
+      sdk 24→34, signature valide (`apksigner verify`) — BUILD SUCCESSFUL
+- [x] `scripts/setup-sdk-qemu.sh` : wrappers qemu des binaires SDK x86-64
+      (hôte aarch64) — idempotent ; prérequis apt : `qemu-user-static`,
+      `libc6-amd64-cross`, `libgcc-s1-amd64-cross`
 - [ ] Build PC (Android Studio) documenté et vérifié
-- [ ] Grille manuelle L5 (M01→M07)
+- [ ] Grille manuelle L5 (M01→M07) sur appareil
 
 ### J8 — Clôture
 

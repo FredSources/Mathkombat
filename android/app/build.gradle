@@ -1,0 +1,49 @@
+// app/build.gradle — application WebView MathKombat (J7).
+//
+// Contenu : le jeu web (game/dist/) est copié dans `src/main/assets/` par
+// `scripts/build-apk.sh` — une seule source de vérité pour les assets.
+// Zéro dépendance externe (Activity android native, pas d'AndroidX) : le build
+// reste le plus possible hors-ligne (SDK et Gradle embarqués, AGENTS.md §4).
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'fr.mathkombat'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'fr.mathkombat'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    // Signature release locale : keystore généré par scripts/build-apk.sh dans
+    // tools/ (jamais de secret hors projet).
+    signingConfigs {
+        release {
+            storeFile file("$rootDir/../tools/mathkombat.keystore")
+            storePassword 'mathkombat'
+            keyAlias 'mathkombat'
+            keyPassword 'mathkombat'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}

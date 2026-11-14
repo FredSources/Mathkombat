@@ -1751,3 +1751,52 @@ score = énergies gagnées (somme des gains +1/+3/+7)
 
 - **APK release** : wrapper WebView Kotlin (`android/`) + `scripts/build-apk.sh`
   (SDK local `tools/`) → `output/MathKombat.apk`.
+
+---
+
+## 2026-11-14 — APK RELEASE (J7) — output/MathKombat.apk
+
+### Produits
+
+| Fichier | Rôle |
+|---------|------|
+| `android/` | **Wrapper WebView Kotlin** : `settings.gradle`, `build.gradle` (AGP 8.5.2 + Kotlin 1.9.24), `app/build.gradle` (minSdk 24 / targetSdk 34, signature release locale), `AndroidManifest.xml` (paysage, plein écran, **zéro permission**), `MainActivity.kt` (WebView immersive, JS + DOM storage pour le record, sons sans geste, `file:///android_asset/index.html`) |
+| `scripts/build-apk.sh` | **Build APK release** : jeu web RELEASE → assets embarqués (`game/dist/` = unique source), keystore généré dans `tools/`, Gradle embarqué (`assembleRelease`, cache isolé `.gradle-cache`), sortie `output/MathKombat.apk` + contrôle `aapt dump badging` |
+| `scripts/setup-sdk-qemu.sh` | **Wrappers qemu des binaires SDK x86-64** (aapt2, zipalign, aidl…) : sur hôte aarch64, les outils officiels du SDK sont émulés (`qemu-x86_64-static -L /usr/x86_64-linux-gnu`) — script **idempotent** (restaure et re-wrappe proprement) |
+
+### Décisions
+
+- **Zéro dépendance Android** : `Activity` native (pas d'AndroidX) → le build reste
+  léger et le moins réseau-dépendant possible (AGP/Kotlin plugins Maven en
+  cache isolé `tools/` + `.gradle-cache`).
+- **Assets = `game/dist/`** : le contenu de l'APK est **certifié** par
+  `scripts/certif-release.mjs` (zéro log, zéro socket, jouable) — une seule source
+  de vérité, copiée à chaque build.
+- **Signature release locale** : keystore `tools/mathkombat.keystore` (généré une
+  fois, 10 000 jours) — aucun secret hors projet ; APK installable tel quel.
+- **Émulation qemu** (aarch64 → x86-64) : nécessitée par les build-tools Android
+  officielles ; prérequis système documentés (apt) : `qemu-user-static`,
+  `libc6-amd64-cross`, `libgcc-s1-amd64-cross`.
+
+### Anomalies corrigées
+
+- **AAPT2 daemon startup failed** : binaires SDK x86-64 inéxécutables sur aarch64
+  (« Exec format error », `ld-linux-x86-64.so.2` absent) → wrappers qemu
+  (`setup-sdk-qemu.sh`) + `android.aapt2FromMavenOverride` pointant sur l'aapt2
+  du SDK (wrappé). Double wrapping raté au premier jet (`.bin.bin`) → logique
+  de restauration idempotente réécrite (un ELF d'origine, un seul wrapper).
+
+### Tests
+
+- **BUILD SUCCESSFUL** (Gradle 8.10.2, SDK 34, JDK 21 embarqués) — 46 tâches.
+- **APK vérifié** : `output/MathKombat.apk` (7,2 Mo) — `package=fr.mathkombat`,
+  `versionName=0.1.0`, `sdkVersion 24 → 34`, `launchable-activity` MainActivity ;
+  **signature valide** (`apksigner verify`) ; contenu = jeu complet
+  (`assets/index.html`, `classes.dex`, arène, effets, fonds, sons).
+- **Reste manuel** : grille L5 (M01→M07) sur appareil réel — lancer, tactile,
+  audio, pause, record, rotation.
+
+### Prochaine étape
+
+- Exécution de la **grille manuelle L5** sur appareil (ou émulateur) puis J8
+  (équilibrage, best-of-3, README/journal final).

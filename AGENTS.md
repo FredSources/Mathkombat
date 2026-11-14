@@ -524,8 +524,9 @@ node scripts/run-scenarios.mjs [S01]   # J2 : scénarios headless → output/rep
 node scripts/e2e.mjs                   # J4/J6 : E2E navigateur (E01→E12) → captures + rapport
 node scripts/certif-release.mjs         # J7 : certification RELEASE zéro log (T04, I10) → rapport
 
-# jalons suivants (documentés ici au fur et à mesure) :
-# bash scripts/build-apk.sh            # J7 : APK (SDK local uniquement)
+# Prérequis système pour l'APK (hôte aarch64) : qemu-user-static,
+# libc6-amd64-cross, libgcc-s1-amd64-cross (apt) — voir scripts/setup-sdk-qemu.sh
+bash scripts/build-apk.sh               # J7 : APK release → output/MathKombat.apk (SDK local, wrappers qemu si aarch64)
 ```
 
 ## 9. Journal et TODO — discipline de session
