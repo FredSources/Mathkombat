@@ -25,8 +25,10 @@
  *          ☰ MENU → QUITTER → MENU (capture).
  *  - E11 : fin de combat — boutons [ REJOUER ] / [ MENU ] au K.O. (§7) :
  *          REJOUER relance un combat, MENU revient à l'écran RUN (capture).
+ *  - E12 : sélection de combat (§3) — niveau et personnage choisis, puis
+ *          LANCER LE COMBAT applique bien la sélection (capture).
  *
- * E06/E07/E09/E10/E11 sont exécutés **en fin de batterie** : ils rechargent
+ * E06/E07/E09/E10/E11/E12 sont exécutés **en fin de batterie** : ils rechargent
  * l'application (retour aux réglages par défaut §2.9), ce qui casserait la
  * continuité E05→E08.
  *
@@ -126,14 +128,24 @@ async function main() {
     await attendre(400);
   }
 
+  // RUN → écran de sélection (§3) → [ LANCER LE COMBAT ] → scène de combat.
+  // Les clics sont réels (coordonnées des wireframes §1 et §3).
+  async function lancerCombat() {
+    await clicJeu(640, 310); // bouton RUN (wireframe §1)
+    await attendreEcran('select');
+    await attendre(250);
+    await clicJeu(640, 520); // [ ▶ LANCER LE COMBAT ] (wireframe §3)
+    await attendreHook();
+    await attendre(400);
+  }
+
   try {
     // ---------------------------------------------------------- E01
     await page.goto(URL_JEU, { waitUntil: 'networkidle0', timeout: 30000 });
     await attendreEcran('menu');
     await attendre(400);
     const e01Menu = await page.evaluate(() => window.__mathkombatEcrans.ecran);
-    await clicJeu(640, 310); // bouton RUN (wireframe §1)
-    await attendreHook();
+    await lancerCombat(); // RUN → sélection (§3) → combat
     await page.evaluate(() => window.__mathkombat.setTempsPhase(45)); // confort E2E
     await attendre(800);
     const e01 = await etat();
@@ -597,8 +609,7 @@ async function main() {
     await attendre(250);
     await clicJeu(850, 612); // [ VALIDER ] (wireframe §2)
     await attendreEcran('menu');
-    await clicJeu(640, 310); // RUN
-    await attendreHook();
+    await lancerCombat();
     const e06Attaque = await etat();
     await page.screenshot({ path: path.join(SHOTS, 'e2e-06-tempo-rapide.png') });
     // tour 1 : attaque J1 (10 s) → défense IA (3 s, hors sujet) → résolution
@@ -647,8 +658,7 @@ async function main() {
     await attendre(250);
     await clicJeu(850, 612); // [ VALIDER ]
     await attendreEcran('menu');
-    await clicJeu(640, 310); // RUN
-    await attendreHook();
+    await lancerCombat();
     await attendre(400); // transition stabilisée avant frappe (cf. E08g)
     await page.keyboard.type('5', { delay: 40 }); // touche de J1 (Digit5)
     await page.keyboard.press('Numpad7'); // touche de J2
@@ -681,9 +691,7 @@ async function main() {
     // Score de combat (§2.7) : mesures par joueur en temps réel, score final
     // avec bonus K.O., record persistant et HIGH SCORE réaffiché sur l'écran RUN.
     await relancer();
-    await clicJeu(640, 310); // RUN (solo, défauts §2.9)
-    await attendreHook();
-    await attendre(400);
+    await lancerCombat(); // solo, défauts §2.9
     // 1 calcul résolu au clavier → énergie gagnée créditée au score de J1
     const q09 = (await questions()).find((q) => q.difficulte === 'facile');
     await clicJeu(126, 178); // cible la carte FACILE
@@ -736,9 +744,7 @@ async function main() {
     // Menu de pause (§8 wireframes) : ☰ MENU → chrono et animations figés →
     // [ RETOUR AU JEU ] = reprise exacte → ☰ MENU → [ QUITTER → MENU ].
     await relancer();
-    await clicJeu(640, 310); // RUN
-    await attendreHook();
-    await attendre(400);
+    await lancerCombat();
     await clicJeu(640, 164); // ☰ MENU
     await attendre(300);
     const e10Pause = await page.evaluate(() => ({
@@ -776,9 +782,7 @@ async function main() {
     // Fin de combat (§7 wireframes) : au K.O., les boutons [ REJOUER ] et
     // [ MENU ] remplacent le message « R = rejouer ».
     await relancer();
-    await clicJeu(640, 310); // RUN
-    await attendreHook();
-    await attendre(400);
+    await lancerCombat();
     await page.evaluate(() => {
       window.__mathkombat.forcerEnergieAttaque(100);
       window.__mathkombat.forcerEnergieDefense(0);
@@ -815,6 +819,34 @@ async function main() {
         e11Rejoue.fini === false &&
         e11Menu === 'menu',
       `k.o.: affichee=${e11Fin.affichee} boutons=${e11Fin.boutons} · après REJOUER: tour=${e11Rejoue.tour} fini=${e11Rejoue.fini} · après MENU: écran=${e11Menu}`
+    );
+
+    // ---------------------------------------------------------- E12
+    // Sélection de combat (§3) : niveau J1 et personnage choisis, puis
+    // LANCER LE COMBAT → la sélection est bien celle du combat lancé.
+    await relancer();
+    await clicJeu(640, 310); // RUN
+    await attendreEcran('select');
+    await attendre(250);
+    await clicJeu(700, 240); // ◀ niveau J1 : INTERMÉDIAIRE → DÉBUTANT
+    await clicJeu(700, 320); // ◀ skin J2 : PERSO B → PERSO A
+    await attendre(200);
+    await page.screenshot({ path: path.join(SHOTS, 'e2e-12-selection.png') });
+    await clicJeu(640, 520); // [ ▶ LANCER LE COMBAT ]
+    await attendreHook();
+    const e12 = await page.evaluate(() => ({
+      ...window.__mathkombat.selection(),
+      ecran: window.__mathkombatEcrans.ecran,
+      tour: window.__mathkombat.etat().tour,
+    }));
+    verifier(
+      'E12',
+      'Sélection (§3) : niveau J1 et personnage choisis → combat construit dessus',
+      e12.ecran === 'fight' &&
+        e12.tour >= 1 &&
+        e12.niveauJ1 === 'debutant' &&
+        e12.skinJ2 === 'persoA',
+      `ecran=${e12.ecran} tour=${e12.tour} · sélection: niveauJ1=${e12.niveauJ1} skinJ2=${e12.skinJ2}`
     );
   } finally {
     await navigateur.close();

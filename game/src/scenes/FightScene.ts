@@ -38,6 +38,7 @@ import { PauseOverlay } from '../ui/pause-overlay.ts';
 import { RETRO, creerBoutonRetro } from '../ui/retro.ts';
 import { Personnage, skinDe } from '../rig/personnage.ts';
 import type { EffetsPersonnage } from '../rig/personnage.ts';
+import { selection } from '../ui/selection.ts';
 
 declare const __BUILD_MODE__: string | undefined;
 
@@ -129,7 +130,7 @@ export class FightScene extends Phaser.Scene {
     this.j1 = new Personnage({
       scene: this,
       id: 'j1',
-      skin: skinDe('persoA'),
+      skin: skinDe(selection.skinJ1),
       x: X_J1,
       y: SOL,
       nom: FightScene.nomJoueur('j1'),
@@ -140,7 +141,7 @@ export class FightScene extends Phaser.Scene {
     this.j2 = new Personnage({
       scene: this,
       id: 'j2',
-      skin: skinDe('persoB'),
+      skin: skinDe(selection.skinJ2),
       x: X_J2,
       y: SOL,
       nom: FightScene.nomJoueur('j2'),
@@ -432,7 +433,11 @@ export class FightScene extends Phaser.Scene {
     // réglages de l'écran CONFIG (J6) : combat toujours construit dessus
     this.tempsPhase = CONFIG.tempsPhase;
     this.engine = new CombatEngine({
-      niveaux: { j1: CONFIG.niveau, j2: CONFIG.niveau },
+      // niveaux de la sélection (§3) : en SOLO, l'IA suit le niveau de J1
+      niveaux: {
+        j1: selection.niveauJ1,
+        j2: CONFIG.mode === 'duel' ? selection.niveauJ2 : selection.niveauJ1,
+      },
       emettre: (e: TraceEvent) => log.debug(e.event, e.data),
     });
     this.ia = new AiController(CONFIG, undefined, (e: TraceEvent) =>
@@ -1024,6 +1029,8 @@ export class FightScene extends Phaser.Scene {
         affichee: scene.engine.etat.fini,
         boutons: scene.boutonRejouer.visible && scene.boutonMenuFin.visible,
       }),
+      // sélection de combat (§3) : skins et niveaux appliqués à ce combat
+      selection: () => ({ ...selection }),
       // score de combat (§2.7) : mesures cumulées + scores affichés
       scores: () => ({
         j1: { ...scene.scores.j1 },

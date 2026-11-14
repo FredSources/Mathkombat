@@ -109,10 +109,10 @@ export class MenuScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ENTER', () => this.lancer());
   }
 
-  /** RUN → combat avec les règles enregistrées (écran CONFIG mémorisé). */
+  /** RUN → sélection des personnages et niveaux (wireframes §3). */
   private lancer(): void {
     log.info('ui.clic', { ecran: 'menu', cible: 'run' });
-    this.scene.start('Fight');
+    this.scene.start('Select');
   }
 
   /** CONFIG → écran de configuration des règles (§2.7). */

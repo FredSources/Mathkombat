@@ -10,7 +10,7 @@
  */
 declare const __BUILD_MODE__: string | undefined;
 
-export type NomEcran = 'menu' | 'config' | 'fight';
+export type NomEcran = 'menu' | 'config' | 'select' | 'fight';
 
 /**
  * Déclare l'écran affiché (no-op en RELEASE, comme le hook `__mathkombat`).

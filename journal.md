@@ -1667,3 +1667,44 @@ score = énergies gagnées (somme des gains +1/+3/+7)
 - **Sélection de personnage + de niveau** (wireframes §3) — fin J6.
 - Puis **certification RELEASE zéro log** (T04, I10) et **APK release**
   (wrapper WebView + `scripts/build-apk.sh`).
+
+---
+
+## 2026-11-14 — Sélection de personnage et de niveau (fin J6)
+
+### Produits
+
+| Fichier | Rôle |
+|---------|------|
+| `game/src/ui/selection.ts` | État de session de la sélection (§3) : skins J1/J2 + niveaux J1/J2 — écrit par `SelectScene`, lu par `FightScene` |
+| `game/src/scenes/SelectScene.ts` | **Écran de sélection** (wireframes §3) : 4 lignes réglables ◀ ▶ (personnages depuis `SKINS`, niveaux §2.5), note de mode (SOLO : l'IA suit le niveau de J1, difficulté CONFIG), **[ ▶ LANCER LE COMBAT ]**, RETOUR, Entrée = lancer ; fond `fond-config` + voile |
+| `game/src/scenes/MenuScene.ts` | RUN → `Select` (plus `Fight` directement) |
+| `game/src/scenes/FightScene.ts` | Skins et niveaux **lus dans la sélection** à chaque `lancerCombat` (en SOLO, l'IA suit le niveau de J1) ; hook debug `selection()` |
+| `game/src/main.ts` | `SelectScene` enchaînée entre Config et Fight |
+| `scripts/e2e.mjs` | Helper `lancerCombat()` (RUN → sélection → LANCER, clics réels) appliqué à E01/E06/E07/E09/E10/E11 ; nouveau cas **E12** |
+
+### Décisions
+
+- **La sélection est un état de session** (`ui/selection.ts`), pas de
+  l'équilibrage : les skins et niveaux choisis persistent entre les combats mais
+  restent hors `config.ts` (qui garde les valeurs de jeu).
+- **Skins dynamiques** : les lignes de personnage sont construites depuis
+  `SKINS` — ajouter un skin l'ajoute automatiquement à la sélection.
+- **E2E en clics réels** : le helper `lancerCombat()` traverse vraiment RUN →
+  sélection → LANCER (aucun hook de navigation).
+
+### Tests
+
+- **Batterie complète verte** : typecheck ✅ 0 erreur ; Vitest ✅ **83/83** ;
+  couverture **100 %** ; scénarios ✅ **12/12** ; smoke L0 ✅ PASS ;
+  **E2E ✅ 24/24** (`output/reports/e2e-2026-11-14T14-15-39.md`).
+- **E12 (nouveau, PASS)** : ◀ niveau J1 → DÉBUTANT, ◀ skin J2 → PERSO A, puis
+  LANCER → combat créé avec la sélection (`selection()` = debutant/persoA) +
+  capture `e2e-12-selection.png`.
+- **Non-régression** : E01→E11 verts, tous rebranchés sur le passage par la
+  sélection (RUN ne lance plus directement le combat).
+
+### Prochaine étape
+
+- **Certification RELEASE zéro log** (T04, I10) puis **APK release**
+  (wrapper WebView Kotlin + `scripts/build-apk.sh`).

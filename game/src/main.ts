@@ -8,6 +8,7 @@ import { BootScene } from './scenes/BootScene';
 import { ConfigScene } from './scenes/ConfigScene';
 import { FightScene } from './scenes/FightScene';
 import { MenuScene } from './scenes/MenuScene';
+import { SelectScene } from './scenes/SelectScene';
 
 const log = initLogger({ scene: 'App' });
 log.info('session.debut', { version: '0.1.0', build: 'debug' });
@@ -22,5 +23,5 @@ new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, MenuScene, ConfigScene, FightScene],
+  scene: [BootScene, MenuScene, ConfigScene, SelectScene, FightScene],
 });

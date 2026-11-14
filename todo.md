@@ -186,7 +186,10 @@ J6 (contenu complet) ; J8 clôt.
       `CONFIG.ui.voileConfig`) ; boutons RETOUR (abandon, `Échap`) /
       RÉINITIALISER / VALIDER ; écriture bornée à la validation (I9) ;
       E2E **E06** (tempo) et **E07** (mode + rythme) verts
-- [ ] Sélection de personnage + menu principal + choix de niveau
+- [x] **Sélection de personnage + choix de niveau** (wireframes §3) :
+      `SelectScene` + état de session `ui/selection.ts` — skins depuis `SKINS`,
+      niveaux §2.5, note de mode (SOLO : l'IA suit le niveau de J1),
+      **[ ▶ LANCER LE COMBAT ]** ; E2E **E12** vert (fin J6 ✅)
 - [x] **Classe `Personnage` — interface unique + skins** (détail
       `docs/architecture.md` §9) : **implémentée** dans `game/src/rig/personnage.ts`
       — skins = descripteurs de données (`SKINS`, erreur explicite si inconnu),
