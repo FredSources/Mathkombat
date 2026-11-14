@@ -32,7 +32,9 @@ if [ ! -f "$KEYSTORE" ]; then
     -dname "CN=MathKombat, OU=Jeu educatif, O=MathKombat, C=FR" >/dev/null 2>&1
 fi
 
-# ---------------------------------------------------------- 3bis. outils SDK
+# ---------------------------------------------------------- 3bis. icône + outils
+# Icône d'application (mipmap) depuis l'image source carrée du projet.
+/opt/opencode-venv/bin/python3 "$PROJ/scripts/assets-icone-apk.py"
 # Sur hôte aarch64 : les binaires x86-64 du SDK sont émulés par wrappers qemu.
 bash "$PROJ/scripts/setup-sdk-qemu.sh"
 
