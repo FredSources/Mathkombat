@@ -5,6 +5,20 @@ Une case ne se coche que si : code produit + tests verts + entrée dans `journal
 
 ## État actuel
 
+**Jalon J6 — étape 2 « écrans RUN / CONFIG » : LIVRÉE ✅** — `MenuScene` (RUN
+clignotant, CONFIG, cadre de borne, Entrée = RUN) et `ConfigScene` (7 lignes ◀ ▶ :
+mode, tempo + durée, rythme, PV, niveau, difficulté IA ; RETOUR / RÉINITIALISER /
+VALIDER avec écriture bornée à la validation), primitives partagées `ui/retro.ts`,
+hook d'écran `ui/ecran.ts`, **fonds d'illustration** (`game/assets/fonds/`,
+voiles de lisibilité dans `config.ts` section `ui`), réglages de config étendus
+(presets tempo, bornes 5–60 s / 10–999, `niveau`, fonctions pures `lireTempsPhase` /
+`lirePv` / `presetDeTemps` / `appliquerReglages`).
+Vérifications : typecheck ✅ · Vitest **76/76** ✅ · couverture **100 %** (183/183,
+114/114 branches) ✅ · scénarios **12/12** ✅ · smoke L0 ✅ · E2E **20/20** ✅
+(E01→E08, dont **E06** tempo et **E07** mode+rythme via l'écran CONFIG).
+**HIGH SCORE retiré de l'écran RUN** (demande utilisateur) : règle de calcul à
+trancher — propositions dans § Idées / dette.
+
 **Retour utilisateur « surbrillance des touches » : LIVRÉ ✅** — la touche pressée
 (clic **ou** frappe physique) s'éclaircit avec un contour blanc puis revient au
 repos après `CONFIG.ui.surbrillanceMs` (160 ms), **uniquement sur la console
@@ -23,9 +37,8 @@ chrono = `tempsPhase` pour **les deux** joueurs en duel, libellés mode-aware
 `questionsHumain(joueur)` / `saisie(joueur)`.
 
 **En cours** : bouton ☰ MENU en cours de jeu (overlay pause « RETOUR AU JEU » /
-« QUITTER → MENU »), puis **J6 étape 2** : écrans RUN/CONFIG (choix du mode + du
-rythme depuis le menu) — le cœur du duel est jouable, mais pas encore sélectionnable
-dans l'UI.
+« QUITTER → MENU »), puis J6 : sélection de personnage (et dette architecturale
+`Personnage`, `docs/architecture.md` §9).
 
 **Rappel J5 (présentation)** : arène + sprites cut-out, aura « Dragon Ball » à
 2 couches (4 paliers, contraste WCAG ≥ 3:1), frappe graduée, K.O. animé —
@@ -122,11 +135,10 @@ J6 (contenu complet) ; J8 clôt.
 
 - [ ] **Refonte des planches en 3/4 de face, rendu type Mortal Kombat / Street Fighter** — demande utilisateur, direction `docs/assets.md` §2a
 - [x] **Coups de poing et de pied animés** — demande utilisateur : **rig cut-out articulé** livré (`scripts/assets-rig.py` → 5 pièces par perso, pivots épaule/hanche, bandes de recouvrement) : poing, pied haut/bas, garde haute/basse, **contre avec saut + coup de pied**, flash d'impact à la hauteur du coup — angles/durées dans `config.ts` (`rig`), recettes `docs/assets.md` §3a ; validé par sonde rAF (`tmp/anim-probe.mjs` : 92/36/85/−140/150°) + E2E 9/9
-- [~] **Mode 2 joueurs (même écran, tour par tour)** — **cœur livré et testé** :
+- [x] **Mode 2 joueurs (même écran, tour par tour)** — **livré et testé** :
       `CONFIG.mode`, une console par joueur (touches physiques disjointes), rôles
-      alternés, chrono unique, libellés J2, E2E **E08a→E08g** vert. **Reste** :
-      rendre le mode **choisissable depuis l'écran CONFIG** (et non plus par hook
-      debug) — dépend de l'écran CONFIG ci-dessous.
+      alternés, rythme SIMULTANÉ deux zones actives ; **choisissable depuis
+      l'écran CONFIG** (E2E E07/E08).
 - [x] **Surbrillance des touches du clavier à l'appui** — demande utilisateur :
       touche pressée (clic **ou** frappe physique) éclaircie + contour blanc, retour
       au repos après `CONFIG.ui.surbrillanceMs` (160 ms), **console pressée seule** ;
@@ -136,8 +148,18 @@ J6 (contenu complet) ; J8 clôt.
       Vigilance : `Échap` est déjà « C Tout effacer » de J1 → raccourci distinct
       (piste `M`) ; à vérifier avant : `this.time.timeScale = 0` gèle-t-il bien
       les `delayedCall` (`Clock` de Phaser)
-- [ ] Écran de lancement rétro (bouton **RUN** clignotant au-dessus, **CONFIG** au-dessous, style borne d'arcade)
-- [ ] Écran CONFIG des règles (commandes ◀ ▶ rétro) : mode, tempo (durée unique attaque = défense : Rapide 10 s, Normal 15 s, Long 25 s + curseur borné 5–60 s), rythme de calcul (Différé/Simultané), PV, niveau, difficulté IA
+- [x] **Écran de lancement rétro** (bouton **RUN** clignotant au-dessus, **CONFIG**
+      au-dessous, style borne d'arcade) — `MenuScene` + `ui/retro.ts` (primitives
+      partagées) + **fond d'illustration** (`game/assets/fonds/fond-menu.png`,
+      voile de lisibilité `CONFIG.ui.voileMenu`) ; Entrée = RUN ; HIGH SCORE
+      volontairement absent (règle à définir, § Idées/dette)
+- [x] **Écran CONFIG des règles** (commandes ◀ ▶ rétro) : mode, tempo (durée unique
+      attaque = défense : Rapide 10 s, Normal 15 s, Long 25 s + curseur borné
+      5–60 s), rythme de calcul (Différé/Simultané), PV, niveau, difficulté IA —
+      `ConfigScene` + fond d'illustration (`fond-config.png`, voile
+      `CONFIG.ui.voileConfig`) ; boutons RETOUR (abandon, `Échap`) /
+      RÉINITIALISER / VALIDER ; écriture bornée à la validation (I9) ;
+      E2E **E06** (tempo) et **E07** (mode + rythme) verts
 - [ ] Sélection de personnage + menu principal + choix de niveau
 - [ ] **Classe `Personnage` — interface unique + skins** (détail `docs/architecture.md` §9) :
       une seule classe pour J1/J2, orientation en **état** (`gauche`/`droite`), coups
@@ -168,6 +190,21 @@ J6 (contenu complet) ; J8 clôt.
   début ») : calculs à volonté, erreur = indice, pas de combat.
 - **Record personnel** : chrono contre son propre score (jamais contre l'autre
   joueur) — statistiques de cadence par famille de table.
+  - **HIGH SCORE retiré de l'écran RUN (2026-11-14, demande utilisateur)** : la
+    ligne « HIGH SCORE » du wireframe §1 est volontairement absente tant que la
+    règle de calcul n'est pas choisie. Pistes proposées :
+    1. **Score de combat** (le plus classique) : points = somme des énergies
+       gagnées (× gain de la difficulté) + **bonus de temps restant** à la fin ;
+       K.O. rapide = gros bonus → récompense à la fois calcul *et* rapidité ;
+    2. **Score de cadence** (fidèle à §2.5 « son propre score ») : nombre de
+       calculs réussis par partie, affiché avec le taux de réussite
+       (`réussis / tentés`), record séparé par niveau de calcul ;
+    3. **Score par manche façon arcade** : points par round gagné + bonus K.O. +
+       multiplicateur de série (calculs enchaînés sans erreur) — le plus « borne » ;
+    4. **Record local persistant** : quel que soit le barème, stockage
+       `localStorage` (hors-ligne, déplaçable), un record par
+       `mode × niveau de calcul`, affiché sur l'écran RUN.
+  - À trancher avant d'afficher quoi que ce soit (sinon un nombre inventé ment).
 - **Bouton « Indice »** : afficher l'astuce de déduction de la table concernée
   (boîte à outils `AGENTS.md` §2.5) — pédagogique, à pénaliser doucement ou non.
 - **Addition / soustraction** : type de calcul supplémentaire pour adapter le niveau

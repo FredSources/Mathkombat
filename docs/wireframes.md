@@ -28,13 +28,15 @@ clavier est plaqué contre le **bord extérieur** de l'écran, sous la main du j
 │ ▓           └────────────────────┘                 ▓ │
 │ ▓                                                  ▓ │
 │ ▓   © 2026 MATHKOMBAT · INSERT COIN                ▓ │
-│ ▓   HIGH SCORE : 12 400                            ▓ │
 │ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ │
 └──────────────────────────────────────────────────────┘
 ```
 
 - Cadre type borne, fonte pixel, **bouton RUN au-dessus** (clignotant comme
   « PRESS START » des anciens jeux), **bouton CONFIG au-dessous**.
+- **HIGH SCORE** : la ligne de record du cadre est **volontairement absente en
+  l'état** — la règle de calcul du record n'est pas encore définie (demande
+  utilisateur, `todo.md` § Idées/dette). Elle reviendra une fois la règle choisie.
 - **RUN** → sélection des personnages (écran 3) → combat avec les règles enregistrées.
 - **CONFIG** → configuration des règles (écran 2).
 - Événements : `ui.clic`, `session.debut`.

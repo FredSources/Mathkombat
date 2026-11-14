@@ -15,7 +15,11 @@
       }
       #jeu {
         width: 100vw;
+        /* 100vh sur mobile inclut la zone derrière la barre d'adresse :
+           le bas du canvas sortirait de la zone visible (frame tronquée).
+           100dvh = hauteur dynamique = zone réellement visible. */
         height: 100vh;
+        height: 100dvh;
       }
     </style>
   </head>

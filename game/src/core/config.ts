@@ -12,12 +12,34 @@ export type Niveau = 'debutant' | 'intermediaire' | 'avance';
 export type Rythme = 'differe' | 'simultane';
 /** Mode de jeu (§2.6) : 'solo' (J1 vs IA, défaut) ou 'duel' (2 joueurs, même appareil). */
 export type ModeJeu = 'solo' | 'duel';
+/**
+ * Presets de tempo de l'écran CONFIG (§2.9) : `personnalise` = valeur libre
+ * bornée 5–60 s (curseur ◀ ▶ de l'écran CONFIG).
+ */
+export type PresetTempo = 'rapide' | 'normal' | 'long' | 'personnalise';
 /** Coup articulé du rig cut-out (§2.8b, docs/assets.md §3a). */
 export type Coup = 'poing' | 'pied-bas' | 'pied-haut';
 /** v1 : multiplication + division seules ; addition/soustraction prévues (I14). */
 export type TypeOperation = 'addition' | 'soustraction' | 'multiplication' | 'division';
 
 export type Fait = readonly [number, number]; // fait sous-jacent (a, b) — non ordonné au sens de la commutativité
+
+// ------------------------------------------------------- bornes et presets (§2.9)
+
+/** Bornes de lecture de la durée de phase (secondes) — §2.9 / I9. */
+export const BORNES_TEMPS_PHASE = { min: 5, max: 60 } as const;
+/** Bornes de lecture des PV par joueur — §2.9 / I9. */
+export const BORNES_PV = { min: 10, max: 999 } as const;
+/** PV par joueur par défaut (§2.9) — aussi la valeur de repli d'une lecture invalide. */
+export const PV_DEFAUT = 100;
+/** Durées des presets de tempo de l'écran CONFIG (secondes, attaque = défense). */
+export const PRESETS_TEMPO: Record<Exclude<PresetTempo, 'personnalise'>, number> = {
+  rapide: 10,
+  normal: 15,
+  long: 25,
+};
+/** Défilement ◀ ▶ des presets sur la ligne TEMPO de l'écran CONFIG. */
+export const ORDRE_PRESETS: readonly PresetTempo[] = ['rapide', 'normal', 'long', 'personnalise'];
 
 // ---------------------------------------------------------------- configuration
 
@@ -30,6 +52,8 @@ export interface ConfigJeu {
   rythme: Rythme;
   /** Mode de jeu (§2.6) : 'solo' (défaut, J1 vs IA) ou 'duel' (2 joueurs). */
   mode: ModeJeu;
+  /** Niveau de calcul (§2.5) : borne du second facteur (×) et du quotient (÷). */
+  niveau: Niveau;
   /** Gain d'énergie / de défense par difficulté (§2.2/§2.3). */
   gains: Record<Difficulte, number>;
   /** Borne du second facteur (×) et du quotient (÷) par niveau (§2.5). */
@@ -124,6 +148,10 @@ export interface ConfigJeu {
     surbrillanceMs: number;
     /** Mélange vers le blanc (0..1) appliqué à la teinte de la touche pressée. */
     surbrillanceTeinte: number;
+    /** Voiles sombres (0..1) posés sur les fonds d'illustration des écrans rétro
+     *  pour garde la lisibilité du texte : plus fort en CONFIG (lignes denses). */
+    voileMenu: number;
+    voileConfig: number;
   };
   /** IA « gentille » (§2.6) : battable, suspense garanti. */
   ia: {
@@ -151,10 +179,11 @@ export interface ConfigJeu {
 }
 
 export const CONFIG: ConfigJeu = {
-  pvMax: 100,
+  pvMax: PV_DEFAUT,
   tempsPhase: 15,
   rythme: 'differe',
   mode: 'solo',
+  niveau: 'intermediaire',
   gains: { facile: 1, moyen: 3, difficile: 7 },
   bornesNiveau: { debutant: 5, intermediaire: 10, avance: 12 },
   familles: {
@@ -208,6 +237,8 @@ export const CONFIG: ConfigJeu = {
   ui: {
     surbrillanceMs: 160,
     surbrillanceTeinte: 0.45,
+    voileMenu: 0.45,
+    voileConfig: 0.6,
   },
   ia: {
     difficulte: 'moyen',
@@ -224,6 +255,13 @@ export const CONFIG: ConfigJeu = {
     dureeChronoIA: 3,
   },
 };
+
+/**
+ * Instantané des valeurs par défaut, figé au chargement du module : sert de
+ * source à « RÉINITIALISER » sur l'écran CONFIG, même après des réglages en cours.
+ * Copie superficielle + `ia` (seul champ profond lu par l'écran).
+ */
+const CONFIG_DEFAUT: ConfigJeu = { ...CONFIG, ia: { ...CONFIG.ia } };
 
 // ---------------------------------------------------------------- utilitaires pures
 
@@ -245,4 +283,66 @@ export function estResistant(a: number, b: number, config: ConfigJeu = CONFIG): 
 export function coupPourTier(tier: number, config: ConfigJeu = CONFIG): Coup {
   const index = Math.max(0, Math.min(tier, config.coupsParTier.length) - 1);
   return config.coupsParTier[index] ?? 'poing';
+}
+
+// ------------------------------------------- réglages de l'écran CONFIG (§2.7/§2.9)
+
+/** Réglages éditables par l'écran CONFIG — copie de travail de l'éditeur. */
+export interface ReglagesConfig {
+  mode: ModeJeu;
+  tempsPhase: number;
+  rythme: Rythme;
+  pvMax: number;
+  niveau: Niveau;
+  difficulteIA: Difficulte;
+}
+
+/**
+ * Durée de phase validée **à la lecture** (§2.9) : jamais de timer nul, négatif
+ * ou infini — une valeur hors plage est ramenée à la borne (I9).
+ */
+export function lireTempsPhase(valeur: number): number {
+  const n = Number.isFinite(valeur) ? Math.round(valeur) : PRESETS_TEMPO.normal;
+  return Math.min(BORNES_TEMPS_PHASE.max, Math.max(BORNES_TEMPS_PHASE.min, n));
+}
+
+/** PV validés à la lecture (§2.9 / I9) : finis, entiers, bornés 10–999. */
+export function lirePv(valeur: number): number {
+  const n = Number.isFinite(valeur) ? Math.round(valeur) : PV_DEFAUT;
+  return Math.min(BORNES_PV.max, Math.max(BORNES_PV.min, n));
+}
+
+/** Preset correspondant à une durée : `personnalise` si aucune valeur de table. */
+export function presetDeTemps(secondes: number): PresetTempo {
+  if (secondes === PRESETS_TEMPO.rapide) return 'rapide';
+  if (secondes === PRESETS_TEMPO.normal) return 'normal';
+  if (secondes === PRESETS_TEMPO.long) return 'long';
+  return 'personnalise';
+}
+
+/** Réglages par défaut de l'écran CONFIG (bouton RÉINITIALISER). */
+export function reglagesDefaut(): ReglagesConfig {
+  return lireReglages(CONFIG_DEFAUT);
+}
+
+/** Copie de travail à ouvrir sur l'écran CONFIG (valeurs courantes). */
+export function lireReglages(config: ConfigJeu = CONFIG): ReglagesConfig {
+  return {
+    mode: config.mode,
+    tempsPhase: config.tempsPhase,
+    rythme: config.rythme,
+    pvMax: config.pvMax,
+    niveau: config.niveau,
+    difficulteIA: config.ia.difficulte,
+  };
+}
+
+/** Écriture des réglages dans la config, **bornes appliquées à la validation** (I9). */
+export function appliquerReglages(config: ConfigJeu, r: ReglagesConfig): void {
+  config.mode = r.mode;
+  config.tempsPhase = lireTempsPhase(r.tempsPhase);
+  config.rythme = r.rythme;
+  config.pvMax = lirePv(r.pvMax);
+  config.niveau = r.niveau;
+  config.ia.difficulte = r.difficulteIA;
 }

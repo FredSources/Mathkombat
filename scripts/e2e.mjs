@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * scripts/e2e.mjs — tests E2E navigateur (L4, docs/test-plan.md) : E01→E05, E08.
+ * scripts/e2e.mjs — tests E2E navigateur (L4, docs/test-plan.md) : E01→E08.
  *
  * Pilote le jeu dans chromium headless (SwiftShader) via puppeteer-core :
- *  - E01 : lancement → scène de combat atteinte (capture) ;
+ *  - E01 : lancement → écran RUN → RUN → scène de combat atteinte (capture) ;
  *  - E02 : 3 calculs d'attaque résolus au CLAVIER NUMÉRIQUE, dont une erreur
  *          corrigée par ⌫ Effacer avant Valider → énergie = somme attendue,
  *          calcul erroné non remplacé (I4, I8) ;
@@ -13,9 +13,15 @@
  *          (étincelles + onde de choc) et dégâts = 16 − défense (capture) ;
  *  - E05 : énergie d'attaque = défense + PV max → K.O., score de manche
  *          incrémenté pour J1 (capture) ;
+ *  - E06 : écran CONFIG → tempo RAPIDE → attaque et défense à 10 s (capture) ;
+ *  - E07 : écran CONFIG → 2 JOUEURS + SIMULTANÉ → deux zones actives, tour 2
+ *          (capture) ;
  *  - E08 : mode DUEL — bascule du mode, J2 saisit sur le PAVÉ NUMÉRIQUE,
  *          isolation des deux consoles (fichiers distincts), libellés J2,
  *          puis rythme SIMULTANÉ : deux zones actives sans conflit de frappe.
+ *
+ * E06/E07 sont exécutés **en fin de batterie** : ils rechargent l'application
+ * (retour aux réglages par défaut §2.9), ce qui casserait la continuité E05→E08.
  *
  * Usage : node scripts/e2e.mjs   (démarre le dev server si absent)
  * Sortie : code 0 = tout vert ; artefacts : output/screenshots/e2e-*.png,
@@ -100,15 +106,32 @@ async function main() {
     await page.mouse.click(pos.x, pos.y);
   }
 
+  // attend l'écran courant déclaré par `declarerEcran()` (DEBUG) : le clic
+  // suivant vise des coordonnées connues d'un écran donné (§ wireframes).
+  const attendreEcran = (ecran, timeout = 15000) =>
+    page.waitForFunction((e) => window.__mathkombatEcrans?.ecran === e, { timeout }, ecran);
+
+  // recharge l'application : on repart de l'écran de lancement (les réglages
+  // de l'écran CONFIG sont réinitialisés à leurs défauts §2.9).
+  async function relancer() {
+    await page.goto(URL_JEU, { waitUntil: 'networkidle0', timeout: 30000 });
+    await attendreEcran('menu');
+    await attendre(400);
+  }
+
   try {
     // ---------------------------------------------------------- E01
     await page.goto(URL_JEU, { waitUntil: 'networkidle0', timeout: 30000 });
+    await attendreEcran('menu');
+    await attendre(400);
+    const e01Menu = await page.evaluate(() => window.__mathkombatEcrans.ecran);
+    await clicJeu(640, 310); // bouton RUN (wireframe §1)
     await attendreHook();
     await page.evaluate(() => window.__mathkombat.setTempsPhase(45)); // confort E2E
     await attendre(800);
     const e01 = await etat();
     await page.screenshot({ path: path.join(SHOTS, 'e2e-01-combat.png') });
-    verifier('E01', 'Lancement → scène de combat atteinte', e01.tour >= 1 && e01.pv.j1 === 100 && e01.pv.j2 === 100);
+    verifier('E01', 'Lancement → écran RUN, puis RUN → scène de combat atteinte', e01Menu === 'menu' && e01.tour >= 1 && e01.pv.j1 === 100 && e01.pv.j2 === 100, `ecran=${e01Menu} tour=${e01.tour}`);
 
     // ---------------------------------------------------------- E02
     // attendre une phase d'attaque du joueur (tour 1 : J1 attaque)
@@ -551,6 +574,100 @@ async function main() {
         e08hRepos.j1 === null &&
         e08hRepos.j2 === null,
       `J1: feu=${e08hJ1.feu} texte="${e08hJ1.texte}" voisin=${e08hJ1.voisin} repos=${e08hJ1Repos} · J2: feu=${e08hJ2.feu} texte="${e08hJ2.texte}" voisin=${e08hJ2.voisin} · final j1=${e08hRepos.j1} j2=${e08hRepos.j2}`
+    );
+
+    // ---------------------------------------------------------- E06
+    // Écran CONFIG → preset TEMPO RAPIDE (10 s) → VALIDER → RUN : le combat
+    // démarre sur 10 s **et la phase de défense du joueur a la même durée**
+    // (§2.9). En solo, la défense du tour 1 est jouée par l'IA (chrono immédiat
+    // `ia.dureeChronoIA` = 3 s, §2.6) : on va donc jusqu'à la DÉFENSE DE J1 du
+    // tour 2, seule phase humaine comparable — attaque = défense = 10 s.
+    // Réalisé après E08 car il recharge l'application (défauts §2.9 restaurés).
+    await relancer();
+    await clicJeu(640, 410); // bouton CONFIG (wireframe §1)
+    await attendreEcran('config');
+    await clicJeu(700, 210); // ◀ de la ligne TEMPO : NORMAL → RAPIDE
+    await attendre(250);
+    await clicJeu(850, 612); // [ VALIDER ] (wireframe §2)
+    await attendreEcran('menu');
+    await clicJeu(640, 310); // RUN
+    await attendreHook();
+    const e06Attaque = await etat();
+    await page.screenshot({ path: path.join(SHOTS, 'e2e-06-tempo-rapide.png') });
+    // tour 1 : attaque J1 (10 s) → défense IA (3 s, hors sujet) → résolution
+    await page.evaluate(() => window.__mathkombat.forceFinDePhase());
+    await attendre(400);
+    await page.evaluate(() => window.__mathkombat.forceFinDePhase());
+    await attendre(2300); // résolution + tour suivant
+    await page.waitForFunction(() => window.__mathkombat.etat().tour === 2, {
+      timeout: 15000,
+    });
+    // tour 2 : attaque IA (chrono immédiat) → DÉFENSE DE J1 (10 s attendus)
+    await attendre(300);
+    if ((await etat()).phase === 'attaque') {
+      await page.evaluate(() => window.__mathkombat.forceFinDePhase());
+      await attendre(300);
+    }
+    await page.waitForFunction(
+      () => {
+        const e = window.__mathkombat.etat();
+        return e.tour === 2 && e.phase === 'defense';
+      },
+      { timeout: 15000 }
+    );
+    const e06Defense = await etat();
+    verifier(
+      'E06',
+      'CONFIG tempo RAPIDE (10 s) → attaque et défense de J1 sur 10 s (durée unique §2.9)',
+      e06Attaque.phase === 'attaque' &&
+        e06Attaque.chrono <= 10 &&
+        e06Attaque.chrono > 5 &&
+        e06Defense.phase === 'defense' &&
+        e06Defense.chrono <= 10 &&
+        e06Defense.chrono > 5,
+      `attaque J1: phase=${e06Attaque.phase} chrono=${e06Attaque.chrono} · défense J1 (tour 2): phase=${e06Defense.phase} chrono=${e06Defense.chrono}`
+    );
+
+    // ---------------------------------------------------------- E07
+    // Écran CONFIG → MODE 2 JOUEURS + RYTHME SIMULTANÉ → VALIDER → RUN :
+    // le combat part en SIMULTANÉ, les DEUX zones sont actives, puis le tour
+    // suivant s'enchaîne (aucune phase « défense » séquentielle).
+    await relancer();
+    await clicJeu(640, 410); // CONFIG
+    await attendreEcran('config');
+    await clicJeu(1100, 145); // ▶ MODE : SOLO vs IA → 2 JOUEURS
+    await clicJeu(1100, 320); // ▶ RYTHME : DIFFÉRÉ → SIMULTANÉ
+    await attendre(250);
+    await clicJeu(850, 612); // [ VALIDER ]
+    await attendreEcran('menu');
+    await clicJeu(640, 310); // RUN
+    await attendreHook();
+    await attendre(400); // transition stabilisée avant frappe (cf. E08g)
+    await page.keyboard.type('5', { delay: 40 }); // touche de J1 (Digit5)
+    await page.keyboard.press('Numpad7'); // touche de J2
+    await attendre(250);
+    const e07 = await page.evaluate(() => ({
+      ...window.__mathkombat.etat(),
+      j1: window.__mathkombat.saisie('j1').texte,
+      j2: window.__mathkombat.saisie('j2').texte,
+    }));
+    await page.screenshot({ path: path.join(SHOTS, 'e2e-07-simultane.png') });
+    await page.evaluate(() => window.__mathkombat.forceFinDePhase());
+    await page.waitForFunction(() => window.__mathkombat.etat().tour === 2, {
+      timeout: 15000,
+    });
+    const e07Tour2 = await etat();
+    verifier(
+      'E07',
+      'CONFIG mode 2 JOUEURS + rythme SIMULTANÉ → les deux zones actives puis tour 2',
+      e07.mode === 'duel' &&
+        e07.rythme === 'simultane' &&
+        e07.phase === 'simultane' &&
+        e07.j1 === '5' &&
+        e07.j2 === '7' &&
+        e07Tour2.tour === 2 &&
+        e07Tour2.phase === 'simultane',
+      `mode=${e07.mode} rythme=${e07.rythme} phase=${e07.phase} saisies J1="${e07.j1}" J2="${e07.j2}" · tour2: tour=${e07Tour2.tour} phase=${e07Tour2.phase}`
     );
   } finally {
     await navigateur.close();

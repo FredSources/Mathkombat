@@ -17,7 +17,7 @@
  *  - traces par le logger (DEBUG) ; hook de debug `window.__mathkombat` (DEBUG).
  */
 import Phaser from 'phaser';
-import { CONFIG, coupPourTier } from '../core/config.ts';
+import { CONFIG, coupPourTier, lireTempsPhase } from '../core/config.ts';
 import type { ConfigJeu, Coup, Difficulte, ModeJeu, Rythme } from '../core/config.ts';
 import {
   CombatEngine,
@@ -30,6 +30,7 @@ import { AiController } from '../core/ai-controller.ts';
 import { getLogger } from '../core/logger';
 import { Numpad, TOUCHES_J1, TOUCHES_J2 } from '../ui/numpad.ts';
 import { QuizOverlay } from '../ui/quiz-overlay.ts';
+import { declarerEcran } from '../ui/ecran.ts';
 
 declare const __BUILD_MODE__: string | undefined;
 
@@ -190,6 +191,7 @@ export class FightScene extends Phaser.Scene {
   }
 
   create(): void {
+    declarerEcran('fight');
     this.dessinerArene();
     this.j1 = this.creerCombattant(FightScene.nomJoueur('j1'), 360, 0x3f7fe0, 'persoA');
     this.j2 = this.creerCombattant(FightScene.nomJoueur('j2'), 920, 0xd4433a, 'persoB');
@@ -586,8 +588,10 @@ export class FightScene extends Phaser.Scene {
     this.tweens.timeScale = 1;
     this.time.timeScale = 1;
     this.ralentiActif = false;
+    // réglages de l'écran CONFIG (J6) : combat toujours construit dessus
+    this.tempsPhase = CONFIG.tempsPhase;
     this.engine = new CombatEngine({
-      niveaux: { j1: 'intermediaire', j2: 'intermediaire' },
+      niveaux: { j1: CONFIG.niveau, j2: CONFIG.niveau },
       emettre: (e: TraceEvent) => log.debug(e.event, e.data),
     });
     this.ia = new AiController(CONFIG, undefined, (e: TraceEvent) =>
@@ -1288,7 +1292,9 @@ export class FightScene extends Phaser.Scene {
         }));
       },
       setTempsPhase: (secondes: number) => {
-        scene.tempsPhase = Math.max(2, Math.min(60, secondes));
+        // écrit aussi dans CONFIG : un réglage debug survit aux relances (§2.9)
+        CONFIG.tempsPhase = lireTempsPhase(secondes);
+        scene.tempsPhase = CONFIG.tempsPhase;
       },
       forceFinDePhase: () => scene.finDePhase(),
       // saisie de la console demandée (défaut J1)

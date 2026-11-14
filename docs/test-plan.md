@@ -75,14 +75,19 @@ Parcours Puppeteer (chromium headless, config `pptr.json` de l'environnement) :
 
 | ID | Parcours | Étapes | Oracle |
 |----|----------|--------|--------|
-| E01 | Lancement RUN → sélection → combat Solo vs IA | clics + écran de quiz | capture + scène `Fight` atteinte |
+| E01 | Lancement → écran RUN → combat | ouverture de l'app, clic **RUN** (640, 310) | écran RUN affiché (`__mathkombatEcrans.ecran = 'menu'`), scène `Fight` atteinte, PV 100/100 + capture `e2e-01-combat.png` |
 | E02 | Répondre à 3 calculs d'attaque | saisies au clavier numérique (dont une erreur corrigée par **Effacer** avant **Valider**) | énergie affichée = somme attendue, calcul erroné non remplacé (I4, I8), **saisie vidée après validation** (juste ou faux) |
 | E03 | Défense + contre-attaque | laisser l'IA attaquer, répondre aux divisions | PV mis à jour selon I1/I2 |
 | E04 | Mise en scène graduée (tier 3) | forcer l'énergie d'attaque à 16 et la défense à 6 via les hooks debug, résoudre le tour | tier = 3 déterministe, 10 dégâts sur l'IA, journal mis à jour + capture `e2e-04-frappe.png` (I13) |
 | E05 | K.O. et score de manche | forcer l'énergie d'attaque = défense + PV max, résoudre le tour | `fini` = true, gagnant J1, score de manche 1–0, bannière K.O. conservée + capture `e2e-05-ko.png` (I5) |
-| E06 | Tempo configurable | choisir un preset (Rapide 10 s) dans l'écran CONFIG puis lancer une phase | la phase respecte la durée configurée, attaque et défense identiques (logs `combat.phase` + HUD timer) |
-| E07 | Rythme de calcul | sélectionner SIMULTANÉ dans CONFIG puis jouer un tour | les deux zones actives sur le **même chrono**, résolution commune (I15) |
+| E06 | Tempo configurable (écran CONFIG) | CONFIG → **◀ TEMPO** (NORMAL → RAPIDE 10 s) → **VALIDER** → RUN | attaque de J1 sur 10 s **et défense de J1 (tour 2) sur 10 s** (durée unique §2.9) + capture `e2e-06-tempo-rapide.png` — *en solo, la défense du tour 1 est jouée par l'IA (chrono immédiat 3 s, §2.6) : hors sujet* |
+| E07 | Rythme + mode (écran CONFIG) | CONFIG → **▶ MODE** (2 JOUEURS) + **▶ RYTHME** (SIMULTANÉ) → **VALIDER** → RUN, frappes `Digit5` + `Numpad7` | phase `simultane` dès le tour 1, les **deux zones actives** sur le même chrono (I15), saisies `J1="5"`, `J2="7"` sans croisement, tour 2 enchaîné (jamais de phase `defense` séquentielle) + capture `e2e-07-simultane.png` |
 | E08 | **Mode DUEL (2 joueurs)** — `a`→`h` | bascule de mode ; J1 résout facile+moyen ; frappe du pavé pendant la phase de J1 ; phase de défense ciblée par J2 ; pavé J2 (⌫ décimale, C `Delete`, chiffres + `NumpadEnter`) ; résolution ; bascule SIMULTANÉ puis frappes `Digit5` / `Numpad7` ; **surbrillance des touches** (`Digit6` puis `Numpad4`) | libellés **J2** (PV, énergie, score), énergies 4 puis 3, solde = 1 dégât sur J2, **isolation stricte des deux consoles dans les deux sens**, saisies vidées après validation, **touche pressée allumée sur sa console seule puis retour au repos** + capture `e2e-08-duel.png` |
+
+> **Ordre d'exécution** : `scripts/e2e.mjs` joue E01→E05, puis E08a→E08h (continuité
+> du score E05), puis **E06 et E07 en fin de batterie** — ces deux cas rechargent
+> l'application (retour aux réglages par défaut §2.9), ce qui casserait la chaîne
+> E05→E08.
 
 ## 6. Procédure de pilotage agent
 

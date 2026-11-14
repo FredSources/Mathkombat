@@ -5,7 +5,9 @@
 import Phaser from 'phaser';
 import { initLogger } from './core/logger';
 import { BootScene } from './scenes/BootScene';
+import { ConfigScene } from './scenes/ConfigScene';
 import { FightScene } from './scenes/FightScene';
+import { MenuScene } from './scenes/MenuScene';
 
 const log = initLogger({ scene: 'App' });
 log.info('session.debut', { version: '0.1.0', build: 'debug' });
@@ -20,5 +22,5 @@ new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, FightScene],
+  scene: [BootScene, MenuScene, ConfigScene, FightScene],
 });

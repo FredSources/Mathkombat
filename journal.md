@@ -1417,3 +1417,74 @@ Trouvées par le smoke test L0 puis corrigées (le smoke test en est le test de 
   « QUITTER → MENU » (demande utilisateur). Point de vigilance : `Échap` est déjà
   « C Tout effacer » de J1 → raccourci clavier distinct (piste `M`).
 - Puis **J6 étape 2** : écrans RUN/CONFIG (E06 tempo, E07 rythme).
+
+---
+
+## 2026-11-14 — Jalon J6 étape 2 — Écrans RUN / CONFIG (+ fonds d'illustration)
+
+### Produits
+
+| Fichier | Rôle |
+|---------|------|
+| `game/src/ui/retro.ts` | Primitives d'interface « borne d'arcade » partagées : palette `RETRO`, `creerBoutonRetro` (survol = contour blanc, retour exact au repos), `texteRetro`, `creerCadreBorne` (double filet) |
+| `game/src/ui/ecran.ts` | Hook DEBUG `declarerEcran()` → `window.__mathkombatEcrans.ecran` (`menu`/`config`/`fight`) — les E2E cliquent à des coordonnées réelles d'écrans identifiés |
+| `game/src/scenes/MenuScene.ts` | Écran de lancement rétro (wireframe §1) : RUN clignotant (y=310), CONFIG (y=410), cadence « PRESS START », Entrée = RUN, fond `fond-menu.png` + voile `CONFIG.ui.voileMenu` |
+| `game/src/scenes/ConfigScene.ts` | Écran de setup rétro (wireframe §2) : 7 lignes ◀ ▶ (mode, TEMPO + durée, rythme, PV, niveau, difficulté IA), RETOUR (abandon, `Échap`) / RÉINITIALISER / VALIDER, fond `fond-config.png` + voile `CONFIG.ui.voileConfig` |
+| `game/src/core/config.ts` | `PresetTempo`, `BORNES_TEMPS_PHASE` (5–60), `BORNES_PV` (10–999), `PV_DEFAUT`, `PRESETS_TEMPO` (10/15/25 s), `ORDRE_PRESETS`, champ `niveau`, section `ui` (voiles de fond), fonctions pures `lireTempsPhase` / `lirePv` / `presetDeTemps` / `reglagesDefaut` / `lireReglages` / `appliquerReglages` + `CONFIG_DEFAUT` |
+| `game/assets/fonds/` | Illustrations d'ambiance des écrans rétro (`fond-menu.png`, `fond-config.png`) — deux combattants en action, centre dégagé pour le texte |
+| `game/src/scenes/BootScene.ts` | Charge les deux fonds ; ouvre **Menu** (plus Fight directement) |
+| `game/src/scenes/FightScene.ts` | `declarerEcran('fight')`, `lancerCombat()` re-synchronise `tempsPhase` et `niveau` depuis CONFIG, hook `setTempsPhase` écrit dans CONFIG (survit aux relances) |
+| `game/index.html` | `#jeu` : repli `height: 100dvh` — le bas du cadre sortait de l'écran sur navigateur mobile (100vh inclut la zone derrière la barre d'adresse) |
+| `game/tests/config.test.ts` | +16 tests (lecture validée, presets, réglages) → 76/76, couverture 100 % |
+| `scripts/e2e.mjs` | E01 passe par l'écran RUN ; nouveaux **E06** (tempo) et **E07** (mode + rythme) ; helper `attendreEcran` / `relancer` |
+
+### Décisions
+
+- **Primitives rétro partagées** (`ui/retro.ts`) : une seule implémentation de
+  bouton/texte/cadre pour les deux écrans — jamais de recopie écran par écran.
+- **Écriture bornée à la validation** (I9) : l'écran CONFIG édite une copie de
+  travail (`ReglagesConfig`) ; `appliquerReglages` applique les bornes 5–60 s et
+  10–999 PV à VALIDER seulement — RETOUR abandonne sans rien écrire.
+- **Durée de phase unique** : la ligne TEMPO (presets Rapide 10 s / Normal 15 s /
+  Long 25 s / PERSONNALISÉ) pilote une seule durée, attaque = défense (§2.9) ;
+  la ligne « durée » la règle finement (curseur borné).
+- **HIGH SCORE retiré de l'écran RUN** (demande utilisateur) : la règle de calcul
+  n'est pas tranchée — quatre propositions dans `todo.md` § Idées / dette.
+- **Fonds d'illustration** : images générées (thème MathKombat, deux combattants
+  en action, aucun contrôle), voiles de lisibilité `voileMenu` (0,45) et
+  `voileConfig` (0,6) dans `config.ts` — texture absente = repli fond uni.
+- **E06/E07 en fin de batterie** : ils rechargent l'application (défauts §2.9
+  restaurés) — exécutés après E08 pour ne pas casser la continuité E05→E08.
+
+### Tests
+
+- **Batterie complète verte** : typecheck ✅ 0 erreur ; Vitest ✅ **76/76** ;
+  couverture **100 %** (183/183 statements, 114/114 branches, 38/38 fonctions,
+  161/161 lines) ; scénarios ✅ **12/12** (0 ❌) ; smoke L0 ✅ PASS ;
+  **E2E ✅ 20/20** (`output/reports/e2e-2026-11-14T12-43-38.md`).
+- **E01** : écran RUN (`ecran=menu`) → clic RUN → combat (tour 1, PV 100/100).
+- **E06 (nouveau, PASS)** : CONFIG → ◀ TEMPO → RAPIDE → VALIDER → RUN :
+  attaque J1 = 10 s et défense J1 (tour 2) = 10 s. *En solo, la défense du tour 1
+  est jouée par l'IA (chrono immédiat 3 s, §2.6) : hors sujet du test.*
+- **E07 (nouveau, PASS)** : CONFIG → ▶ MODE (2 JOUEURS) + ▶ RYTHME (SIMULTANÉ) →
+  VALIDER → RUN : phase `simultane` dès le tour 1, saisies `J1="5"` / `J2="7"`
+  sans croisement, tour 2 enchaîné sur `simultane`.
+- **Non-régression** : E02→E05, E08a→E08h toujours verts.
+
+### Anomalies
+
+- **Cadre inférieur coupé à l'affichage** (rapport utilisateur) : `#jeu` en
+  `100vh` inclut, sur navigateur mobile, la zone derrière la barre d'adresse →
+  le bas du canvas sort de la zone visible (`overflow: hidden`). Corrigé par un
+  repli `height: 100dvh` dans `game/index.html`. Le rendu lui-même était complet
+  (vérifié sur capture 1280×720).
+- **E06/E07 rouges au premier jet** : oracle erroné (E06 vérifiait la défense IA
+  en chrono immédiat) et doublon de frappe J2 non reproductible (transition de
+  scène non stabilisée) — corrigés par l'oracle « défense de J1 du tour 2 » et un
+  délai de stabilisation avant frappe (comme E08g).
+
+### Prochaine étape
+
+- **Bouton ☰ MENU en cours de jeu** → overlay pause « RETOUR AU JEU » /
+  « QUITTER → MENU » (→ `MenuScene`) ; raccourci ≠ Échap (piste `M`).
+- Puis sélection de personnage (J6) — dette `Personnage` (`docs/architecture.md` §9).

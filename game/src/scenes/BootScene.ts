@@ -1,5 +1,6 @@
 /**
- * BootScene — chargement des assets (J5) puis lancement du combat.
+ * BootScene — chargement des assets (J5) puis ouverture de l'écran de
+ * lancement (J6 étape 2 : Menu RUN/CONFIG).
  * Assets servis depuis `game/assets/` (publicDir Vite) : arène + personnages cut-out.
  */
 import Phaser from 'phaser';
@@ -33,6 +34,10 @@ export class BootScene extends Phaser.Scene {
     for (const nom of ['reussite', 'erreur', 'frappe', 'blocage', 'ko']) {
       this.load.audio(nom, `sons/${nom}.wav`);
     }
+    // fonds d'illustration des écrans rétro (RUN / CONFIG, J6 étape 2)
+    for (const nom of ['fond-menu', 'fond-config']) {
+      this.load.image(nom, `fonds/${nom}.png`);
+    }
   }
 
   create(): void {
@@ -51,6 +56,6 @@ export class BootScene extends Phaser.Scene {
       ) && this.cache.json.exists('rigMeta'),
       sons: ['reussite', 'erreur', 'frappe', 'blocage', 'ko'].filter((n) => this.cache.audio.exists(n)).length,
     });
-    this.scene.start('Fight');
+    this.scene.start('Menu');
   }
 }
