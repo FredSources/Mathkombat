@@ -28,6 +28,16 @@ TAILLES = {
     "mipmap-xxxhdpi": 192,
 }
 
+# Tailles du PREMIER PLAN de l'icône adaptative (108 dp par densité) : le sujet
+# doit rester dans la zone sûre du masque rond (≈ 66/108) → image réduite à 82 %.
+TAILLES_FOREGROUND = {
+    "mipmap-mdpi": 108,
+    "mipmap-hdpi": 162,
+    "mipmap-xhdpi": 216,
+    "mipmap-xxhdpi": 324,
+    "mipmap-xxxhdpi": 432,
+}
+
 
 def main() -> int:
     if not SOURCE.exists():
@@ -44,6 +54,18 @@ def main() -> int:
         cible.mkdir(parents=True, exist_ok=True)
         image.resize((taille, taille), Image.LANCZOS).save(cible / "ic_launcher.png")
         print(f"  {dossier}/ic_launcher.png ({taille}x{taille})")
+
+    # premier plan de l'icône adaptative : sujet centré à 82 % sur fond transparent
+    for dossier, taille in TAILLES_FOREGROUND.items():
+        cible = SORTIE / dossier
+        cible.mkdir(parents=True, exist_ok=True)
+        sujet = int(taille * 0.82)
+        avant = image.resize((sujet, sujet), Image.LANCZOS)
+        plan = Image.new("RGBA", (taille, taille), (0, 0, 0, 0))
+        plan.paste(avant, ((taille - sujet) // 2, (taille - sujet) // 2))
+        plan.save(cible / "ic_launcher_foreground.png")
+        print(f"  {dossier}/ic_launcher_foreground.png ({taille}x{taille})")
+
     print(f"Icônes générées depuis {SOURCE.name} → {SORTIE}")
     return 0
 
