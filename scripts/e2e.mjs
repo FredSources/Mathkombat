@@ -122,11 +122,27 @@ async function main() {
   const attendreEcran = (ecran, timeout = 15000) =>
     page.waitForFunction((e) => window.__mathkombatEcrans?.ecran === e, { timeout }, ecran);
 
+  // charge l'application avec reprise : le GPU logiciel (SwiftShader) perd
+  // parfois son contexte au boot et le jeu ne démarre pas — on recharge.
+  async function chargerApplication() {
+    for (let essai = 1; essai <= 3; essai++) {
+      await page.goto(URL_JEU, { waitUntil: 'networkidle0', timeout: 30000 });
+      try {
+        await page.waitForFunction(() => window.__mathkombatEcrans?.ecran === 'menu', {
+          timeout: 10000,
+        });
+        return;
+      } catch {
+        console.log(`[e2e] boot instable (essai ${essai}) — rechargement…`);
+      }
+    }
+    throw new Error('impossible de démarrer le jeu (WebGL instable)');
+  }
+
   // recharge l'application : on repart de l'écran de lancement (les réglages
   // de l'écran CONFIG sont réinitialisés à leurs défauts §2.9).
   async function relancer() {
-    await page.goto(URL_JEU, { waitUntil: 'networkidle0', timeout: 30000 });
-    await attendreEcran('menu');
+    await chargerApplication();
     await attendre(400);
   }
 
@@ -143,8 +159,7 @@ async function main() {
 
   try {
     // ---------------------------------------------------------- E01
-    await page.goto(URL_JEU, { waitUntil: 'networkidle0', timeout: 30000 });
-    await attendreEcran('menu');
+    await chargerApplication();
     await attendre(400);
     const e01Menu = await page.evaluate(() => window.__mathkombatEcrans.ecran);
     await lancerCombat(); // RUN → sélection (§3) → combat

@@ -164,7 +164,7 @@ export class FightScene extends Phaser.Scene {
     this.numpadJ1 = new Numpad({
       scene: this,
       x: 40,
-      y: 250,
+      y: 560, // bas de la console (ancrage par le bas) : le bloc grandit vers le haut
       alignement: 'gauche',
       onValider: (d) => this.onValiderSaisie('j1', d),
       touches: TOUCHES_J1,
@@ -172,7 +172,7 @@ export class FightScene extends Phaser.Scene {
     this.numpadJ2 = new Numpad({
       scene: this,
       x: LARGEUR - 40,
-      y: 250,
+      y: 560, // bas de la console (ancrage par le bas)
       alignement: 'droite',
       onValider: (d) => this.onValiderSaisie('j2', d),
       touches: TOUCHES_J2,

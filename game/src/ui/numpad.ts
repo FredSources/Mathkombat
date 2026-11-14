@@ -94,11 +94,24 @@ export interface OptionsNumpad {
   touches?: TouchePhysique;
 }
 
-const LARGEUR_BOUTON = 62;
-const HAUTEUR_BOUTON = 44;
-const ECART = 6;
+// Console de saisie : chiffres + VALIDER + afficheur — dimensions en « grand »
+// (+10 % demande utilisateur) ; la console est **ancrée par son bas** : `y` = la
+// ligne sur laquelle la console est posée, le bloc grandit vers le haut.
+const LARGEUR_BOUTON = 68;
+const HAUTEUR_BOUTON = 48;
+const ECART = 7;
+const HAUTEUR_VALIDER = 53;
+/** Hauteur de l'afficheur de saisie (haut du bloc). */
+const HAUTEUR_SAISIE = 51;
+/** Décalage vertical de la grille sous l'afficheur. */
+const Y_GRILLE = 59;
 // La console (case de saisie + pavé + boutons VALIDER) a la largeur du clavier
-const LARGEUR_CONSOLE = 3 * LARGEUR_BOUTON + 2 * ECART; // 198 px
+const LARGEUR_CONSOLE = 3 * LARGEUR_BOUTON + 2 * ECART;
+
+/** Hauteur totale de la console : afficheur + grille (4 rangées) + VALIDER. */
+export function hauteurConsole(): number {
+  return Y_GRILLE + 4 * (HAUTEUR_BOUTON + ECART) + 8 + HAUTEUR_VALIDER;
+}
 
 export class Numpad {
   private readonly scene: Phaser.Scene;
@@ -129,21 +142,22 @@ export class Numpad {
     this.onValider = options.onValider;
     const scene = options.scene;
     this.scene = scene;
-    this.conteneur = scene.add.container(options.x, options.y);
+    // ancrage par le BAS : `options.y` est la ligne de pose de la console
+    this.conteneur = scene.add.container(options.x, options.y - hauteurConsole());
     const xBase = options.alignement === 'gauche' ? 0 : -LARGEUR_CONSOLE;
 
     // ---- ligne d'entrée UNIQUE, sur le clavier : la VALEUR saisie uniquement
     // (elle ne correspond à un calcul qu'à la validation par le bouton coloré)
     this.fondSaisie = scene.add
-      .rectangle(xBase, 0, LARGEUR_CONSOLE, 46, 0x0d1530)
+      .rectangle(xBase, 0, LARGEUR_CONSOLE, HAUTEUR_SAISIE, 0x0d1530)
       .setOrigin(0, 0)
       .setStrokeStyle(3, 0x4c63a8);
     this.texteSaisie = scene.add
       .text(
         options.alignement === 'gauche' ? xBase + LARGEUR_CONSOLE / 2 : xBase + LARGEUR_CONSOLE / 2,
-        23,
+        HAUTEUR_SAISIE / 2,
         '…',
-        { fontFamily: 'monospace', fontSize: '30px', color: '#7bd4ff' }
+        { fontFamily: 'monospace', fontSize: '33px', color: '#7bd4ff' }
       )
       .setOrigin(0.5, 0.5);
     this.conteneur.add([this.fondSaisie, this.texteSaisie]);
@@ -161,12 +175,12 @@ export class Numpad {
         const bouton = this.creerBouton(
           scene,
           xBase + col * (LARGEUR_BOUTON + ECART),
-          54 + ligne * (HAUTEUR_BOUTON + ECART),
+          Y_GRILLE + ligne * (HAUTEUR_BOUTON + ECART),
           LARGEUR_BOUTON,
           HAUTEUR_BOUTON,
           libelle,
           0x2a3b6b,
-          22,
+          24,
           libelle
         );
         bouton.on('pointerdown', () => this.appuyer(libelle));
@@ -176,7 +190,7 @@ export class Numpad {
     // ---- SOUS le clavier : les 3 boutons VALIDER colorés (un par calcul),
     // alignés sur les colonnes du pavé. Côté droit (J2 / IA), l'ordre suit le
     // miroir des fiches de calcul : FACILE à droite, sous la fiche FACILE.
-    const yValider = 54 + 4 * (HAUTEUR_BOUTON + ECART) + 8;
+    const yValider = Y_GRILLE + 4 * (HAUTEUR_BOUTON + ECART) + 8;
     const largeurValider = LARGEUR_BOUTON;
     const cibles: Difficulte[] =
       options.alignement === 'droite'
@@ -194,10 +208,10 @@ export class Numpad {
         xBase + i * (largeurValider + ECART),
         yValider,
         largeurValider,
-        48,
+        HAUTEUR_VALIDER,
         libellesBoutons[difficulte],
         COULEURS_BOUTONS[difficulte],
-        11,
+        12,
         `valider:${difficulte}`
       );
       bouton.on('pointerdown', () => this.validerPour(difficulte));
