@@ -282,7 +282,7 @@ async function main() {
       return { defense };
     });
     const degatsE04 = 16 - e04Defense.defense;
-    await attendre(180); // flash d'impact + étincelles + onde de choc visibles
+    await attendre(90); // sprite de coup visible + flash d'impact
     await page.screenshot({ path: path.join(SHOTS, 'e2e-04-frappe.png') });
     const e04Etat = await etat();
     const e04Journal = await page.evaluate(() => window.__mathkombat.journal());

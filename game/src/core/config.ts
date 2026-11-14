@@ -10,6 +10,8 @@
 export type Difficulte = 'facile' | 'moyen' | 'difficile';
 export type Niveau = 'debutant' | 'intermediaire' | 'avance';
 export type Rythme = 'differe' | 'simultane';
+/** Coup articulé du rig cut-out (§2.8b, docs/assets.md §3a). */
+export type Coup = 'poing' | 'pied-bas' | 'pied-haut';
 /** v1 : multiplication + division seules ; addition/soustraction prévues (I14). */
 export type TypeOperation = 'addition' | 'soustraction' | 'multiplication' | 'division';
 
@@ -52,6 +54,11 @@ export interface ConfigJeu {
   /** Bornes des tiers de frappe (§2.8b) : [tier1 max, tier2 max, tier3 max]. */
   tiersFrappe: readonly number[];
   /**
+   * Coup articulé par tier (§2.8b, docs/assets.md §3a) :
+   * index = tier − 1 → poing aux tiers légers, pied (bas puis haut) aux lourds.
+   */
+  coupsParTier: readonly Coup[];
+  /**
    * Intensités d'animation « juice » (§2.8b/c/d) — déterministes de la
    * puissance, jamais estimées à l'œil dans la scène.
    */
@@ -70,6 +77,38 @@ export interface ConfigJeu {
     secousseTier: number;
     /** Durée du flash plein écran du tier 4 (ms). */
     flashTier4Ms: number;
+  };
+  /**
+   * Rig cut-out articulé (§2.8b/c, docs/assets.md §3a) : angles et durées des
+   * animations de membres — pilotés d'ici, jamais durcis dans la scène.
+   */
+  rig: {
+    /** Durée de l'extension du membre (ms) — sert aussi de délai d'impact. */
+    dureeExtensionMs: number;
+    /** Durée du retour à la position de repos (ms). */
+    dureeRetourMs: number;
+    /** Durée du flash d'impact « sprite de coup » en fusion ADD (ms). */
+    flashCoupMs: number;
+    /** Angles d'articulation (Phaser : sens horaire positif), en degrés. */
+    angles: {
+      /** Coup de poing : bras du côté de la frappe. */
+      poing: number;
+      /** Coup de pied haut : jambe du côté de la frappe. */
+      piedHaut: number;
+      /** Coup de pied bas : jambe du côté de la frappe. */
+      piedBas: number;
+      /** Garde haute : bras levé (contre un coup haut, §2.8c). */
+      gardeHaute: number;
+      /** Garde basse : jambe levée (contre un coup bas, §2.8c). */
+      gardeBasse: number;
+      /** CONTRE : coup de pied de la riposte (saut + jambe, §2.8c). */
+      contrePied: number;
+    };
+    /** Saut du CONTRE : hauteur (unités rig) et durée totale (ms). */
+    sautHauteur: number;
+    sautDureeMs: number;
+    /** Hauteur d'impact au-dessus du sol (px) selon le coup. */
+    impactY: Record<Coup, number>;
   };
   /** Saisie au clavier numérique (§2.7). */
   saisieMaxChiffres: number;
@@ -125,6 +164,7 @@ export const CONFIG: ConfigJeu = {
   energieVisuelleMax: 30,
   auraAlphas: [0.55, 0.74, 0.88, 0.98],
   tiersFrappe: [5, 12, 20],
+  coupsParTier: ['poing', 'poing', 'pied-bas', 'pied-haut'],
   juice: {
     zoomTier3: 1.06,
     zoomTier4: 1.12,
@@ -134,6 +174,22 @@ export const CONFIG: ConfigJeu = {
     ondeChocRayon: 240,
     secousseTier: 0.0015,
     flashTier4Ms: 180,
+  },
+  rig: {
+    dureeExtensionMs: 90,
+    dureeRetourMs: 150,
+    flashCoupMs: 150,
+    angles: {
+      poing: 92,
+      piedHaut: 78,
+      piedBas: 36,
+      gardeHaute: 150,
+      gardeBasse: 58,
+      contrePied: 85,
+    },
+    sautHauteur: 140,
+    sautDureeMs: 260,
+    impactY: { poing: 185, 'pied-haut': 100, 'pied-bas': 40 },
   },
   saisieMaxChiffres: 3,
   cadenceHumaineReference: 3,
@@ -164,4 +220,13 @@ export function cleFait(a: number, b: number): string {
 export function estResistant(a: number, b: number, config: ConfigJeu = CONFIG): boolean {
   const cle = cleFait(a, b);
   return config.familles.resistants.some(([x, y]) => cleFait(x, y) === cle);
+}
+
+/**
+ * Coup articulé à animer pour un tier d'animation (§2.8b) :
+ * index = tier − 1 borné à la table ; tier 0 (whiff) et hors-table → « poing ».
+ */
+export function coupPourTier(tier: number, config: ConfigJeu = CONFIG): Coup {
+  const index = Math.max(0, Math.min(tier, config.coupsParTier.length) - 1);
+  return config.coupsParTier[index] ?? 'poing';
 }

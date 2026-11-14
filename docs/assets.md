@@ -79,25 +79,55 @@ par frame.
 - Les **effets** (aura, particules, ondes, flashs, secousses, dégâts flottants) sont
   générés **par le code** (Phaser graphics/particles) : zéro asset.
 
-#### 3a. Coups de poing et de pied en sprites (exigence utilisateur, 2026-11-13)
+#### 3a. Rig cut-out articulé — coups de poing, de pied, gardes et contre
+      (exigence utilisateur, 2026-11-13/14 — LIVRÉ)
 
-L'élan de frappe actuel déplace tout le conteneur (translation + recul) : c'est
-crédible mais ce n'est **pas un coup animé**. Exigence : **coup de poing et coup
-de pied animés avec des sprites**.
+L'élan de frappe par translation du conteneur n'est **pas un coup animé**. La
+solution livrée **conserve l'illustration existante** (`perso-a.png`/`perso-b.png`
+— pas de régénération) et la **découpe en pièces articulées** :
 
-- **Poing** : le bras avant pivote de l'épaule en 3 temps — *chamber* (poing
-  ramené, coude replié) → *extension* (bras tendu, épaule en avant, buste qui
-  suit) → *recul* ; la pièce `bras-avant.png` est la seule à animer (+ rotation
-  du buste de 5–10°).
-- **Pied** : coup de pied circulaire / front kick — la jambe avant se relève
-  (`jambe-av.png` pivotée à la hanche), le buste s'incline en arrière pour
-  l'équilibre, la jambe arrière reste plantée ; retour en `idle`.
-- **Choix du coup** : déterministe à partir du tier (§2.8b) — `tier 1–2` = poing,
-  `tier 3–4` = pied (le pied est le coup « lourd »), **le choix vit dans
-  `config.ts`** (`coupsParTier`), jamais dans la scène.
-- **Livrable** : deux recettes d'animation (`animPoing`, `animPied`) + les pièces
-  nécessaires si la planche v2 doit les prévoir (poing fermé visible, pied
-  chaussé/net). À produire en **J6** avec la refonte 3/4 (§2a).
+- **Générateur** : `scripts/assets-rig.py` (PIL, **déterministe**) découpe chaque
+  planche en **5 pièces** — `buste`, `bras-g`, `bras-d`, `jambe-g`, `jambe-d` —
+  avec **pivots** épaule/hanche et **bandes de recouvrement** (épaules 14 px,
+  hanches 16 px) portées à la fois par la pièce mobile et le buste :
+  - repos **identique au pixel près** à l'image plate (contrôle automatique :
+    couverture + comparaison RGB, « bordures AA empilées » — 142/187 px d'AA
+    uniquement, RGB identiques) ;
+  - **aucun trou à l'articulation** quel que soit l'angle (la bande masque l'écart).
+  - Exceptions de masque : la pointe dorée de la basque de `perso-a` reste
+    rattachée au buste (`exceptionsBuste`), sinon elle suivrait le poing.
+  - Sorties : `game/assets/personnages/rig-{a,b}/*.png` (10 PNG) +
+    `rig-meta.json` (bbox source + pivots par pièce) — les dimensions du meta
+    sont les **tailles** (`x1−x0`, `y1−y0`), pas les coordonnées de fin.
+- **Montage en jeu** (`FightScene.construireRig`) : chaque pièce est posée dans
+  le repère de l'image plate (origine 0.5/1 aux pieds) et pivotée autour de son
+  point d'articulation (origin déplacée sur le pivot). Profondeurs dédiées
+  (`PROFONDEURS_RIG`) : le **côté qui frappe passe devant le buste** (persoA :
+  côté « d » devant, persoB : côté « g » — miroir). Le membre animé est porté à
+  `PROFONDEUR_ANIME` le temps du coup. **Repli** : si la meta ou les textures
+  manquent, l'image plate reste visible (aucune dégradation).
+- **Animations** (tous les angles/durées dans `config.ts` → section `rig`,
+  jamais durcis dans la scène) :
+  | Animation | Recette |
+  |-----------|---------|
+  | **Poing** | bras du côté de la frappe pivote à l'épaule (`angles.poing` = 92°) — extension `quad.out` 90 ms puis retour `sine.inout` 150 ms |
+  | **Pied haut / bas** | jambe pivote à la hanche (`piedHaut` 78° / `piedBas` 36°) — coup choisi par `coupPourTier(tier)` : tiers 1–2 poing, 3 pied-bas, 4 pied-haut |
+  | **Garde haute** | bras levé contre un coup haut (`gardeHaute` 150°) |
+  | **Garde basse** | jambe levée contre un coup bas (`gardeBasse` 58°) |
+  | **CONTRE** | l'attaquant frappe dans le vide (esquive) + le défenseur **saute** (`sautHauteur` 140, `sautDureeMs` 260 — rig + aura montent, l'ombre reste au sol) et riposte d'un **coup de pied** (`contrePied` 85°) |
+  | **Whiff** | poing qui sort dans le vide, retour net |
+- **Choix du coup** : déterministe à partir du tier (§2.8b) — **le choix vit dans
+  `config.ts`** (`coupsParTier`, helper `coupPourTier`), jamais dans la scène.
+- **Flash d'impact** : à la hauteur du coup (`rig.impactY` : poing 185, pied-haut
+  100, pied-bas 40), le sprite `coups-poing`/`coups-pied` est réutilisé en
+  **fusion ADD 150 ms** (`rig.flashCoupMs`, flipX selon la direction) + cercle,
+  étincelles radiales et onde de choc aux tiers élevés. Le délai d'impact =
+  `rig.dureeExtensionMs` (le membre est pleinement sorti au moment de l'étincelle).
+- **Validation** (2026-11-14) : sonde `tmp/anim-probe.mjs` (enregistreur rAF des
+  angles dans la page) — angles max observés **exacts** : poing 92°, pied bas 36°,
+  contre-pied 85°, saut −140, garde 150° ; captures `tmp/visu/probe-*.png`
+  (membres tendus, flash à la bonne hauteur). Typecheck 0 erreur, Vitest 58/58
+  couverture 100 %, scénarios 11/11, smoke L0, E2E 9/9.
 
 ## 4. Méthode 2 — spritesheet frame-by-frame (dépannage)
 
@@ -127,18 +157,21 @@ Pour les animations qui se prêtent mal au cut-out (chute élaborée, éclairs d
 ```
 game/assets/
 ├── personnages/
-│   ├── perso-a/   planche.png, tete.png, buste.png, bras-avant.png,
-│   │              bras-arriere.png, jambe-av.png, jambe-ar.png
-│   └── perso-b/   idem
-├── decors/        arena-1.png (1280×720), arena-2.png
-├── effets/        flamme-1.png, flamme-2.png (160×320, RGBA blanc teintable)
-├── ui/            titre.png, cadre-retro.png, bouton-run.png, bouton-config.png
+│   ├── perso-a.png, perso-b.png   planches pleines (repli image plate)
+│   ├── rig-a/    buste, bras-g, bras-d, jambe-g, jambe-d  (5 PNG, §3a)
+│   ├── rig-b/    idem (miroir)
+│   └── rig-meta.json              bbox source + pivots par pièce (§3a)
+├── decors/        arene-1.png (1280×720)
+├── effets/        flamme-1.png, flamme-2.png (160×320, RGBA blanc teintable),
+│                  coups-poing.png, coups-pied.png (flash d'impact ADD, §3a)
+├── sons/          reussite, erreur, frappe, blocage, ko (.wav, §6b)
 └── README.md      # grille des spritesheets éventuelles (ordre, tailles)
 ```
 
 - Formats : **PNG 32 bits** (transparence), personnages ≈ 350 px de haut à
   l'échelle mobile (référence écran **1280×720** paysage).
-- Nommage : minuscules, tirets, français (`bras-avant.png`).
+- Nommage : minuscules, tirets, français (`bras-g.png`) ; le rig suit le
+  nommage du meta (`rig-a/bras-d.png`).
 
 ### 6a. Textures de flamme (aura §2.8a)
 

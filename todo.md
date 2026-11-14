@@ -103,7 +103,7 @@ J6 (contenu complet) ; J8 clôt.
 ### J6 — Modes et menus
 
 - [ ] **Refonte des planches en 3/4 de face, rendu type Mortal Kombat / Street Fighter** — demande utilisateur, direction `docs/assets.md` §2a
-- [ ] **Coups de poing et de pied animés en vrais sprites** (`animPoing` / `animPied`, coup choisi par `config.ts` selon le tier) — demande utilisateur, recettes `docs/assets.md` §3a
+- [x] **Coups de poing et de pied animés** — demande utilisateur : **rig cut-out articulé** livré (`scripts/assets-rig.py` → 5 pièces par perso, pivots épaule/hanche, bandes de recouvrement) : poing, pied haut/bas, garde haute/basse, **contre avec saut + coup de pied**, flash d'impact à la hauteur du coup — angles/durées dans `config.ts` (`rig`), recettes `docs/assets.md` §3a ; validé par sonde rAF (`tmp/anim-probe.mjs` : 92/36/85/−140/150°) + E2E 9/9
 - [ ] Mode 2 joueurs (même écran, tour par tour)
 - [ ] Écran de lancement rétro (bouton **RUN** clignotant au-dessus, **CONFIG** au-dessous, style borne d'arcade)
 - [ ] Écran CONFIG des règles (commandes ◀ ▶ rétro) : mode, tempo (durée unique attaque = défense : Rapide 10 s, Normal 15 s, Long 25 s + curseur borné 5–60 s), rythme de calcul (Différé/Simultané), PV, niveau, difficulté IA

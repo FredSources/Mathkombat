@@ -9,13 +9,13 @@
  *  - l'IA joue ses phases sur la durée configurée, énergie progressive (§2.6) ;
  *  - résolution : solde = attaque − défense → dégâts ou CONTRE-ATTAQUE (§2.4),
  *    barres de vie animées, K.O. (I5) ;
+ *  - mise en scène : rig cut-out articulé — poing, pied haut/bas, gardes et
+ *    contre sautant (§2.8, docs/assets.md §3a) + juice d'impact ;
  *  - traces par le logger (DEBUG) ; hook de debug `window.__mathkombat` (DEBUG).
- *
- * Présentation provisoire : les sprites cut-out et le juice arrivent en J5.
  */
 import Phaser from 'phaser';
-import { CONFIG } from '../core/config.ts';
-import type { ConfigJeu, Difficulte } from '../core/config.ts';
+import { CONFIG, coupPourTier } from '../core/config.ts';
+import type { ConfigJeu, Coup, Difficulte } from '../core/config.ts';
 import {
   CombatEngine,
   PhaseCalcul,
@@ -68,6 +68,49 @@ function melangerVersBlanc(couleur: number, ratio: number): number {
 
 type NaturePhase = 'attaque' | 'defense' | 'simultane';
 
+/** Pièces du rig cut-out articulé (scripts/assets-rig.py, docs/assets.md §3a). */
+type Membre = 'buste' | 'bras-g' | 'bras-d' | 'jambe-g' | 'jambe-d';
+
+const PIECES_RIG: readonly Membre[] = ['buste', 'bras-g', 'bras-d', 'jambe-g', 'jambe-d'];
+
+/** Meta d'une pièce telle que produite par scripts/assets-rig.py (rig-meta.json). */
+interface MetaPiece {
+  fichier: string;
+  x: number;
+  y: number;
+  largeur: number;
+  hauteur: number;
+  pivotX?: number;
+  pivotY?: number;
+}
+
+interface MetaRig {
+  largeur: number;
+  hauteur: number;
+  pieces: Record<Membre, MetaPiece>;
+}
+
+/**
+ * Profondeurs des pièces dans le rig : le côté qui frappe (« face avant »)
+ * passe devant le buste. persoA frappe à droite → côté « d » devant ; persoB
+ * frappe à gauche → côté « g » devant. Le membre animé est porté à
+ * PROFONDEUR_ANIME (les bandes de recouvrement sont identiques au repos :
+ * aucune restauration nécessaire).
+ */
+const PROFONDEURS_RIG: Record<string, Record<Membre, number>> = {
+  persoA: { 'bras-g': 5, 'jambe-g': 8, buste: 10, 'jambe-d': 12, 'bras-d': 15 },
+  persoB: { 'bras-g': 15, 'jambe-g': 12, buste: 10, 'jambe-d': 8, 'bras-d': 5 },
+};
+const PROFONDEUR_ANIME = 16;
+
+/** État du rig d'un combattant (hook de debug) : angles arrondis + saut. */
+function etatRig(c: Combattant): { saut: number; angles: Record<string, number> } | null {
+  if (!c.membres) return null;
+  const angles: Record<string, number> = {};
+  for (const p of PIECES_RIG) angles[p] = Math.round(c.membres[p].angle * 10) / 10;
+  return { saut: Math.round(c.rig.y), angles };
+}
+
 interface Combattant {
   nom: string;
   corps: Phaser.GameObjects.Container;
@@ -75,7 +118,12 @@ interface Combattant {
   aura: Phaser.GameObjects.Container;
   /** Vignette sombre feutrée derrière le personnage (contraste WCAG, normal blend). */
   ombre: Phaser.GameObjects.Graphics;
+  /** Image plate du personnage (masquée quand le rig articulé est présent). */
   sprite: Phaser.GameObjects.Image;
+  /** Conteneur du rig cut-out : pièces articulées, ou l'image plate en repli. */
+  rig: Phaser.GameObjects.Container;
+  /** Pièces articulées (pivots épaule/hanche) — null = repli image plate. */
+  membres: Record<Membre, Phaser.GameObjects.Image> | null;
   /** Étincelles montantes (particules d'aura). */
   particules: Phaser.GameObjects.Ellipse[];
   teinte: number;
@@ -116,6 +164,10 @@ export class FightScene extends Phaser.Scene {
   private journalEvenements: string[] = [];
   /** Ralenti « hitstop » en cours (restauré par ralentir()). */
   private ralentiActif = false;
+  /** Nombre de sprites de coup vivants (diagnostic). */
+  private coupsActifs = 0;
+  /** Membres du rig en cours d'animation — `${nom}:${pièce}` (diagnostic). */
+  private membresActifs = new Set<string>();
   private manches = { j1: 0, j2: 0 };
 
   private quizJ1!: QuizOverlay;
@@ -298,6 +350,13 @@ export class FightScene extends Phaser.Scene {
     }
 
     const sprite = this.add.image(0, 0, texture).setOrigin(0.5, 1);
+    // rig cut-out articulé : 5 pièces posées par bbox source et pivotées autour
+    // de leurs articulations ; si les textures sont absentes, l'image plate
+    // reste visible (repli sans dégradation du rendu)
+    const rig = this.add.container(0, 0);
+    const membres = this.construireRig(rig, texture);
+    if (membres) sprite.setVisible(false);
+    rig.add(sprite);
     const etiquette = this.add
       .text(0, 18, nom, {
         fontFamily: 'monospace', fontSize: '17px', color: '#ffffff',
@@ -305,7 +364,7 @@ export class FightScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0);
     aura.add(particules);
-    conteneur.add([ombre, aura, sprite, etiquette]);
+    conteneur.add([ombre, aura, rig, etiquette]);
 
     // respiration (idle) — mouvement permanent, non bloquant
     this.tweens.add({
@@ -323,6 +382,8 @@ export class FightScene extends Phaser.Scene {
       aura,
       ombre,
       sprite,
+      rig,
+      membres,
       particules,
       teinte,
       lueur,
@@ -330,6 +391,47 @@ export class FightScene extends Phaser.Scene {
       alphaPalier: 0,
       impulsion: null,
     };
+  }
+
+  /**
+   * Montage du rig cut-out d'un combattant (docs/assets.md §3a) : chaque pièce
+   * est posée dans le repère de l'image plate (origine 0.5/1 aux pieds) et
+   * pivotée autour de son point d'articulation (origin déplacée sur le pivot).
+   * Retourne null si la meta ou les textures sont absentes → repli image plate.
+   */
+  private construireRig(
+    rig: Phaser.GameObjects.Container,
+    texture: string
+  ): Record<Membre, Phaser.GameObjects.Image> | null {
+    const metaGlobal = this.cache.json.get('rigMeta') as Record<string, MetaRig> | undefined;
+    const meta = metaGlobal?.[texture];
+    if (!meta) return null;
+    // vérification d'abord : on ne monte que si les 5 pièces sont présentes
+    const clesTex = new Map<Membre, string>();
+    for (const cle of PIECES_RIG) {
+      const p = meta.pieces[cle];
+      if (!p) return null;
+      const cleTex = p.fichier.replace('/', '-').replace(/\.png$/, '');
+      if (!this.textures.exists(cleTex)) return null;
+      clesTex.set(cle, cleTex);
+    }
+    const membres = {} as Record<Membre, Phaser.GameObjects.Image>;
+    const profondeurs = PROFONDEURS_RIG[texture] ?? PROFONDEURS_RIG.persoA;
+    const demiLargeur = meta.largeur / 2;
+    for (const cle of PIECES_RIG) {
+      const p = meta.pieces[cle];
+      const cleTex = clesTex.get(cle)!;
+      const img =
+        p.pivotX !== undefined && p.pivotY !== undefined
+          ? this.add
+              .image(p.pivotX - demiLargeur, p.pivotY - meta.hauteur, cleTex)
+              .setOrigin((p.pivotX - p.x) / p.largeur, (p.pivotY - p.y) / p.hauteur)
+          : this.add.image(p.x - demiLargeur, p.y - meta.hauteur, cleTex).setOrigin(0, 0);
+      img.setDepth(profondeurs[cle]);
+      rig.add(img);
+      membres[cle] = img;
+    }
+    return membres;
   }
 
   /** Vacillement déterministe d'une langue de flamme (phases décalées par
@@ -480,9 +582,20 @@ export class FightScene extends Phaser.Scene {
     this.journalEvenements = [];
     this.journalText.setText('');
     this.bandeauResolution.setAlpha(0);
-    // remise à pied des combattants (rejeu après K.O.)
+    // remise à pied des combattants (rejeu après K.O.) — rig et membres au repos
     this.j1.corps.setPosition(360, SOL).setAngle(0).setScale(0.62);
     this.j2.corps.setPosition(920, SOL).setAngle(0).setScale(0.62);
+    for (const c of [this.j1, this.j2]) {
+      this.tweens.killTweensOf([c.rig, c.aura]);
+      c.rig.setPosition(0, 0);
+      c.aura.setPosition(0, 0);
+      if (c.membres) {
+        for (const piece of Object.values(c.membres)) {
+          this.tweens.killTweensOf(piece);
+          piece.setAngle(0);
+        }
+      }
+    }
     this.j1.palier = -1;
     this.j2.palier = -1;
     this.demarrerTour();
@@ -660,7 +773,14 @@ export class FightScene extends Phaser.Scene {
       // parade : l'énergie défense annule exactement l'attaque (§2.8c)
       this.noterJournal(`${FightScene.nomJoueur(r.defenseur)} parade`);
       this.jouerSon('blocage');
-      this.animBlocage(defenseur, tierFrappe(r.attaque));
+      const tierBlocage = tierFrappe(r.attaque);
+      // garde côté attaquant : bras contre un coup haut, jambe contre un coup bas
+      this.animBlocage(
+        defenseur,
+        tierBlocage,
+        coupPourTier(tierBlocage),
+        attaquant.corps.x > defenseur.corps.x
+      );
     } else if (r.degats > 0) {
       this.noterJournal(`${FightScene.nomJoueur(r.defenseur)} encaisse ${r.degats}`);
       this.jouerSon('frappe');
@@ -707,16 +827,19 @@ export class FightScene extends Phaser.Scene {
     });
   }
 
-  /** Élan de frappe : l'attaquant projeté vers la cible qui encaisse. */
+  /** Élan de frappe : le membre du rig sort vers la cible, la cible encaisse. */
   private animFrappe(attaquant: Combattant, cible: Combattant, tier: number): void {
-    const avance = attaquant === this.j1 ? 1 : -1;
-    const direction = cible === this.j1 ? -1 : 1;
+    const droite = cible.corps.x > attaquant.corps.x;
+    const avance = droite ? 1 : -1;
+    const direction = droite ? 1 : -1; // recul de la cible, à l'opposé de l'attaque
     this.tweens.add({
       targets: attaquant.corps,
       x: attaquant.corps.x + avance * (16 + tier * 10),
       duration: 90,
       yoyo: true,
     });
+    const coup = coupPourTier(tier);
+    this.animerCoup(attaquant, coup, droite);
     this.tweens.add({
       targets: cible.corps,
       x: cible.corps.x + direction * (10 + tier * 8),
@@ -724,11 +847,89 @@ export class FightScene extends Phaser.Scene {
       yoyo: true,
       delay: 70,
     });
-    this.impactVisuel(cible, tier, false);
+    this.apresImpact(() => this.impactVisuel(cible, tier, false, coup, droite));
   }
 
-  /** Parade : garde du défenseur, étincelles d'impact, aucune perte de position. */
-  private animBlocage(defenseur: Combattant, tier: number): void {
+  /** Déclenche l'impact une fois le membre du rig pleinement sorti (§2.8b). */
+  private apresImpact(action: () => void): void {
+    this.time.delayedCall(CONFIG.rig.dureeExtensionMs, action);
+  }
+
+  /**
+   * Extension d'un membre du rig vers la cible (docs/assets.md §3a) :
+   * angle négatif vers la droite, positif vers la gauche (Phaser : horaire
+   * positif). No-op en repli image plate. `angleForce` imposé la base d'angle
+   * (CONTRE : coup de pied de la riposte).
+   */
+  private animerCoup(c: Combattant, coup: Coup, droite: boolean, angleForce?: number): void {
+    const membre: Membre =
+      coup === 'poing' ? (droite ? 'bras-d' : 'bras-g') : droite ? 'jambe-d' : 'jambe-g';
+    const angles = CONFIG.rig.angles;
+    const base =
+      angleForce ??
+      (coup === 'poing' ? angles.poing : coup === 'pied-haut' ? angles.piedHaut : angles.piedBas);
+    this.animerMembre(c, membre, base * (droite ? -1 : 1));
+  }
+
+  /** Rotation d'une pièce autour de son pivot : extension puis retour au repos. */
+  private animerMembre(c: Combattant, cle: Membre, angle: number): void {
+    const piece = c.membres?.[cle];
+    if (!piece) return; // repli image plate : l'élan du corps suffit
+    const rig = CONFIG.rig;
+    const suivi = `${c.nom}:${cle}`;
+    this.membresActifs.add(suivi);
+    this.tweens.killTweensOf(piece);
+    piece.setDepth(PROFONDEUR_ANIME); // le membre animé passe devant (§3a)
+    this.tweens.add({
+      targets: piece,
+      angle,
+      duration: rig.dureeExtensionMs,
+      ease: 'quad.out',
+      onComplete: () => {
+        this.tweens.add({
+          targets: piece,
+          angle: 0,
+          duration: rig.dureeRetourMs,
+          ease: 'sine.inout',
+          onComplete: () => this.membresActifs.delete(suivi),
+        });
+      },
+    });
+  }
+
+  /** Saut du CONTRE : rig + aura montent (l'ombre reste au sol, §2.8c). */
+  private sauter(c: Combattant): void {
+    const rig = CONFIG.rig;
+    this.tweens.add({
+      targets: [c.rig, c.aura],
+      y: -rig.sautHauteur,
+      duration: rig.sautDureeMs / 2,
+      ease: 'quad.out',
+      yoyo: true,
+    });
+  }
+
+  /**
+   * Parade : garde côté attaquant — bras levé contre un coup haut, jambe
+   * levée contre un coup bas (§2.8c) — étincelles à la hauteur du coup,
+   * aucune perte de position.
+   */
+  private animBlocage(
+    defenseur: Combattant,
+    tier: number,
+    coup: Coup,
+    versAttaquantDroite: boolean
+  ): void {
+    const haut = coup !== 'pied-bas';
+    const membre: Membre = haut
+      ? versAttaquantDroite
+        ? 'bras-d'
+        : 'bras-g'
+      : versAttaquantDroite
+        ? 'jambe-d'
+        : 'jambe-g';
+    const base = haut ? CONFIG.rig.angles.gardeHaute : CONFIG.rig.angles.gardeBasse;
+    this.animerMembre(defenseur, membre, base * (versAttaquantDroite ? -1 : 1));
     this.tweens.add({
       targets: defenseur.corps,
       scaleX: defenseur.corps.scaleX * 1.06,
@@ -744,41 +945,51 @@ export class FightScene extends Phaser.Scene {
       yoyo: true,
       repeat: 2,
     });
-    this.etincelles(defenseur.corps.x, SOL - 150, Math.max(3, tier * 2), '#9fd8ff');
-    if (tier >= 2) this.ondeDeChoc(defenseur.corps.x, SOL - 150, tier);
+    const y = SOL - CONFIG.rig.impactY[coup];
+    this.etincelles(defenseur.corps.x, y, Math.max(3, tier * 2), '#9fd8ff');
+    if (tier >= 2) this.ondeDeChoc(defenseur.corps.x, y, tier);
   }
 
-  /** CONTRE : esquive de l'attaquant puis riposte sur lui (priorité visuelle). */
+  /**
+   * CONTRE : l'attaquant frappe dans le vide, le défenseur saut et riposte
+   * d'un coup de pied (§2.8c, priorité visuelle).
+   */
   private animContre(attaquant: Combattant, riposte: Combattant, tier: number): void {
     const versAvant = attaquant === this.j1 ? 1 : -1;
-    // 1. l'attaquant avance… et rate sa cible (esquive)
+    // 1. l'attaquant avance en frappant… et rate la cible (esquive)
+    this.animerCoup(attaquant, 'poing', riposte.corps.x > attaquant.corps.x);
     this.tweens.add({
       targets: attaquant.corps,
       x: attaquant.corps.x + versAvant * 34,
       duration: 120,
       ease: 'quad.out',
     });
-    // 2. le défenseur se décale puis frappe dans la foulée
+    // 2. le défenseur se décale, saut et frappe dans la foulée
     this.tweens.add({
       targets: riposte.corps,
       x: riposte.corps.x + (riposte === this.j1 ? 1 : -1) * -22,
       duration: 120,
       yoyo: true,
       onComplete: () => {
+        // la riposte part vers l'attaquant : J1 fait face à droite, l'IA à gauche
+        const droite = attaquant.corps.x > riposte.corps.x;
+        this.sauter(riposte);
+        this.animerCoup(riposte, 'pied-haut', droite, CONFIG.rig.angles.contrePied);
         this.tweens.add({
           targets: attaquant.corps,
           x: attaquant.corps.x - versAvant * (14 + tier * 9),
           duration: 110,
           yoyo: true,
         });
-        this.impactVisuel(attaquant, tier, true);
+        this.apresImpact(() => this.impactVisuel(attaquant, tier, true, 'pied-haut', droite));
       },
     });
   }
 
-  /** Coup raté : l'attaquant s'arrête net, sans impact. */
+  /** Coup raté : le poing sort dans le vide, l'attaquant s'arrête net. */
   private animWhiff(attaquant: Combattant): void {
     const versAvant = attaquant === this.j1 ? 1 : -1;
+    this.animerCoup(attaquant, 'poing', versAvant > 0);
     this.tweens.add({
       targets: attaquant.corps,
       x: attaquant.corps.x + versAvant * 20,
@@ -789,10 +1000,19 @@ export class FightScene extends Phaser.Scene {
     });
   }
 
-  /** Flash d'impact + étincelles radiales (fusion ADD) + onde de choc aux tiers élevés. */
-  private impactVisuel(cible: Combattant, tier: number, contre: boolean): void {
+  /**
+   * Flash d'impact : sprite de coup en fusion ADD (150 ms) à la hauteur du
+   * coup, + cercle, étincelles radiales et onde de choc aux tiers élevés.
+   */
+  private impactVisuel(
+    cible: Combattant,
+    tier: number,
+    contre: boolean,
+    coup: Coup,
+    droite: boolean
+  ): void {
     const x = cible.corps.x;
-    const y = SOL - 150;
+    const y = SOL - CONFIG.rig.impactY[coup];
     const couleur = contre ? '#ff9d6b' : '#ffffff';
     const teinteEtoiles = contre ? '#ff9d6b' : '#ffd76b'; // or : lisible sur le sol clair
     const flash = this.add.circle(x, y, 20 + tier * 6, Phaser.Display.Color.HexStringToColor(couleur).color);
@@ -804,6 +1024,29 @@ export class FightScene extends Phaser.Scene {
       duration: 130,
       onComplete: () => flash.destroy(),
     });
+    // sprite de coup réutilisé en flash d'impact (docs/assets.md §3a) : le
+    // poing ou le pied marque l'instant de l'impact puis s'efface
+    const cleTex = coup === 'poing' ? 'coups-poing' : 'coups-pied';
+    if (this.textures.exists(cleTex)) {
+      const marque = this.add
+        .image(x, y, cleTex)
+        .setOrigin(0.5, 0.5)
+        .setFlipX(!droite)
+        .setScale(0.7 + tier * 0.1)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setDepth(12);
+      this.coupsActifs++;
+      marque.once('destroy', () => {
+        this.coupsActifs = Math.max(0, this.coupsActifs - 1);
+      });
+      this.tweens.add({
+        targets: marque,
+        alpha: 0,
+        scale: marque.scale * 1.3,
+        duration: CONFIG.rig.flashCoupMs,
+        onComplete: () => marque.destroy(),
+      });
+    }
     this.etincelles(x, y, CONFIG.juice.etincellesParTier * tier, teinteEtoiles);
     if (tier >= 2) this.ondeDeChoc(x, y, tier);
   }
@@ -1031,6 +1274,15 @@ export class FightScene extends Phaser.Scene {
         scene.mettreAJourEnergies();
         return true;
       },
+      // diagnostics des coups et du rig articulé (§3a) : flashs, membres en
+      // cours d'animation, angles des pièces, saut du contre, textures
+      coups: () => ({
+        actifs: scene.coupsActifs,
+        membresActifs: [...scene.membresActifs],
+        timeScale: scene.tweens.timeScale,
+        textures: ['coups-poing', 'coups-pied'].filter((k) => scene.textures.exists(k)),
+        rig: { j1: etatRig(scene.j1), j2: etatRig(scene.j2) },
+      }),
       // force l'énergie de défense du tour en cours (captures E04)
       forcerEnergieDefense: (v: number) => {
         const phase = scene.tourCourant?.phaseDefense;

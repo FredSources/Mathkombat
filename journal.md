@@ -1190,3 +1190,70 @@ Trouvées par le smoke test L0 puis corrigées (le smoke test en est le test de 
   poing et de coup de pied** animés (recettes `animPoing` / `animPied`, coup choisi
   par `config.ts`), puis mode 2 joueurs, écrans RUN/CONFIG et sélection de
   personnage.
+
+---
+
+## 2026-11-14 — Rig cut-out articulé : coups de poing/pied, gardes, contre sautant
+
+### Produits
+
+| Fichier | Rôle |
+|---------|------|
+| `scripts/assets-rig.py` | Générateur du rig (PIL, déterministe) : découpe de `perso-a/b.png` en 5 pièces (`buste`, `bras-g/d`, `jambe-g/d`) avec pivots épaule/hanche, **bandes de recouvrement** (épaules 14 px, hanches 16 px — repos identique au pixel près, aucun trou à l'articulation), exception de masque pour la basque dorée de `perso-a` (`exceptionsBuste`), meta bbox + pivots, planches QA |
+| `game/assets/personnages/rig-{a,b}/*.png` + `rig-meta.json` | 10 pièces articulées + meta (dimensions = tailles `x1−x0`, bug `x1/y1` corrigé) — sorties du générateur |
+| `game/src/core/config.ts` | Type `Coup` = `poing \| pied-bas \| pied-haut`, table `coupsParTier`, helper `coupPourTier(tier)`, section **`rig`** : `dureeExtensionMs` 90 (remplace `juice.delaiImpactMs`, supprimé), `dureeRetourMs` 150, `flashCoupMs` 150, angles `{poing 92, piedHaut 78, piedBas 36, gardeHaute 150, gardeBasse 58, contrePied 85}`, `sautHauteur` 140, `sautDureeMs` 260, `impactY {poing 185, pied-haut 100, pied-bas 40}` |
+| `game/src/scenes/BootScene.ts` | Chargement des 10 pièces (`rig-<dossier>-<piece>`) + `rigMeta`, tracé `rig` dans `assets.pret` |
+| `game/src/scenes/FightScene.ts` | `construireRig()` (montage par bbox, origin sur pivot, profondeurs `PROFONDEURS_RIG` + `PROFONDEUR_ANIME`, repli image plate si meta/textures absentes) ; `animerCoup` / `animerMembre` (extension `quad.out` puis retour `sine.inout`, suivi `membresActifs`) ; `sauter()` (rig + aura) ; `animBlocage` (bras si coup ≠ pied-bas, jambe sinon) ; `animContre` (esquive + saut + pied-haut forcé `contrePied`) ; `impactVisuel` enrichi : **flash sprite `coups-poing`/`coups-pied` en ADD 150 ms** à la hauteur `impactY[coup]` (flipX selon direction) ; hook `coups()` avec `etatRig()` (angles arrondis + saut) ; remise à pied rig dans `lancerCombat` |
+| `game/tests/config.test.ts` | 9 tests `coupPourTier` (tiers, hors table, table vide) + invariants `rig` (garde haute > poing, pied bas < pied haut, contre/saut bornés, durées > 0) |
+| `tmp/anim-probe.mjs` | Sonde visuelle : 4 résolutions pilotées (frappe t2, frappe t3 ralentie, CONTRE, blocage) avec **enregistreur rAF des angles dans la page** + captures `tmp/visu/probe-<run>-*.png` |
+| `docs/assets.md` | **§3a réécrit** : rig cut-out livré (générateur, montage, recettes d'animation, flash d'impact, validation) ; **§6 inventaire** mis à jour (rig-a/rig-b, rig-meta, coups-*.png, sons/) |
+
+### Décisions
+
+- **Conserver l'illustration existante** (demande utilisateur : « garde ton style ») :
+  pas de régénération de personnage — `perso-a/b.png` est **découpé** en pièces
+  articulées ; au repos le rig est identique au pixel près à l'image plate.
+- **Bandes de recouvrement portées par les deux côtés** (pièce mobile + buste) :
+  la rotation ne crée jamais de trou à l'épaule/à la hanche, sans déformer la pièce.
+- **Basque dorée rattachée au buste** (`exceptionsBuste`) : elle déborde sous le bras
+  droit au repos ; sans exception elle suivrait le poing (artefact validé puis corrigé
+  par comparaison repos/poing).
+- **Profondeur dynamique** : le membre animé passe à `PROFONDEUR_ANIME` (16) le temps
+  du coup — le côté qui frappe est toujours devant, pas de restauration nécessaire
+  (bandes identiques au repos).
+- **Angles/durées uniquement dans `config.ts`** (section `rig`) : aucune intensité
+  en dur dans la scène ; `juice.delaiImpactMs` supprimé au profit de
+  `rig.dureeExtensionMs` (le délai d'impact est la durée d'extension du membre).
+- **Flash d'impact = réutilisation des sprites `coups-poing`/`coups-pied`** en fusion
+  ADD à la hauteur du coup, plutôt qu'un simple cercle : cohérent avec le coup animé.
+
+### Tests
+
+- **Batterie complète verte** : typecheck strict ✅ 0 erreur ; Vitest ✅
+  **58/58** (4 fichiers), couverture **100 %** (158/158 statements, 103/103
+  branches, 32/32 fonctions, 139/139 lines) ; scénarios ✅ **11/11**
+  (`output/reports/scenarios-2026-11-14T00-37-18.md`) ; smoke L0 ✅ PASS ;
+  E2E ✅ **9/9** (`output/reports/e2e-2026-11-14T00-38-08.md`).
+- **Sonde rig `tmp/anim-probe.mjs`** (enregistreur rAF, angles max observés) :
+  frappe t2 → `bras-d` **92°** (= `angles.poing`) ; frappe t3 → `jambe-d`
+  **36°** (= `piedBas`) ; CONTRE → `jambe-g` **85°** (= `contrePied`) +
+  saut **−140** (= `sautHauteur`) ; blocage → `bras-g` **150°** (= `gardeHaute`).
+  Captures `tmp/visu/probe-821195-*.png` : membres tendus, flash à la bonne
+  hauteur, saut et garde visibles.
+
+### Anomalies
+
+- **Meta `largeur`/`hauteur` = coordonnées de fin** (`x1`, `y1`) au lieu des tailles :
+  PNG exportés avec marge vide et meta fausse → corrigé (`bw = x1−bx`) puis régénéré
+  (planches QA inchangées).
+- **Première sonde : angles tous à zéro** — l'échantillonnage démarrait **après** le
+  retour au repos (capture screenshot + délai). Corrigé par un enregistreur rAF
+  dans la page déclenché **avant** la résolution : angles conformes.
+- **Artefact basque** (triangle doré qui suivait le poing) : corrigé par
+  `exceptionsBuste` + raccourcissement de `bras-d` à la limite d'épaule.
+
+### Prochaine étape
+
+- **J6** : refonte des planches en **3/4 de face** (MK/SF), puis mode 2 joueurs,
+  écrans RUN/CONFIG et sélection de personnage. (Les coups de poing/pied animés,
+  gardes et contre sont **livrés** en ce 2026-11-14.)
