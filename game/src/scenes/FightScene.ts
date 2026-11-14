@@ -46,7 +46,8 @@ const log = getLogger('Fight');
 
 const LARGEUR = 1280;
 const HAUTEUR = 720;
-const SOL = 686;
+/** Ligne de sol des combattants : au milieu de l'arène (demande utilisateur). */
+const SOL = 590;
 const DIFFICULTES: Difficulte[] = ['facile', 'moyen', 'difficile'];
 /** Combattants recentrés dans la zone centrale de l'arène (demande utilisateur). */
 const X_J1 = 470;
