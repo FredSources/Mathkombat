@@ -93,6 +93,9 @@ export class SelectScene extends Phaser.Scene {
     this.add.rectangle(640, 96, 1160, 3, RETRO.cadre);
 
     const p = PLACE_SELECT;
+    // En SOLO, l'adversaire est l'IA (jamais « J2 ») — §2.6 / demande utilisateur
+    const libelleJ2 = CONFIG.mode === 'duel' ? 'JOUEUR 2  ........' : 'I A  ............';
+    const libelleNiveau2 = CONFIG.mode === 'duel' ? 'niveau J2  ......' : 'niveau IA  ......';
     this.dessinerLigne(
       {
         libelle: 'JOUEUR 1  ........',
@@ -121,7 +124,7 @@ export class SelectScene extends Phaser.Scene {
     );
     this.dessinerLigne(
       {
-        libelle: 'JOUEUR 2  ........',
+        libelle: libelleJ2,
         valeur: () => LIBELLES_SKIN[selection.skinJ2] ?? selection.skinJ2.toUpperCase(),
         moins: () => {
           selection.skinJ2 = suivant(IDS_SKIN, selection.skinJ2, -1);
@@ -134,7 +137,7 @@ export class SelectScene extends Phaser.Scene {
     );
     this.dessinerLigne(
       {
-        libelle: 'niveau J2  ......',
+        libelle: libelleNiveau2,
         valeur: () => LIBELLES_NIVEAU[selection.niveauJ2],
         moins: () => {
           selection.niveauJ2 = suivant(NIVEAUX, selection.niveauJ2, -1);

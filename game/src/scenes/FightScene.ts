@@ -46,8 +46,11 @@ const log = getLogger('Fight');
 
 const LARGEUR = 1280;
 const HAUTEUR = 720;
-/** Ligne de sol des combattants : au milieu de l'arène (demande utilisateur). */
-const SOL = 590;
+/**
+ * Ligne de sol des combattants : **pieds posés sur le cercle doré** de l'arène
+ * (bord bas du disque mesuré dans `decors/arene-1.png` : y=416→530).
+ */
+const SOL = 530;
 const DIFFICULTES: Difficulte[] = ['facile', 'moyen', 'difficile'];
 /** Combattants recentrés dans la zone centrale de l'arène (demande utilisateur). */
 const X_J1 = 470;
@@ -275,18 +278,19 @@ export class FightScene extends Phaser.Scene {
     this.textePhase = this.add.text(LARGEUR / 2, 62, '', {
       fontFamily: 'monospace', fontSize: '20px', color: '#7bd4ff',
     }).setOrigin(0.5, 0);
-    // Énergie : sous les boutons VALIDER, en bas de chaque zone
-    this.texteEnergie1 = this.add.text(40, 578, '', {
+    // Énergie : sous les boutons VALIDER, dans la zone basse de chaque côté
+    // (remontée : les petits textes trop bas étaient tronqués sur appareil)
+    this.texteEnergie1 = this.add.text(40, 552, '', {
       fontFamily: 'monospace', fontSize: '20px', color: '#7bd4ff',
     });
-    this.texteEnergie2 = this.add.text(LARGEUR - 40, 578, '', {
+    this.texteEnergie2 = this.add.text(LARGEUR - 40, 552, '', {
       fontFamily: 'monospace', fontSize: '20px', color: '#7bd4ff',
     }).setOrigin(1, 0);
     // Score de combat en temps réel (§2.7) : énergies gagnées + secondes restantes
-    this.texteScoreJ1 = this.add.text(40, 606, '', {
+    this.texteScoreJ1 = this.add.text(40, 578, '', {
       fontFamily: 'monospace', fontSize: '20px', color: '#ffd76b',
     });
-    this.texteScoreJ2 = this.add.text(LARGEUR - 40, 606, '', {
+    this.texteScoreJ2 = this.add.text(LARGEUR - 40, 578, '', {
       fontFamily: 'monospace', fontSize: '20px', color: '#ffd76b',
     }).setOrigin(1, 0);
     // ☰ MENU (§8 wireframes) : dans le couloir central ENTRE les deux blocs de
@@ -301,15 +305,18 @@ export class FightScene extends Phaser.Scene {
       taille: 20,
       onClic: () => this.basculerPause(),
     });
-    this.bandeauResolution = this.add.text(LARGEUR / 2, SOL - 120, '', {
+    // Résolution du coup : centrée, sous le menu (demande : résultat du fight
+    // aligné centre et plus en haut)
+    this.bandeauResolution = this.add.text(LARGEUR / 2, 240, '', {
       fontFamily: 'monospace', fontSize: '30px', color: '#ffd76b',
       backgroundColor: '#1b2a52', padding: { x: 18, y: 8 },
+      align: 'center',
     }).setOrigin(0.5).setAlpha(0);
     // score de manche (haut centre) + journal de combat (5 derniers, bas centre)
     this.texteScore = this.add.text(LARGEUR / 2, 92, '', {
       fontFamily: 'monospace', fontSize: '16px', color: '#ffd76b',
     }).setOrigin(0.5, 0);
-    this.journalText = this.add.text(LARGEUR / 2, 634, '', {
+    this.journalText = this.add.text(LARGEUR / 2, 600, '', {
       fontFamily: 'monospace', fontSize: '13px', color: '#cfe3ff',
       backgroundColor: '#0d0820cc', padding: { x: 8, y: 5 },
       align: 'center', lineSpacing: 3,
