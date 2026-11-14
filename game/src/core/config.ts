@@ -153,6 +153,15 @@ export interface ConfigJeu {
     voileMenu: number;
     voileConfig: number;
   };
+  /** Score de combat (§2.7) : énergies gagnées + temps restant + bonus K.O. */
+  score: {
+    /** Points par point d'énergie gagné (calcul réussi). */
+    facteurEnergie: number;
+    /** Points par seconde restante en fin de phase jouée (récompense la rapidité). */
+    facteurTempsRestant: number;
+    /** Bonus fixe pour la victoire par K.O. */
+    bonusKo: number;
+  };
   /** IA « gentille » (§2.6) : battable, suspense garanti. */
   ia: {
     /** Difficulté par défaut (CONFIG écran). */
@@ -239,6 +248,11 @@ export const CONFIG: ConfigJeu = {
     surbrillanceTeinte: 0.45,
     voileMenu: 0.45,
     voileConfig: 0.6,
+  },
+  score: {
+    facteurEnergie: 1,
+    facteurTempsRestant: 1,
+    bonusKo: 25,
   },
   ia: {
     difficulte: 'moyen',

@@ -12,8 +12,11 @@ declare const __BUILD_MODE__: string | undefined;
 
 export type NomEcran = 'menu' | 'config' | 'fight';
 
-/** Déclare l'écran affiché (no-op en RELEASE, comme le hook `__mathkombat`). */
-export function declarerEcran(ecran: NomEcran): void {
+/**
+ * Déclare l'écran affiché (no-op en RELEASE, comme le hook `__mathkombat`).
+ * `details` complète la déclaration (record affiché, etc.) pour les tests E2E.
+ */
+export function declarerEcran(ecran: NomEcran, details: Record<string, unknown> = {}): void {
   if (typeof __BUILD_MODE__ === 'undefined' || __BUILD_MODE__ !== 'debug') return;
-  (window as unknown as Record<string, unknown>).__mathkombatEcrans = { ecran };
+  (window as unknown as Record<string, unknown>).__mathkombatEcrans = { ecran, ...details };
 }

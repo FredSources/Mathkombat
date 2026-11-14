@@ -13,6 +13,7 @@ export default defineConfig({
         'src/core/math-generator.ts',
         'src/core/combat-engine.ts',
         'src/core/ai-controller.ts',
+        'src/core/score.ts',
       ],
       reporter: ['text-summary', 'json-summary'],
       reportsDirectory: '../output/reports/coverage',

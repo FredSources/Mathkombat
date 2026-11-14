@@ -19,8 +19,10 @@
  *  - E08 : mode DUEL — bascule du mode, J2 saisit sur le PAVÉ NUMÉRIQUE,
  *          isolation des deux consoles (fichiers distincts), libellés J2,
  *          puis rythme SIMULTANÉ : deux zones actives sans conflit de frappe.
+ *  - E09 : score de combat — mesures par joueur, score final avec bonus K.O.,
+ *          record persistant et HIGH SCORE sur l'écran RUN (captures).
  *
- * E06/E07 sont exécutés **en fin de batterie** : ils rechargent l'application
+ * E06/E07/E09 sont exécutés **en fin de batterie** : ils rechargent l'application
  * (retour aux réglages par défaut §2.9), ce qui casserait la continuité E05→E08.
  *
  * Usage : node scripts/e2e.mjs   (démarre le dev server si absent)
@@ -668,6 +670,61 @@ async function main() {
         e07Tour2.tour === 2 &&
         e07Tour2.phase === 'simultane',
       `mode=${e07.mode} rythme=${e07.rythme} phase=${e07.phase} saisies J1="${e07.j1}" J2="${e07.j2}" · tour2: tour=${e07Tour2.tour} phase=${e07Tour2.phase}`
+    );
+
+    // ---------------------------------------------------------- E09
+    // Score de combat (§2.7) : mesures par joueur en temps réel, score final
+    // avec bonus K.O., record persistant et HIGH SCORE réaffiché sur l'écran RUN.
+    await relancer();
+    await clicJeu(640, 310); // RUN (solo, défauts §2.9)
+    await attendreHook();
+    await attendre(400);
+    // 1 calcul résolu au clavier → énergie gagnée créditée au score de J1
+    const q09 = (await questions()).find((q) => q.difficulte === 'facile');
+    await clicJeu(126, 178); // cible la carte FACILE
+    await attendre(150);
+    await page.keyboard.type(String(q09.reponse), { delay: 40 });
+    await page.keyboard.press('Enter');
+    await attendre(250);
+    const e09ApresValidation = await page.evaluate(() => window.__mathkombat.scores());
+    // K.O. : énergie d'attaque massive, défense forcée à 0 (cf. E05)
+    await page.evaluate(() => {
+      window.__mathkombat.forcerEnergieAttaque(100);
+      window.__mathkombat.forcerEnergieDefense(0);
+    });
+    await page.evaluate(() => window.__mathkombat.forceFinDePhase()); // attaque → défense IA
+    await attendre(400);
+    await page.evaluate(() => window.__mathkombat.forcerEnergieDefense(0));
+    await page.evaluate(() => window.__mathkombat.forceFinDePhase()); // défense → résolution → K.O.
+    await attendre(1200);
+    const e09Final = await page.evaluate(() => ({
+      fini: window.__mathkombat.etat().fini,
+      gagnant: window.__mathkombat.etat().gagnant,
+      scores: window.__mathkombat.scores(),
+      affiche: window.__mathkombat.libelles().scoreJ1,
+      avecBonus: window.__mathkombat.scoreFinal('j1', true),
+      sansBonus: window.__mathkombat.scoreFinal('j1', false),
+      record: Number(localStorage.getItem('mathkombat.record.solo.intermediaire') || 0),
+    }));
+    await page.screenshot({ path: path.join(SHOTS, 'e2e-09-score.png') });
+    // rechargement : le HIGH SCORE réaffiché sur l'écran RUN
+    await relancer();
+    const e09Menu = await page.evaluate(() => window.__mathkombatEcrans.record);
+    await page.screenshot({ path: path.join(SHOTS, 'e2e-09-highscore.png') });
+    verifier(
+      'E09',
+      'Score temps réel par joueur → K.O. → record persistant → HIGH SCORE sur l’écran RUN',
+      e09ApresValidation.j1.energieGagnee === q09.gain &&
+        e09Final.fini === true &&
+        e09Final.gagnant === 'j1' &&
+        e09Final.scores.j1.secondesRestantes > 0 &&
+        e09Final.sansBonus ===
+          e09Final.scores.j1.energieGagnee + e09Final.scores.j1.secondesRestantes &&
+        e09Final.avecBonus > e09Final.sansBonus &&
+        e09Final.affiche === `SCORE J1 : ${e09Final.avecBonus}` &&
+        e09Final.record >= e09Final.avecBonus &&
+        e09Menu >= e09Final.avecBonus,
+      `énergie=${e09ApresValidation.j1.energieGagnee} (${q09.gain} attendu) · secondes=${e09Final.scores.j1.secondesRestantes} · score sans bonus=${e09Final.sansBonus} avec bonus=${e09Final.avecBonus} · affiché="${e09Final.affiche}" · record=${e09Final.record} · menu=${e09Menu}`
     );
   } finally {
     await navigateur.close();

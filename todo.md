@@ -5,6 +5,17 @@ Une case ne se coche que si : code produit + tests verts + entrée dans `journal
 
 ## État actuel
 
+**Score de combat + HIGH SCORE : LIVRÉ ✅** (règle « score de combat » choisie par
+l'utilisateur) : chaque joueur cumule **ses gains de calculs résolus** (+1/+3/+7)
+et **les secondes restantes** en fin de chaque phase jouée, le gagnant reçoit le
+**bonus K.O.** — **deux lignes SCORE dans le HUD, en temps réel** (une par joueur),
+record solo persistant par niveau (`localStorage`) et **HIGH SCORE calculé** sur
+l'écran RUN. Cœur pur `core/score.ts` (100 % testé), réglages `config.ts`
+section `score`.
+Vérifications : typecheck ✅ · Vitest **83/83** ✅ · couverture **100 %** (188/188,
+118/118 branches) ✅ · scénarios **12/12** ✅ · smoke L0 ✅ · E2E **21/21** ✅
+(nouveau cas **E09** : score temps réel → K.O. → record → HIGH SCORE).
+
 **Jalon J6 — étape 2 « écrans RUN / CONFIG » : LIVRÉE ✅** — `MenuScene` (RUN
 clignotant, CONFIG, cadre de borne, Entrée = RUN) et `ConfigScene` (7 lignes ◀ ▶ :
 mode, tempo + durée, rythme, PV, niveau, difficulté IA ; RETOUR / RÉINITIALISER /
@@ -190,21 +201,12 @@ J6 (contenu complet) ; J8 clôt.
   début ») : calculs à volonté, erreur = indice, pas de combat.
 - **Record personnel** : chrono contre son propre score (jamais contre l'autre
   joueur) — statistiques de cadence par famille de table.
-  - **HIGH SCORE retiré de l'écran RUN (2026-11-14, demande utilisateur)** : la
-    ligne « HIGH SCORE » du wireframe §1 est volontairement absente tant que la
-    règle de calcul n'est pas choisie. Pistes proposées :
-    1. **Score de combat** (le plus classique) : points = somme des énergies
-       gagnées (× gain de la difficulté) + **bonus de temps restant** à la fin ;
-       K.O. rapide = gros bonus → récompense à la fois calcul *et* rapidité ;
-    2. **Score de cadence** (fidèle à §2.5 « son propre score ») : nombre de
-       calculs réussis par partie, affiché avec le taux de réussite
-       (`réussis / tentés`), record séparé par niveau de calcul ;
-    3. **Score par manche façon arcade** : points par round gagné + bonus K.O. +
-       multiplicateur de série (calculs enchaînés sans erreur) — le plus « borne » ;
-    4. **Record local persistant** : quel que soit le barème, stockage
-       `localStorage` (hors-ligne, déplaçable), un record par
-       `mode × niveau de calcul`, affiché sur l'écran RUN.
-  - À trancher avant d'afficher quoi que ce soit (sinon un nombre inventé ment).
+  - **HIGH SCORE (2026-11-14) : règle choisie « score de combat » et implémentée** —
+    énergies gagnées + secondes restantes + bonus K.O. ; score **en temps réel**
+    par joueur dans le HUD ; record solo persistant par niveau (`localStorage`) ;
+    HIGH SCORE calculé sur l'écran RUN (absent tant qu'aucune partie inscrite).
+    Suites possibles : score de cadence (réussis / tentés) en complément, records
+    détaillés par famille de table (bullets ci-dessous).
 - **Bouton « Indice »** : afficher l'astuce de déduction de la table concernée
   (boîte à outils `AGENTS.md` §2.5) — pédagogique, à pénaliser doucement ou non.
 - **Addition / soustraction** : type de calcul supplémentaire pour adapter le niveau

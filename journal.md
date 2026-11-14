@@ -1488,3 +1488,61 @@ Trouvées par le smoke test L0 puis corrigées (le smoke test en est le test de 
 - **Bouton ☰ MENU en cours de jeu** → overlay pause « RETOUR AU JEU » /
   « QUITTER → MENU » (→ `MenuScene`) ; raccourci ≠ Échap (piste `M`).
 - Puis sélection de personnage (J6) — dette `Personnage` (`docs/architecture.md` §9).
+
+---
+
+## 2026-11-14 — Score de combat, score temps réel par joueur et HIGH SCORE
+
+### Décision utilisateur
+
+Règle du HIGH SCORE tranchée parmi 4 propositions : **« score de combat »** —
+énergies gagnées + bonus de temps restant + bonus K.O. — et **score affiché en
+temps réel pour chaque joueur**.
+
+### Produits
+
+| Fichier | Rôle |
+|---------|------|
+| `game/src/core/score.ts` | Module **pur** : `MesuresScore` (énergie gagnée + secondes restantes), `calculerScore(mesures, gagne)` et `scoreEnCours()` — entier, jamais négatif |
+| `game/src/core/config.ts` | Section **`score`** : `facteurEnergie` (1), `facteurTempsRestant` (1), `bonusKo` (25) — règle hors code |
+| `game/src/ui/record.ts` | Persistance `localStorage` : `lireRecord` / `enregistrerRecord` (meilleur score gagne) / `meilleurRecord` — **un record par niveau en mode solo** (le duel n'a pas de record : le « propre score » est le score solo, §2.5), repli silencieux si stockage indisponible |
+| `game/src/scenes/FightScene.ts` | Compteurs `scores` par joueur (gains aux validations justes + secondes restantes en fin de phase jouée, énergie prévue pour l'IA), **deux lignes SCORE dans le HUD** (y=606, temps réel), `cloturerScore()` (bonus K.O. + record si J1 gagne en solo), hooks debug `scores()` / `scoreFinal()` |
+| `game/src/scenes/MenuScene.ts` | **HIGH SCORE calculé** (meilleur record) affiché clignotant quand > 0 — absent tant qu'aucune partie n'a été inscrite |
+| `game/src/ui/ecran.ts` | `declarerEcran(ecran, details)` — expose le record affiché aux tests |
+| `game/tests/score.test.ts` | 7 tests (formule, bonus K.O., arrondis, mesures négatives, facteurs de config) |
+| `game/tests/config.test.ts` | Test des réglages `score` (facteurs > 0, bonus > 0) |
+| `scripts/e2e.mjs` | **E09** : 1 calcul résolu → mesures → K.O. forcé → score final + record → rechargement → HIGH SCORE sur l'écran RUN |
+
+### Règle (§2.7)
+
+```
+score = énergies gagnées (somme des gains +1/+3/+7)
+      + secondes restantes en fin de chaque phase jouée (rapidité)
+      + bonus K.O. (fixe) si gagnant
+```
+
+- **Temps réel** : deux lignes « SCORE J1 » / « SCORE IA ou J2 » dans le HUD,
+  mises à jour à chaque validation juste et chaque fin de phase.
+- **IA (solo)** : crédite son énergie prévue (pas de rapidité — elle consomme son
+  court chrono, §2.6) ; le record ne concerne que J1 en mode solo.
+- **Bonus K.O.** : connu qu'à la fin — le score en cours l'exclut, le score
+  final l'ajoute.
+
+### Tests
+
+- **Batterie complète verte** : typecheck ✅ ; Vitest ✅ **83/83** ; couverture
+  **100 %** (188/188 statements, 118/118 branches, 40/40 fonctions, 166/166 lines —
+  `core/score.ts` ajouté au périmètre de couverture) ; scénarios ✅ **12/12** ;
+  smoke L0 ✅ ; **E2E ✅ 21/21** (`output/reports/e2e-2026-11-14T13-00-33.md`).
+- **E09 (nouveau, PASS)** : 1 calcul facile résolu → énergie créditée (1) ;
+  K.O. forcé → secondes restantes créditées (14) ; score sans bonus = 15,
+  avec bonus = 40 ; affiché « SCORE J1 : 40 » ; record `localStorage` respecté
+  (236 conservé, meilleur) ; HIGH SCORE : 236 affiché après rechargement.
+- Captures : `output/screenshots/e2e-09-score.png` (HUD temps réel + K.O.),
+  `e2e-09-highscore.png` (HIGH SCORE sur l'écran RUN).
+
+### Prochaine étape
+
+- **Bouton ☰ MENU en cours de jeu** → overlay pause « RETOUR AU JEU » /
+  « QUITTER → MENU » (→ `MenuScene`) ; raccourci ≠ Échap (piste `M`).
+- Puis sélection de personnage (J6) — dette `Personnage` (`docs/architecture.md` §9).

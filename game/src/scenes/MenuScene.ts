@@ -13,9 +13,15 @@ import Phaser from 'phaser';
 import { CONFIG } from '../core/config';
 import { getLogger } from '../core/logger';
 import { declarerEcran } from '../ui/ecran';
+import { meilleurRecord } from '../ui/record';
 import { RETRO, creerBoutonRetro, creerCadreBorne, texteRetro } from '../ui/retro';
 
 const log = getLogger('Menu');
+
+/** Record façon arcade : espace toutes les 3 décades (« 12 400 »). */
+function afficherRecord(valeur: number): string {
+  return String(Math.max(0, Math.round(valeur))).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -23,7 +29,8 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create(): void {
-    declarerEcran('menu');
+    const record = meilleurRecord();
+    declarerEcran('menu', { record });
     this.cameras.main.setBackgroundColor(RETRO.fond);
     // fond d'illustration + voile de lisibilité (§2.7) — texture absente = fond uni
     if (this.textures.exists('fond-menu')) {
@@ -65,12 +72,28 @@ export class MenuScene extends Phaser.Scene {
       onClic: () => this.ouvrirConfig(),
     });
 
-    // Pas de HIGH SCORE pour l'instant (règle de calcul à définir — voir todo.md).
-    texteRetro(this, 96, 630, '© 2026 MATHKOMBAT · INSERT COIN', {
+    // HIGH SCORE : meilleur record solo persistant (§2.7) — absent tant qu'aucun
+    // score n'a été inscrit (aucun nombre inventé).
+    texteRetro(this, 96, 612, '© 2026 MATHKOMBAT · INSERT COIN', {
       taille: 20,
       couleur: RETRO.textePale,
       origine: [0, 0.5],
     });
+    if (record > 0) {
+      const texteRecord = texteRetro(this, 96, 648, `HIGH SCORE : ${afficherRecord(record)}`, {
+        taille: 20,
+        couleur: RETRO.texteTitre,
+        origine: [0, 0.5],
+      });
+      this.tweens.add({
+        targets: texteRecord,
+        alpha: 0.35,
+        duration: 720,
+        yoyo: true,
+        repeat: -1,
+        ease: 'sine.inout',
+      });
+    }
 
     // clignotement type « PRESS START » — intensités dans config.ts (§2.9)
     this.tweens.add({

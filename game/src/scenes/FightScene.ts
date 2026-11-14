@@ -27,10 +27,13 @@ import {
 } from '../core/combat-engine.ts';
 import type { ResultatTour, Tour, TraceEvent } from '../core/combat-engine.ts';
 import { AiController } from '../core/ai-controller.ts';
+import { calculerScore } from '../core/score.ts';
+import type { MesuresScore } from '../core/score.ts';
 import { getLogger } from '../core/logger';
 import { Numpad, TOUCHES_J1, TOUCHES_J2 } from '../ui/numpad.ts';
 import { QuizOverlay } from '../ui/quiz-overlay.ts';
 import { declarerEcran } from '../ui/ecran.ts';
+import { enregistrerRecord } from '../ui/record.ts';
 
 declare const __BUILD_MODE__: string | undefined;
 
@@ -175,6 +178,13 @@ export class FightScene extends Phaser.Scene {
   /** Membres du rig en cours d'animation — `${nom}:${pièce}` (diagnostic). */
   private membresActifs = new Set<string>();
   private manches = { j1: 0, j2: 0 };
+  /** Mesures de score par joueur (§2.7) : énergies gagnées + secondes restantes. */
+  private scores: Record<'j1' | 'j2', MesuresScore> = {
+    j1: { energieGagnee: 0, secondesRestantes: 0 },
+    j2: { energieGagnee: 0, secondesRestantes: 0 },
+  };
+  private texteScoreJ1!: Phaser.GameObjects.Text;
+  private texteScoreJ2!: Phaser.GameObjects.Text;
 
   private quizJ1!: QuizOverlay;
   private quizJ2!: QuizOverlay;
@@ -525,6 +535,13 @@ export class FightScene extends Phaser.Scene {
     this.texteEnergie2 = this.add.text(LARGEUR - 40, 578, '', {
       fontFamily: 'monospace', fontSize: '20px', color: '#7bd4ff',
     }).setOrigin(1, 0);
+    // Score de combat en temps réel (§2.7) : énergies gagnées + secondes restantes
+    this.texteScoreJ1 = this.add.text(40, 606, '', {
+      fontFamily: 'monospace', fontSize: '20px', color: '#ffd76b',
+    });
+    this.texteScoreJ2 = this.add.text(LARGEUR - 40, 606, '', {
+      fontFamily: 'monospace', fontSize: '20px', color: '#ffd76b',
+    }).setOrigin(1, 0);
     this.bandeauResolution = this.add.text(LARGEUR / 2, SOL - 120, '', {
       fontFamily: 'monospace', fontSize: '30px', color: '#ffd76b',
       backgroundColor: '#1b2a52', padding: { x: 18, y: 8 },
@@ -579,6 +596,15 @@ export class FightScene extends Phaser.Scene {
       texte.setText(`${FightScene.nomJoueur(joueur)} — ${valeur} PV`);
     }
     this.texteChrono.setText(`⏱ ${this.chronoRestant}`);
+    this.mettreAJourScores();
+  }
+
+  /** Scores de combat en temps réel (§2.7) : énergies + secondes restantes. */
+  private mettreAJourScores(): void {
+    this.texteScoreJ1.setText(`SCORE J1 : ${calculerScore(this.scores.j1, false)}`);
+    this.texteScoreJ2.setText(
+      `SCORE ${FightScene.nomJoueur('j2')} : ${calculerScore(this.scores.j2, false)}`
+    );
   }
 
   // ============================================================== boucle de combat
@@ -602,6 +628,11 @@ export class FightScene extends Phaser.Scene {
     this.progressionIA = 0;
     this.gainIAPrevu = 0;
     this.journalEvenements = [];
+    this.scores = {
+      j1: { energieGagnee: 0, secondesRestantes: 0 },
+      j2: { energieGagnee: 0, secondesRestantes: 0 },
+    };
+    this.mettreAJourScores();
     this.journalText.setText('');
     this.bandeauResolution.setAlpha(0);
     // remise à pied des combattants (rejeu après K.O.) — rig et membres au repos
@@ -776,6 +807,7 @@ export class FightScene extends Phaser.Scene {
     this.minuteur = null;
     this.iaEnCours = false;
     log.info('ui.timer_fin', { phase: this.naturePhase });
+    this.crediterFinDePhase(); // score : secondes restantes + énergie IA (§2.7)
 
     if (this.naturePhase === 'simultane') {
       this.resoudreEtContinuer();
@@ -784,6 +816,24 @@ export class FightScene extends Phaser.Scene {
     } else {
       this.resoudreEtContinuer();
     }
+  }
+
+  /**
+   * Score (§2.7) en fin de phase : chaque joueur humain crédite les secondes
+   * restantes (rapidité) ; l'IA crédite son énergie prévue (pas de rapidité :
+   * elle consomme son court chrono, §2.6).
+   */
+  private crediterFinDePhase(): void {
+    if (!this.naturePhase) return;
+    const restant = Math.max(0, this.chronoRestant);
+    const natures: readonly ('attaque' | 'defense')[] =
+      this.naturePhase === 'simultane' ? ['attaque', 'defense'] : [this.naturePhase];
+    for (const nature of natures) {
+      const joueur = this.joueurDe(nature);
+      if (this.estHumain(joueur)) this.scores[joueur].secondesRestantes += restant;
+      else this.scores[joueur].energieGagnee += this.gainIAPrevu;
+    }
+    this.mettreAJourScores();
   }
 
   private resoudreEtContinuer(): void {
@@ -1199,6 +1249,27 @@ export class FightScene extends Phaser.Scene {
       .setAlpha(1);
     this.jouerSon('ko');
     this.cloturerManche(gagnant);
+    this.cloturerScore(gagnant);
+  }
+
+  /**
+   * Score final (§2.7) : bonus K.O. pour le gagnant, record persistant en mode
+   * solo quand J1 l'emporte (le « propre score » du joueur, §2.5).
+   */
+  private cloturerScore(gagnant: 'j1' | 'j2'): void {
+    const finalJ1 = calculerScore(this.scores.j1, gagnant === 'j1');
+    const finalJ2 = calculerScore(this.scores.j2, gagnant === 'j2');
+    this.texteScoreJ1.setText(`SCORE J1 : ${finalJ1}`);
+    this.texteScoreJ2.setText(`SCORE ${FightScene.nomJoueur('j2')} : ${finalJ2}`);
+    if (CONFIG.mode === 'solo' && gagnant === 'j1') {
+      enregistrerRecord(CONFIG.niveau, finalJ1);
+    }
+    log.info('session.fin', {
+      gagnant,
+      scoreJ1: finalJ1,
+      scoreJ2: finalJ2,
+      record: CONFIG.mode === 'solo' ? CONFIG.niveau : null,
+    });
   }
 
   // ============================================================== saisie du joueur
@@ -1221,6 +1292,7 @@ export class FightScene extends Phaser.Scene {
       const q = phase.question(difficulte);
       quiz.mettreAJour({ difficulte, enonce: q.enonce, gain: q.gain });
       numpad.reset();
+      this.scores[joueur].energieGagnee += q.gain; // score de combat (§2.7)
       this.impulsionAura(combattant, q.gain); // impulsion d'aura (§2.8a)
       this.noterJournal(`${FightScene.nomJoueur(joueur)} : juste (+${q.gain})`);
       this.jouerSon('reussite');
@@ -1297,6 +1369,14 @@ export class FightScene extends Phaser.Scene {
         scene.tempsPhase = CONFIG.tempsPhase;
       },
       forceFinDePhase: () => scene.finDePhase(),
+      // score de combat (§2.7) : mesures cumulées + scores affichés
+      scores: () => ({
+        j1: { ...scene.scores.j1 },
+        j2: { ...scene.scores.j2 },
+        affiche: { j1: scene.texteScoreJ1.text, j2: scene.texteScoreJ2.text },
+      }),
+      scoreFinal: (joueur: 'j1' | 'j2' = 'j1', gagne = true) =>
+        calculerScore(scene.scores[joueur], gagne),
       // saisie de la console demandée (défaut J1)
       saisie: (joueur: 'j1' | 'j2' = 'j1') => scene.zoneDe(joueur).numpad.etatSaisie(),
       // mode de jeu (§2.6) : lecture + bascule relançant le combat (E08)
@@ -1316,6 +1396,8 @@ export class FightScene extends Phaser.Scene {
         energie1: scene.texteEnergie1.text,
         energie2: scene.texteEnergie2.text,
         score: scene.texteScore.text,
+        scoreJ1: scene.texteScoreJ1.text,
+        scoreJ2: scene.texteScoreJ2.text,
       }),
       aura: () => ({
         j1: { alpha: scene.j1.aura.alpha, palier: scene.j1.palier, visible: scene.j1.aura.visible },

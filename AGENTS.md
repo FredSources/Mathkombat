@@ -260,8 +260,17 @@ l'architecture mais non implémentées (voir `todo.md`, « Idées / dette »).
   son bord d'écran, sous la main du joueur (voir `docs/wireframes.md`).
 - Tactile d'abord (grands boutons), souris/clavier pour la version web de debug.
 - HUD : **barres de vie des deux joueurs** (100 PV, décroissance animée, code couleur
-  vert/orange/rouge, valeur numérique), timer, énergie en cours, score de manche,
-  journal de combat (5 derniers événements).
+  vert/orange/rouge, valeur numérique), timer, énergie en cours, **score de combat de
+  chaque joueur en temps réel**, score de manche, journal de combat (5 derniers
+  événements).
+- **Score de combat** (règle « score de combat ») : chaque joueur cumule **ses
+  gains de calculs résolus** (+1 / +3 / +7) et **les secondes restantes** en fin de
+  chaque phase jouée (la rapidité récompense) ; le gagnant reçoit le **bonus K.O.**
+  (fixe). Les deux scores s'affichent **en temps réel**, une ligne par joueur dans
+  le HUD ; le **HIGH SCORE** de l'écran RUN est le **meilleur record solo
+  persistant** (`localStorage`, un record par niveau de calcul — le mode duel n'a
+  pas de record : le « propre score » est le score solo, §2.5). La règle et ses
+  facteurs vivent dans `core/config.ts` (section `score`) et `core/score.ts` (pur).
 - **Zone de spectacle** : sous les 3 calculs, l'arène et les deux combattants sont
   visibles en permanence (voir §2.8).
 
@@ -346,6 +355,8 @@ phase** (les deux phases partagent le même chrono).
 | Énergie visuelle de référence (aura) | 30 | 10–99 | `config.ts` |
 | Bornes des tiers d'animation | §2.8b | — | `config.ts` |
 | Difficulté de l'IA | Moyen | Facile/Moyen/Difficile | `config.ts` + écran **CONFIG** |
+| Score — facteur énergie / temps restant (`score`) | 1 / 1 | — | `config.ts` |
+| Score — bonus K.O. (`score.bonusKo`) | 25 | — | `config.ts` |
 | Rendement max de l'IA (« gentillesse ») | 70 % de la cadence humaine | 30–100 % | `config.ts` |
 | Cadence humaine de référence (`cadenceHumaineReference`) | 1 calcul réussi / 3 s | — | `config.ts` |
 | Seuil de rattrapage doux (`ecartSuspense`) | 20 PV | 5–50 | `config.ts` |
