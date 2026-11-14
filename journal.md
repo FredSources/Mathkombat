@@ -1708,3 +1708,46 @@ score = énergies gagnées (somme des gains +1/+3/+7)
 
 - **Certification RELEASE zéro log** (T04, I10) puis **APK release**
   (wrapper WebView Kotlin + `scripts/build-apk.sh`).
+
+---
+
+## 2026-11-14 — Certification RELEASE zéro log (T04, I10)
+
+### Produits
+
+| Fichier | Rôle |
+|---------|------|
+| `scripts/certif-release.mjs` | **Certification exécutable** du build RELEASE : C1 build produit, C2 jouable (RUN → sélection → combat), C3 zéro hook debug, C4 zéro log d'application (nomenclature §4), C5 zéro WebSocket, C6 zéro requête hors origine (hors-ligne), C7 zéro erreur applicative → rapport `output/reports/certif-release-*.md`, code retour 0/1 |
+| `scripts/e2e.mjs` | Flags chromium stabilisés (`--disable-gpu`, `--enable-unsafe-swiftshader`) |
+
+### Décisions
+
+- **Certification par exécution réelle** : le parcours RUN → sélection → combat est
+  joué sur le bundle RELEASE servi par un serveur statique minimal (zéro
+  dépendance, comme le futur APK) — pas une simple inspection de fichiers.
+- **Périmètre de C4** : les logs **d'application** (marqueurs de nomenclature
+  `session.`/`combat.`/… ) — la bannière produit de Phaser et les warnings du
+  navigateur sont hors périmètre (pas nos données).
+- **C7 tolère les artefacts du GPU logiciel** (SwiftShader `Framebuffer
+  Unsupported`, `CONTEXT_LOST`) : erreurs de rendu headless, absentes sur un vrai
+  GPU (WebView Android) — liste documentée dans le script.
+
+### Anomalies corrigées
+
+- **Boot WebGL instable en headless** : `getContext('webgl')` perdu par SwiftShader
+  → « WebGL unsupported » et pas de canvas (5/5 échecs). Cause : rasterisation
+  GPU logicielle instable sous pression mémoire (swap saturé). **Correction** :
+  flags chromium `--disable-gpu` + `--enable-unsafe-swiftshader` → WebGL logiciel
+  stable (vérifié : renderer « WebGL | Web Audio »). Appliqué à `certif-release`
+  et `e2e`.
+
+### Tests
+
+- **Certification RELEASE : ✅ 7/7** (`output/reports/certif-release-2026-11-14T14-39-11.md`).
+- **Non-régression** : typecheck ✅ · Vitest **83/83** ✅ · couverture **100 %** ✅ ·
+  scénarios **12/12** ✅ · smoke ✅ · E2E **24/24** ✅.
+
+### Prochaine étape
+
+- **APK release** : wrapper WebView Kotlin (`android/`) + `scripts/build-apk.sh`
+  (SDK local `tools/`) → `output/MathKombat.apk`.

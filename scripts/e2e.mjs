@@ -90,6 +90,8 @@ async function main() {
       '--disable-dev-shm-usage',
       '--headless=new',
       '--use-angle=swiftshader',
+      '--enable-unsafe-swiftshader',
+      '--disable-gpu',
       '--window-size=1280,720',
       '--hide-scrollbars',
     ],

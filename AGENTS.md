@@ -521,7 +521,8 @@ cd game && npm install && npm run dev  # J1 : dev server web (http://127.0.0.1:5
 bash scripts/build.sh [debug|release]  # J1 : build web → game/dist/
 cd game && npm test                    # J2 : tests Vitest du cœur (+ npm run test:coverage)
 node scripts/run-scenarios.mjs [S01]   # J2 : scénarios headless → output/reports/
-node scripts/e2e.mjs                   # J4/J6 : E2E navigateur (E01→E08) → captures + rapport
+node scripts/e2e.mjs                   # J4/J6 : E2E navigateur (E01→E12) → captures + rapport
+node scripts/certif-release.mjs         # J7 : certification RELEASE zéro log (T04, I10) → rapport
 
 # jalons suivants (documentés ici au fur et à mesure) :
 # bash scripts/build-apk.sh            # J7 : APK (SDK local uniquement)
