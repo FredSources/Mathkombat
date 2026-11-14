@@ -5,6 +5,16 @@ Une case ne se coche que si : code produit + tests verts + entrée dans `journal
 
 ## État actuel
 
+**Menu de pause + boutons de fin de combat : LIVRÉS ✅** (demandes utilisateur) —
+**☰ MENU entre les deux blocs de calculs** (raccourci `M`) → overlay pause
+[ RETOUR AU JEU ] / [ QUITTER → MENU ], pause réelle (chrono et tweens figés) ;
+au K.O., **[ REJOUER ] / [ MENU ]** remplacent le message « (R = rejouer) » ;
+**calculs réduits** (cartes 150×88) pour supprimer les superpositions ; **doublon
+de frappe clavier** corrigé (déduplication `code` + `timeStamp`).
+Vérifications : typecheck ✅ · Vitest **83/83** ✅ · couverture **100 %** (188/188,
+118/118 branches) ✅ · scénarios **12/12** ✅ · smoke L0 ✅ · E2E **23/23** ✅
+(nouveaux cas **E10** pause, **E11** fin de combat).
+
 **Score de combat + HIGH SCORE : LIVRÉ ✅** (règle « score de combat » choisie par
 l'utilisateur) : chaque joueur cumule **ses gains de calculs résolus** (+1/+3/+7)
 et **les secondes restantes** en fin de chaque phase jouée, le gagnant reçoit le
@@ -154,11 +164,16 @@ J6 (contenu complet) ; J8 clôt.
       touche pressée (clic **ou** frappe physique) éclaircie + contour blanc, retour
       au repos après `CONFIG.ui.surbrillanceMs` (160 ms), **console pressée seule** ;
       durée/teinte dans `config.ts` section `ui` ; E2E **E08h** vert
-- [ ] **Bouton ☰ MENU en cours de jeu** — demande utilisateur : bouton en HUD →
-      overlay pause avec **[ RETOUR AU JEU ]** et **[ QUITTER → MENU ]**.
-      Vigilance : `Échap` est déjà « C Tout effacer » de J1 → raccourci distinct
-      (piste `M`) ; à vérifier avant : `this.time.timeScale = 0` gèle-t-il bien
-      les `delayedCall` (`Clock` de Phaser)
+- [x] **Bouton ☰ MENU en cours de jeu** — demande utilisateur : bouton **entre les
+      deux blocs de calculs** (couloir central) + raccourci `M` → overlay pause
+      **[ RETOUR AU JEU ]** / **[ QUITTER → MENU ]** ; pause réelle (chrono et
+      tweens figés, `timeScale = 0`), reprise exacte, retour au menu restauré ;
+      E2E **E10** vert
+- [x] **Boutons de fin de combat** — demande utilisateur : au K.O., **[ REJOUER ]**
+      et **[ MENU ]** au centre de l'arène (wireframes §7) remplacent le message
+      « (R = rejouer) » ; E2E **E11** vert
+- [x] **Calculs réduits** (demande utilisateur) : cartes 150×88 (au lieu de
+      172×100), couloir central élargi pour le ☰ MENU — aucune superposition
 - [x] **Écran de lancement rétro** (bouton **RUN** clignotant au-dessus, **CONFIG**
       au-dessous, style borne d'arcade) — `MenuScene` + `ui/retro.ts` (primitives
       partagées) + **fond d'illustration** (`game/assets/fonds/fond-menu.png`,

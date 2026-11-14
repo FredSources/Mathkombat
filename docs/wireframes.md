@@ -103,6 +103,7 @@ clavier est plaqué contre le **bord extérieur** de l'écran, sous la main du j
 ┌──────────────────────────────────────────────────────────────────┐
 │ ♥♥♥♥♥♥♥♥♥♥♥♥░░  J1   ⏱ 12s   ATTAQUE ×   J2  ░░░░░░░░♥♥♥♥♥♥♥♥ │  ← HUD
 │  ████████ 82 PV   énergie en cours : +5       94 PV █████████   │
+│                    [ ☰ MENU ]  ← pause (§8)                     │
 │─────────────────────────────────────────┬────────────────────────│
 │  ZONE J1 (ACTIVE)  ▶ ATTAQUE            │  ZONE J2 (EN VEILLE)  │
 │  ┌────────┬────────┬─────────┐          │  ┌────────────────────┐│
@@ -242,6 +243,31 @@ clavier est plaqué contre le **bord extérieur** de l'écran, sous la main du j
 ```
 
 - Événements : `combat.ko`, `session.fin`. Statistiques tirées des logs de session.
+
+---
+
+## 8. Menu de pause (bouton ☰ MENU en cours de jeu)
+
+```
+┌──────────────────────────────────────────────────────┐
+│  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  ← voile sombre
+│  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │
+│  ░░░░░░░░░░░░░░░  P A U S E  ░░░░░░░░░░░░░░░░░░░░░  │
+│  ░░░░░░░░░░░░░░░  [  RETOUR AU JEU  ]  ░░░░░░░░░░░  │
+│  ░░░░░░░░░░░░░░░  [ QUITTER → MENU ]  ░░░░░░░░░░░░  │
+│  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │
+└──────────────────────────────────────────────────────┘
+```
+
+- Bouton **☰ MENU** dans le HUD du combat (§4/§5/§4bis), raccourci **`M`**
+  (`Échap` reste « C Tout effacer » de J1, §2.7) ; `R` = rejouer est ignoré
+  pendant la pause.
+- **Pause réelle** : chrono et animations figés, zones de calcul désactivées —
+  on reprend exactement là où l'on en était.
+- **[ RETOUR AU JEU ]** : ferme l'overlay et relance le chrono ; 
+  **[ QUITTER → MENU ]** : abandonne la partie et revient à l'écran de
+  lancement (§1).
+- Événements : `ui.clic` (`menu_pause`, `reprendre`, `quitter_menu`).
 
 ---
 

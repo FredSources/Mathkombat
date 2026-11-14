@@ -34,6 +34,8 @@ import { Numpad, TOUCHES_J1, TOUCHES_J2 } from '../ui/numpad.ts';
 import { QuizOverlay } from '../ui/quiz-overlay.ts';
 import { declarerEcran } from '../ui/ecran.ts';
 import { enregistrerRecord } from '../ui/record.ts';
+import { PauseOverlay } from '../ui/pause-overlay.ts';
+import { RETRO, creerBoutonRetro } from '../ui/retro.ts';
 
 declare const __BUILD_MODE__: string | undefined;
 
@@ -185,6 +187,12 @@ export class FightScene extends Phaser.Scene {
   };
   private texteScoreJ1!: Phaser.GameObjects.Text;
   private texteScoreJ2!: Phaser.GameObjects.Text;
+  /** Menu de pause (☰ MENU) — overlay plein écran, §8 wireframes. */
+  private overlayPause!: PauseOverlay;
+  private enPause = false;
+  /** Boutons de fin de combat (§7 wireframes) : [ REJOUER ] et [ MENU ]. */
+  private boutonRejouer!: Phaser.GameObjects.Container;
+  private boutonMenuFin!: Phaser.GameObjects.Container;
 
   private quizJ1!: QuizOverlay;
   private quizJ2!: QuizOverlay;
@@ -237,9 +245,41 @@ export class FightScene extends Phaser.Scene {
 
     if (this.input.keyboard) {
       this.input.keyboard.on('keydown-R', () => {
+        if (this.enPause) return; // pendant la pause, R ne rejoue pas
         if (this.engine?.etat.fini) this.lancerCombat();
       });
+      // ☰ MENU : raccourci M (Échap reste « C Tout effacer » de J1, §2.7)
+      this.input.keyboard.on('keydown-M', () => this.basculerPause());
     }
+
+    this.overlayPause = new PauseOverlay({
+      scene: this,
+      onReprendre: () => this.fermerPause(),
+      onQuitter: () => this.quitterVersMenu(),
+    });
+
+    // Boutons de fin de combat (§7) : au centre de l'arène, affichés au K.O.
+    this.boutonRejouer = creerBoutonRetro({
+      scene: this,
+      x: 545,
+      y: 330,
+      largeur: 170,
+      hauteur: 56,
+      libelle: '[  REJOUER  ]',
+      taille: 22,
+      couleur: RETRO.boutonLancer,
+      onClic: () => this.lancerCombat(),
+    }).setVisible(false);
+    this.boutonMenuFin = creerBoutonRetro({
+      scene: this,
+      x: 735,
+      y: 330,
+      largeur: 170,
+      hauteur: 56,
+      libelle: '[  MENU  ]',
+      taille: 22,
+      onClic: () => this.quitterVersMenu(),
+    }).setVisible(false);
 
     this.installerHookDebug();
     this.lancerCombat();
@@ -542,6 +582,18 @@ export class FightScene extends Phaser.Scene {
     this.texteScoreJ2 = this.add.text(LARGEUR - 40, 606, '', {
       fontFamily: 'monospace', fontSize: '20px', color: '#ffd76b',
     }).setOrigin(1, 0);
+    // ☰ MENU (§8 wireframes) : dans le couloir central ENTRE les deux blocs de
+    // calculs — aucune superposition avec les opérations ni le HUD.
+    creerBoutonRetro({
+      scene: this,
+      x: 640,
+      y: 174,
+      largeur: 170,
+      hauteur: 40,
+      libelle: '☰  MENU',
+      taille: 20,
+      onClic: () => this.basculerPause(),
+    });
     this.bandeauResolution = this.add.text(LARGEUR / 2, SOL - 120, '', {
       fontFamily: 'monospace', fontSize: '30px', color: '#ffd76b',
       backgroundColor: '#1b2a52', padding: { x: 18, y: 8 },
@@ -607,6 +659,64 @@ export class FightScene extends Phaser.Scene {
     );
   }
 
+  // ============================================================== menu de pause (§8)
+
+  /** ☰ MENU / raccourci M : bascule du menu de pause. */
+  private basculerPause(): void {
+    if (this.enPause) this.fermerPause();
+    else this.ouvrirPause();
+  }
+
+  /**
+   * Pause réelle (§8) : chrono et animations figés (`timeScale = 0` — le Clock
+   * de Phaser n'avance plus, ses `delayedCall` sont gelés), zones de calcul
+   * désactivées. On reprend exactement là où l'on en était.
+   */
+  private ouvrirPause(): void {
+    if (this.enPause) return;
+    this.enPause = true;
+    this.eteindreZones();
+    this.time.timeScale = 0;
+    this.tweens.timeScale = 0;
+    this.overlayPause.ouvrir();
+    log.info('ui.clic', { ecran: 'fight', cible: 'menu_pause' });
+  }
+
+  /** [ RETOUR AU JEU ] : reprendre le combat, zones remises en jeu. */
+  private fermerPause(): void {
+    if (!this.enPause) return;
+    this.enPause = false;
+    this.overlayPause.fermer();
+    this.time.timeScale = 1;
+    this.tweens.timeScale = 1;
+    this.reactiverZones();
+    log.info('ui.clic', { ecran: 'fight', cible: 'reprendre' });
+  }
+
+  /**
+   * [ QUITTER → MENU ] : abandonne la partie et revient à l'écran de lancement.
+   * Les `timeScale` sont restaurés AVANT le changement de scène : le TweenManager
+   * est partagé entre les scènes (le clignotement du menu doit repartir).
+   */
+  private quitterVersMenu(): void {
+    log.info('ui.clic', { ecran: 'fight', cible: 'quitter_menu' });
+    this.enPause = false;
+    this.overlayPause.fermer();
+    this.time.timeScale = 1;
+    this.tweens.timeScale = 1;
+    this.scene.start('Menu');
+  }
+
+  /** Réactive quiz + clavier des seuls joueurs en jeu pendant cette phase. */
+  private reactiverZones(): void {
+    for (const joueur of ['j1', 'j2'] as const) {
+      if (!this.naturePourJoueur(joueur)) continue;
+      const { quiz, numpad } = this.zoneDe(joueur);
+      quiz.setActif(true);
+      numpad.setActif(true);
+    }
+  }
+
   // ============================================================== boucle de combat
 
   private lancerCombat(): void {
@@ -628,6 +738,8 @@ export class FightScene extends Phaser.Scene {
     this.progressionIA = 0;
     this.gainIAPrevu = 0;
     this.journalEvenements = [];
+    this.boutonRejouer.setVisible(false);
+    this.boutonMenuFin.setVisible(false);
     this.scores = {
       j1: { energieGagnee: 0, secondesRestantes: 0 },
       j2: { energieGagnee: 0, secondesRestantes: 0 },
@@ -1245,8 +1357,11 @@ export class FightScene extends Phaser.Scene {
     // on retire le fade du bandeau : la bannière K.O. doit rester lisible
     this.tweens.killTweensOf(this.bandeauResolution);
     this.bandeauResolution
-      .setText(`★  K.O.  ★   ${libelle} GAGNE !   (R = rejouer)`)
+      .setText(`★  K.O.  ★   ${libelle} GAGNE !`)
       .setAlpha(1);
+    // boutons de fin (§7 wireframes) : REJOUER ou retour au MENU
+    this.boutonRejouer.setVisible(true);
+    this.boutonMenuFin.setVisible(true);
     this.jouerSon('ko');
     this.cloturerManche(gagnant);
     this.cloturerScore(gagnant);
@@ -1369,6 +1484,14 @@ export class FightScene extends Phaser.Scene {
         scene.tempsPhase = CONFIG.tempsPhase;
       },
       forceFinDePhase: () => scene.finDePhase(),
+      // menu de pause (§8) : état + bascule (le clic réel reste testé en E2E)
+      pause: () => ({ ouverte: scene.enPause }),
+      basculerPause: () => scene.basculerPause(),
+      // fin de combat (§7) : bannière K.O. + boutons [ REJOUER ] / [ MENU ]
+      fin: () => ({
+        affichee: scene.engine.etat.fini,
+        boutons: scene.boutonRejouer.visible && scene.boutonMenuFin.visible,
+      }),
       // score de combat (§2.7) : mesures cumulées + scores affichés
       scores: () => ({
         j1: { ...scene.scores.j1 },

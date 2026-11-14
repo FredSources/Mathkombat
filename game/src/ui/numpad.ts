@@ -117,6 +117,13 @@ export class Numpad {
   /** Clavier de la scène et handler installés (retirés par `detruire()`). */
   private clavier: Phaser.Input.Keyboard.KeyboardPlugin | null = null;
   private onKeydown: ((event: KeyboardEvent) => void) | null = null;
+  /**
+   * Dernier événement traité — garde-fou anti-doublon : le plugin clavier peut
+   * parfois émettre deux fois le MÊME événement (observé en E2E : une frappe
+   * comptée deux fois). Un même `code` avec le même `timeStamp` ne compte qu'une
+   * fois ; deux frappes réelles ont des `timeStamp` distincts.
+   */
+  private dernierEvent: { code: string; timeStamp: number } | null = null;
 
   constructor(options: OptionsNumpad) {
     this.onValider = options.onValider;
@@ -209,6 +216,11 @@ export class Numpad {
   /** Une frappe physique : ignorée s'il n'appartient pas à CE clavier. */
   private recevoirTouche(t: TouchePhysique, event: KeyboardEvent): void {
     if (!this.actif) return;
+    const doublon =
+      this.dernierEvent?.code === event.code &&
+      this.dernierEvent?.timeStamp === event.timeStamp;
+    this.dernierEvent = { code: event.code, timeStamp: event.timeStamp };
+    if (doublon) return; // même événement reçu deux fois : on ne compte qu'une frappe
     const chiffre = t.chiffres.indexOf(event.code);
     if (chiffre !== -1) this.appuyer(String(chiffre)); // 'Digit3'/'Numpad3' → '3'
     else if (event.code === t.valider) this.validerPour(this.cible);

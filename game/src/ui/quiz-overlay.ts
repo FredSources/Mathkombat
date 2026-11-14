@@ -26,8 +26,11 @@ const LIBELLES: Record<Difficulte, { nom: string; couleur: number; gain: string 
   difficile: { nom: 'DIFFICILE', couleur: 0xa83a3a, gain: '+7' },
 };
 
-const LARGEUR_CARTE = 172;
-const HAUTEUR_CARTE = 100;
+/** Cartes de calcul réduites (demande utilisateur) : le couloir central entre
+ *  les deux blocs reste libre pour le bouton ☰ MENU (§8 wireframes). */
+const LARGEUR_CARTE = 150;
+const HAUTEUR_CARTE = 88;
+const ECART_CARTE = 10;
 
 export class QuizOverlay {
   private readonly scene: Phaser.Scene;
@@ -56,8 +59,8 @@ export class QuizOverlay {
       const info = LIBELLES[difficulte];
       const offsetX =
         alignement === 'gauche'
-          ? i * (LARGEUR_CARTE + 12)
-          : -LARGEUR_CARTE - i * (LARGEUR_CARTE + 12);
+          ? i * (LARGEUR_CARTE + ECART_CARTE)
+          : -LARGEUR_CARTE - i * (LARGEUR_CARTE + ECART_CARTE);
       const centre = offsetX + LARGEUR_CARTE / 2;
 
       const cadre = this.scene.add
@@ -66,16 +69,16 @@ export class QuizOverlay {
         .setStrokeStyle(3, info.couleur)
         .setInteractive({ useHandCursor: true });
       const bandeau = this.scene.add
-        .rectangle(offsetX, 0, LARGEUR_CARTE, 26, info.couleur)
+        .rectangle(offsetX, 0, LARGEUR_CARTE, 22, info.couleur)
         .setOrigin(0, 0);
       const titre = this.scene.add
-        .text(centre, 13, `${info.nom}  ${info.gain}`, {
-          fontFamily: 'monospace', fontSize: '15px', color: '#ffffff', fontStyle: 'bold',
+        .text(centre, 11, `${info.nom}  ${info.gain}`, {
+          fontFamily: 'monospace', fontSize: '13px', color: '#ffffff', fontStyle: 'bold',
         })
         .setOrigin(0.5);
       const enonce = this.scene.add
-        .text(centre, 62, '…', {
-          fontFamily: 'monospace', fontSize: '24px', color: '#ffffff',
+        .text(centre, 55, '…', {
+          fontFamily: 'monospace', fontSize: '20px', color: '#ffffff',
         })
         .setOrigin(0.5);
 
@@ -87,10 +90,10 @@ export class QuizOverlay {
 
     this.messages = this.scene.add
       .text(
-        alignement === 'gauche' ? 0 : -(LARGEUR_CARTE * 3 + 24),
+        alignement === 'gauche' ? 0 : -(LARGEUR_CARTE * 3 + ECART_CARTE * 2),
         HAUTEUR_CARTE + 8,
         '',
-        { fontFamily: 'monospace', fontSize: '18px', color: '#ffd76b' }
+        { fontFamily: 'monospace', fontSize: '16px', color: '#ffd76b' }
       )
       .setOrigin(0, 0);
     this.conteneur.add(this.messages);

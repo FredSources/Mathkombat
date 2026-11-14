@@ -21,9 +21,14 @@
  *          puis rythme SIMULTANÉ : deux zones actives sans conflit de frappe.
  *  - E09 : score de combat — mesures par joueur, score final avec bonus K.O.,
  *          record persistant et HIGH SCORE sur l'écran RUN (captures).
+ *  - E10 : menu de pause — ☰ MENU → chrono figé → RETOUR AU JEU (reprise) →
+ *          ☰ MENU → QUITTER → MENU (capture).
+ *  - E11 : fin de combat — boutons [ REJOUER ] / [ MENU ] au K.O. (§7) :
+ *          REJOUER relance un combat, MENU revient à l'écran RUN (capture).
  *
- * E06/E07/E09 sont exécutés **en fin de batterie** : ils rechargent l'application
- * (retour aux réglages par défaut §2.9), ce qui casserait la continuité E05→E08.
+ * E06/E07/E09/E10/E11 sont exécutés **en fin de batterie** : ils rechargent
+ * l'application (retour aux réglages par défaut §2.9), ce qui casserait la
+ * continuité E05→E08.
  *
  * Usage : node scripts/e2e.mjs   (démarre le dev server si absent)
  * Sortie : code 0 = tout vert ; artefacts : output/screenshots/e2e-*.png,
@@ -725,6 +730,91 @@ async function main() {
         e09Final.record >= e09Final.avecBonus &&
         e09Menu >= e09Final.avecBonus,
       `énergie=${e09ApresValidation.j1.energieGagnee} (${q09.gain} attendu) · secondes=${e09Final.scores.j1.secondesRestantes} · score sans bonus=${e09Final.sansBonus} avec bonus=${e09Final.avecBonus} · affiché="${e09Final.affiche}" · record=${e09Final.record} · menu=${e09Menu}`
+    );
+
+    // ---------------------------------------------------------- E10
+    // Menu de pause (§8 wireframes) : ☰ MENU → chrono et animations figés →
+    // [ RETOUR AU JEU ] = reprise exacte → ☰ MENU → [ QUITTER → MENU ].
+    await relancer();
+    await clicJeu(640, 310); // RUN
+    await attendreHook();
+    await attendre(400);
+    await clicJeu(640, 174); // ☰ MENU
+    await attendre(300);
+    const e10Pause = await page.evaluate(() => ({
+      ouverte: window.__mathkombat.pause().ouverte,
+      chrono: window.__mathkombat.etat().chrono,
+    }));
+    await attendre(1300); // sans reprise, le chrono ne doit PAS avancer
+    const e10Gele = await page.evaluate(() => window.__mathkombat.etat().chrono);
+    await page.screenshot({ path: path.join(SHOTS, 'e2e-10-pause.png') });
+    await clicJeu(640, 355); // [ RETOUR AU JEU ]
+    await attendre(300);
+    const e10Reprise = await page.evaluate(() => ({
+      ouverte: window.__mathkombat.pause().ouverte,
+      chrono: window.__mathkombat.etat().chrono,
+    }));
+    await attendre(1300); // le chrono doit avoir REPARTI
+    const e10Reparti = await page.evaluate(() => window.__mathkombat.etat().chrono);
+    await clicJeu(640, 174); // ☰ MENU
+    await attendre(250);
+    await clicJeu(640, 445); // [ QUITTER → MENU ]
+    await attendreEcran('menu');
+    const e10Menu = await page.evaluate(() => window.__mathkombatEcrans.ecran);
+    verifier(
+      'E10',
+      '☰ MENU en jeu : pause (chrono figé) → RETOUR AU JEU (reprise) → QUITTER → MENU',
+      e10Pause.ouverte === true &&
+        e10Gele === e10Pause.chrono &&
+        e10Reprise.ouverte === false &&
+        e10Reparti < e10Reprise.chrono &&
+        e10Menu === 'menu',
+      `pause=${e10Pause.ouverte} chrono=${e10Pause.chrono} gelé=${e10Gele} · reprise: ouverte=${e10Reprise.ouverte} chrono=${e10Reprise.chrono} puis ${e10Reparti} · écran=${e10Menu}`
+    );
+
+    // ---------------------------------------------------------- E11
+    // Fin de combat (§7 wireframes) : au K.O., les boutons [ REJOUER ] et
+    // [ MENU ] remplacent le message « R = rejouer ».
+    await relancer();
+    await clicJeu(640, 310); // RUN
+    await attendreHook();
+    await attendre(400);
+    await page.evaluate(() => {
+      window.__mathkombat.forcerEnergieAttaque(100);
+      window.__mathkombat.forcerEnergieDefense(0);
+    });
+    await page.evaluate(() => window.__mathkombat.forceFinDePhase()); // attaque → défense IA
+    await attendre(400);
+    await page.evaluate(() => window.__mathkombat.forcerEnergieDefense(0));
+    await page.evaluate(() => window.__mathkombat.forceFinDePhase()); // défense → résolution → K.O.
+    await attendre(1200);
+    const e11Fin = await page.evaluate(() => window.__mathkombat.fin());
+    await page.screenshot({ path: path.join(SHOTS, 'e2e-11-fin.png') });
+    await clicJeu(545, 330); // [ REJOUER ]
+    await attendre(800);
+    const e11Rejoue = await etat();
+    // second K.O. puis [ MENU ]
+    await page.evaluate(() => {
+      window.__mathkombat.forcerEnergieAttaque(100);
+      window.__mathkombat.forcerEnergieDefense(0);
+    });
+    await page.evaluate(() => window.__mathkombat.forceFinDePhase());
+    await attendre(400);
+    await page.evaluate(() => window.__mathkombat.forcerEnergieDefense(0));
+    await page.evaluate(() => window.__mathkombat.forceFinDePhase());
+    await attendre(1200);
+    await clicJeu(735, 330); // [ MENU ]
+    await attendreEcran('menu');
+    const e11Menu = await page.evaluate(() => window.__mathkombatEcrans.ecran);
+    verifier(
+      'E11',
+      'Fin de combat : boutons [ REJOUER ] / [ MENU ] — REJOUER relance, MENU retourne au RUN',
+      e11Fin.affichee === true &&
+        e11Fin.boutons === true &&
+        e11Rejoue.tour === 1 &&
+        e11Rejoue.fini === false &&
+        e11Menu === 'menu',
+      `k.o.: affichee=${e11Fin.affichee} boutons=${e11Fin.boutons} · après REJOUER: tour=${e11Rejoue.tour} fini=${e11Rejoue.fini} · après MENU: écran=${e11Menu}`
     );
   } finally {
     await navigateur.close();

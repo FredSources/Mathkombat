@@ -1546,3 +1546,68 @@ score = énergies gagnées (somme des gains +1/+3/+7)
 - **Bouton ☰ MENU en cours de jeu** → overlay pause « RETOUR AU JEU » /
   « QUITTER → MENU » (→ `MenuScene`) ; raccourci ≠ Échap (piste `M`).
 - Puis sélection de personnage (J6) — dette `Personnage` (`docs/architecture.md` §9).
+
+---
+
+## 2026-11-14 — Menu de pause (☰ MENU) et boutons de fin de combat
+
+### Demandes utilisateur
+
+1. **Bouton de retour pendant le jeu** : « continuer la partie » et « quitter et
+   retourner au menu » → menu de pause.
+2. **Pas de superposition** entre les calculs et le menu : calculs plus petits,
+   **☰ MENU placé entre les deux blocs de calculs**.
+3. **Fin de combat** : remplacer le message « (R = rejouer) » par des **boutons
+   [ REJOUER ] / [ MENU ]**.
+
+### Produits
+
+| Fichier | Rôle |
+|---------|------|
+| `game/src/ui/pause-overlay.ts` | Overlay plein écran (voile interactif qui bloque le jeu) : **[ RETOUR AU JEU ]** / **[ QUITTER → MENU ]** + `PLACE_PAUSE` (coordonnées partagées avec les tests) |
+| `game/src/scenes/FightScene.ts` | Bouton **☰ MENU** dans le **couloir central entre les blocs de calculs** (640, 174) + raccourci **`M`** ; pause réelle (`time.timeScale = 0`, `tweens.timeScale = 0` — Clock gelé, `delayedCall` stoppés) ; `reactiverZones()` à la reprise ; `quitterVersMenu()` restaure les `timeScale` AVANT `scene.start('Menu')` (le TweenManager est partagé entre scènes) ; **boutons de fin [ REJOUER ] / [ MENU ]** au centre de l'arène (545/735, 330), bannière K.O. sans « (R = rejouer) » ; `R` ignoré pendant la pause ; hooks `pause()` / `basculerPause()` / `fin()` |
+| `game/src/ui/quiz-overlay.ts` | **Calculs plus petits** (demande) : cartes 172×100 → **150×88**, écart 12 → 10, polices 24/15/18 → 20/13/16 — couloir central élargi (120 → 260 px) pour le ☰ MENU |
+| `game/src/ui/numpad.ts` | **Garde-fou anti-doublon clavier** : un même événement (`code` + `timeStamp`) ne compte qu'une frappe |
+| `scripts/e2e.mjs` | **E10** (pause : chrono figé → reprise → QUITTER) et **E11** (fin de combat : REJOUER relance, MENU retourne au RUN) |
+
+### Décisions
+
+- **☰ MENU entre les deux blocs de calculs** (et non plus dans le HUD haut) :
+  aucune superposition avec « Manche » ni avec les opérations — les cartes ont été
+  réduites pour dégager un couloir central de 260 px (proposition utilisateur).
+- **Pause = gel complet** : `timeScale = 0` sur le Clock (le chrono ne bouge plus,
+  vérifié en E2E : chrono=15 → 15 après 1,3 s) et sur les tweens ; les zones de
+  calcul sont désactivées puis réactivées selon la phase en cours.
+- **Coordonnées inchangées pour les clics de cartes** : avec les cartes réduites,
+  les coordonnées E2E existantes (126/310/494, 178) visent excentré mais restent
+  dans la bonne carte — aucun remaniement du plan de test.
+- **Fin de combat** : deux boutons au centre de l'arène (visibles, tactile) plutôt
+  qu'un raccourci clavier invisible ; le raccourci `R` reste actif en debug.
+
+### Anomalie corrigée
+
+- **Frappe comptée deux fois (« 77 » au lieu de « 7 »)** — intermittent (2/6 en
+  boucle), alors que **l'événement DOM n'arrive qu'une fois** : le même événement
+  était traité deux fois côté jeu (double émission du plugin clavier). Diagnostiqué
+  par `tmp/e07-loop.mjs` (compteur DOM vs saisie) puis neutralisé par la
+  **déduplication (`code`, `timeStamp`)** dans `Numpad.recevoirTouche` — deux
+  frappes réelles ont des `timeStamp` distincts. Boucle de contrôle : 6/6 corrects.
+
+### Tests
+
+- **Batterie complète verte** : typecheck ✅ 0 erreur ; Vitest ✅ **83/83** ;
+  couverture **100 %** (188/188 statements, 118/118 branches, 40/40 fonctions,
+  166/166 lines) ; scénarios ✅ **12/12** ; smoke L0 ✅ PASS ;
+  **E2E ✅ 23/23** (`output/reports/e2e-2026-11-14T13-39-59.md`).
+- **E10 (nouveau, PASS)** : ☰ MENU → pause ouverte, **chrono figé** (15 → 15) ;
+  [ RETOUR AU JEU ] → chrono relancé (15 → 13) ; ☰ MENU → [ QUITTER → MENU ] →
+  écran RUN. Capture `e2e-10-pause.png`.
+- **E11 (nouveau, PASS)** : K.O. → boutons affichés ; [ REJOUER ] relance
+  (tour 1, `fini=false`) ; second K.O. → [ MENU ] → écran RUN.
+  Capture `e2e-11-fin.png`.
+- **Non-régression** : E01→E05, E08a→E08h, E06, E07, E09 toujours verts.
+
+### Prochaine étape
+
+- Sélection de personnage (J6) — dette architecturale `Personnage`
+  (`docs/architecture.md` §9) ; puis best-of-3 manches (J8).

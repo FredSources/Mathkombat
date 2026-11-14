@@ -83,12 +83,14 @@ Parcours Puppeteer (chromium headless, config `pptr.json` de l'environnement) :
 | E06 | Tempo configurable (écran CONFIG) | CONFIG → **◀ TEMPO** (NORMAL → RAPIDE 10 s) → **VALIDER** → RUN | attaque de J1 sur 10 s **et défense de J1 (tour 2) sur 10 s** (durée unique §2.9) + capture `e2e-06-tempo-rapide.png` — *en solo, la défense du tour 1 est jouée par l'IA (chrono immédiat 3 s, §2.6) : hors sujet* |
 | E07 | Rythme + mode (écran CONFIG) | CONFIG → **▶ MODE** (2 JOUEURS) + **▶ RYTHME** (SIMULTANÉ) → **VALIDER** → RUN, frappes `Digit5` + `Numpad7` | phase `simultane` dès le tour 1, les **deux zones actives** sur le même chrono (I15), saisies `J1="5"`, `J2="7"` sans croisement, tour 2 enchaîné (jamais de phase `defense` séquentielle) + capture `e2e-07-simultane.png` |
 | E09 | Score de combat (§2.7) | RUN → 1 calcul résolu au clavier → K.O. forcé (énergie 100 vs défense 0) → rechargement | mesures par joueur (**énergie gagnée** + **secondes restantes**), score en temps réel par joueur dans le HUD, score final = sans bonus + **bonus K.O.**, record `localStorage` persistant, **HIGH SCORE réaffiché sur l'écran RUN** + captures `e2e-09-score.png`, `e2e-09-highscore.png` |
+| E10 | Menu de pause (§8) | RUN → **☰ MENU** → lecture du chrono → **[ RETOUR AU JEU ]** → **☰ MENU** → **[ QUITTER → MENU ]** | pause réelle (**chrono figé**, zones désactivées), reprise exacte (chrono relancé), retour à l'écran RUN + capture `e2e-10-pause.png` |
+| E11 | Fin de combat (§7) | RUN → K.O. forcé → **[ REJOUER ]** → K.O. forcé → **[ MENU ]** | au K.O., bannière sans « R = rejouer » et **boutons [ REJOUER ] / [ MENU ]** au centre de l'arène ; REJOUER relance un combat (tour 1), MENU retourne au RUN + capture `e2e-11-fin.png` |
 | E08 | **Mode DUEL (2 joueurs)** — `a`→`h` | bascule de mode ; J1 résout facile+moyen ; frappe du pavé pendant la phase de J1 ; phase de défense ciblée par J2 ; pavé J2 (⌫ décimale, C `Delete`, chiffres + `NumpadEnter`) ; résolution ; bascule SIMULTANÉ puis frappes `Digit5` / `Numpad7` ; **surbrillance des touches** (`Digit6` puis `Numpad4`) | libellés **J2** (PV, énergie, score), énergies 4 puis 3, solde = 1 dégât sur J2, **isolation stricte des deux consoles dans les deux sens**, saisies vidées après validation, **touche pressée allumée sur sa console seule puis retour au repos** + capture `e2e-08-duel.png` |
 
 > **Ordre d'exécution** : `scripts/e2e.mjs` joue E01→E05, puis E08a→E08h (continuité
-> du score E05), puis **E06, E07 et E09 en fin de batterie** — ces cas rechargent
-> l'application (retour aux réglages par défaut §2.9), ce qui casserait la chaîne
-> E05→E08.
+> du score E05), puis **E06, E07, E09, E10 et E11 en fin de batterie** — ces cas
+> rechargent l'application (retour aux réglages par défaut §2.9), ce qui casserait
+> la chaîne E05→E08.
 
 ## 6. Procédure de pilotage agent
 

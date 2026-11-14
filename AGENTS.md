@@ -271,6 +271,13 @@ l'architecture mais non implémentées (voir `todo.md`, « Idées / dette »).
   persistant** (`localStorage`, un record par niveau de calcul — le mode duel n'a
   pas de record : le « propre score » est le score solo, §2.5). La règle et ses
   facteurs vivent dans `core/config.ts` (section `score`) et `core/score.ts` (pur).
+- **☰ MENU en cours de jeu** : bouton dans le **couloir central entre les deux
+  blocs de calculs**, raccourci **`M`** (§8 wireframes) → overlay pause avec
+  **[ RETOUR AU JEU ]** et **[ QUITTER → MENU ]** : chrono et animations figés,
+  zones désactivées, reprise exacte ; `Échap` reste « C Tout effacer » de J1.
+- **Fin de combat (K.O.)** : bannière K.O. + boutons **[ REJOUER ]** et
+  **[ MENU ]** au centre de l'arène (§7 wireframes) — le message « R = rejouer »
+  a été retiré (le raccourci `R` reste actif en version web de debug).
 - **Zone de spectacle** : sous les 3 calculs, l'arène et les deux combattants sont
   visibles en permanence (voir §2.8).
 
