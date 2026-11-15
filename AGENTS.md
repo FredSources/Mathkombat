@@ -122,8 +122,8 @@ est un fait « × 2 » 🟢). Le gain reste +1 / +3 / +7 :
 | Difficulté | Gain | Règle de classement du fait | Exemples |
 |------------|------|------------------------------|----------|
 | Facile | +1 | 🟢 **Vert** : au moins un facteur ∈ {1, 2, 5, 10} | `2 × 4`, `5 × 6` |
-| Moyen | +3 | 🟡 **Jaune** (déductible par astuce) : sinon, au moins un facteur ∈ {3, 4, 6, 8, 9, 11, 12} | `4 × 7`, `9 × 6` |
-| Difficile | +7 | 🟠 **Orange** : les **5 faits résistants** (repli Débutant : `3×3`, `3×4`, `4×4`) | `7 × 8`, `6 × 8`, `8 × 8` |
+| Moyen | +3 | 🟡 **Jaune** (déductible par astuce) : sinon, au moins un facteur ∈ {3, 4, 6, 8, 9, 11, 12} | `4 × 7`, `3 × 8` |
+| Difficile | +7 | 🟠 **Orange** : les **faits difficiles** (`familles.difficile`) = les 5 résistants **+ les plus durs élargis** (6×9, 7×9, 8×9, 9×9, 7×11, 8×11, 9×11, 11×11, 11×12, 12×12) ; en **Débutant**, le repli `3×3, 3×4, 4×4` | `7 × 8`, `6 × 7`, `9 × 9` |
 
 Les **5 faits résistants** (à mémoriser, d'après le document) : `6×7`, `6×8`, `7×7`,
 `7×8`, `8×8`. Ils apparaissent en Difficile dès que la **borne du niveau** le permet

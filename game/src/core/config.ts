@@ -69,6 +69,8 @@ export interface ConfigJeu {
     jaune: readonly number[];
     /** 🟠 les 5 faits résistants à mémoriser (forcés « difficile »). */
     resistants: readonly Fait[];
+    /** 🟠 faits DIFFICILES (+7) : les résistants + les plus durs (élargi). */
+    difficile: readonly Fait[];
     /** 🟠 repli du niveau Débutant (résistants impossibles à la borne 5). */
     repliDebutant: readonly Fait[];
   };
@@ -204,6 +206,12 @@ export const CONFIG: ConfigJeu = {
       [7, 7],
       [7, 8],
       [8, 8],
+    ],
+    // +7 élargi : les 5 résistants (§2.5) + les faits les plus durs
+    difficile: [
+      [6, 7], [6, 8], [7, 7], [7, 8], [8, 8],
+      [6, 9], [7, 9], [8, 9], [9, 9],
+      [7, 11], [8, 11], [9, 11], [11, 11], [11, 12], [12, 12],
     ],
     repliDebutant: [
       [3, 3],

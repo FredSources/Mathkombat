@@ -52,12 +52,27 @@ describe('classerFait — couleur du fait (§2.5, I11)', () => {
     for (const [a, b] of [
       [3, 7],
       [4, 7],
-      [9, 7],
+      [3, 8],
       [3, 4],
-      [11, 7],
-      [12, 9],
+      [4, 9],
+      [6, 6],
     ] as const) {
       expect(classerFait(a, b)).toBe('moyen');
+    }
+  });
+
+  it('🟠 difficile : les 5 résistants + les durs élargis, y compris en Débutant', () => {
+    // les 5 résistants (§2.5)
+    for (const [a, b] of [[6, 7], [6, 8], [7, 7], [7, 8], [8, 8]] as const) {
+      expect(classerFait(a, b)).toBe('difficile');
+    }
+    // les durs élargis (option B) : 7×9, 8×9, 9×9, 11×12…
+    for (const [a, b] of [[6, 9], [7, 9], [8, 9], [9, 9], [11, 12]] as const) {
+      expect(classerFait(a, b)).toBe('difficile');
+    }
+    // repli Débutant (option A) : 3×3, 3×4, 4×4 sont DIFFICILES sous la borne 5
+    for (const [a, b] of [[3, 3], [3, 4], [4, 4]] as const) {
+      expect(classerFait(a, b, CONFIG, 'debutant')).toBe('difficile');
     }
   });
 

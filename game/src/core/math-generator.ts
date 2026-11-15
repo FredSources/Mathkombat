@@ -15,7 +15,7 @@
  *  - réponse unique, saisie libre (aucune proposition à générer).
  */
 import type { ConfigJeu, Difficulte, Fait, Niveau, TypeOperation } from './config.ts';
-import { CONFIG, cleFait, estResistant } from './config.ts';
+import { CONFIG, cleFait } from './config.ts';
 
 export interface Question {
   operation: TypeOperation;
@@ -34,14 +34,30 @@ export interface Question {
 // ---------------------------------------------------------------- classement des faits
 
 /**
- * Couleur du fait (§2.5) : 🟢 si un facteur est vert, 🟡 sinon si un facteur est
- * jaune, 🟠 si résistant (forcé) — sinon 🟠 (les deux facteurs sont « durs »).
+ * Couleur du fait (§2.5) : 🟠 si le fait est dans la famille **difficile**
+ * (les 5 résistants + les durs élargis) ou si c'est le **repli Débutant** ;
+ * 🟢 si un facteur est vert ; 🟡 sinon si un facteur est jaune ;
+ * 🟠 par défaut (les deux facteurs sont « durs »).
  */
-export function classerFait(a: number, b: number, config: ConfigJeu = CONFIG): Difficulte {
-  if (estResistant(a, b, config)) return 'difficile';
+export function classerFait(
+  a: number,
+  b: number,
+  config: ConfigJeu = CONFIG,
+  niveau?: Niveau
+): Difficulte {
+  // repli Débutant (§2.5) : sous la borne 5, les faits du repli sont DIFFICILES
+  if (niveau === 'debutant' && dansFamille(config.familles.repliDebutant, a, b)) {
+    return 'difficile';
+  }
+  if (dansFamille(config.familles.difficile, a, b)) return 'difficile';
   if (config.familles.vert.includes(a) || config.familles.vert.includes(b)) return 'facile';
   if (config.familles.jaune.includes(a) || config.familles.jaune.includes(b)) return 'moyen';
   return 'difficile';
+}
+
+/** Un fait appartient-il à la liste ? (insensible à l'ordre des facteurs) */
+function dansFamille(liste: readonly Fait[], a: number, b: number): boolean {
+  return liste.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
 }
 
 /**
@@ -60,7 +76,7 @@ export function poolFaits(
   const pool: Fait[] = [];
   for (let table = 1; table <= 12; table++) {
     for (let second = 1; second <= borne; second++) {
-      if (classerFait(table, second, config) === difficulte) pool.push([table, second]);
+      if (classerFait(table, second, config, niveau) === difficulte) pool.push([table, second]);
     }
   }
   if (difficulte === 'difficile' && pool.length === 0) {

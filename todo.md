@@ -163,7 +163,9 @@ J6 (contenu complet) ; J8 clôt.
 
 ### J6 — Modes et menus
 
-- [ ] **Refonte des planches en 3/4 de face, rendu type Mortal Kombat / Street Fighter** — demande utilisateur, direction `docs/assets.md` §2a
+- [x] **Refonte des planches en 3/4 de face, rendu type Mortal Kombat / Street Fighter** —
+      demandé et **fait** : 6 combattants en sprites animés (8 poses + cycles de
+      marche de 8 frames), `game/assets/sprites-mk/`, méthode `docs/assets.md` §3bis
 - [x] **Coups de poing et de pied animés** — demande utilisateur : **rig cut-out articulé** livré (`scripts/assets-rig.py` → 5 pièces par perso, pivots épaule/hanche, bandes de recouvrement) : poing, pied haut/bas, garde haute/basse, **contre avec saut + coup de pied**, flash d'impact à la hauteur du coup — angles/durées dans `config.ts` (`rig`), recettes `docs/assets.md` §3a ; validé par sonde rAF (`tmp/anim-probe.mjs` : 92/36/85/−140/150°) + E2E 9/9
 - [x] **Mode 2 joueurs (même écran, tour par tour)** — **livré et testé** :
       `CONFIG.mode`, une console par joueur (touches physiques disjointes), rôles
@@ -229,7 +231,8 @@ J6 (contenu complet) ; J8 clôt.
 
 - [ ] Équilibrage (durées, énergies, IA) à partir des logs d'analyse — vérifier **suspense et possibilité de gagner** (S12 : taux de victoires humaines ≈ 80/50/30 %)
 - [ ] Catalogue de scénarios complet vert + E2E verts
-- [ ] Mode RELEASE certifié zéro log (T04, I10)
+- [x] Mode RELEASE certifié zéro log (T04, I10) — `scripts/certif-release.mjs` : **7/7 ✅**
+      (zéro log applicatif, zéro socket, zéro requête hors-ligne, zéro hook debug)
 - [ ] Journal final + README à jour
 
 ## Idées / dette
