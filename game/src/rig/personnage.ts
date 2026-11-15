@@ -86,16 +86,18 @@ function teintesDe(base: number): SkinPersonnage['teintes'] {
 /**
  * Échelle FIXE de l'enveloppe de flammes : les flammes gardent la taille et la
  * densité du début — l'aura grandit par **ajout de couches** (paliers), jamais
- * par étirement (demande utilisateur, §2.8a).
+ * par étirement (demande utilisateur, §2.8a). La table FLAMMES est calée sur la
+ * silhouette des sprites (260 px de large, 236 px de haut).
  */
-const ECHELLE_AURA = 0.85;
+const ECHELLE_AURA = 1;
 
 /**
- * Écartement des couches de flammes (§2.8a) : la couche 0 est **très proche du
- * corps** (voire invisible à 0 énergie), chaque palier suivant **ajoute** une
- * strate « un peu moins proche » — même taille de flammes, densité constante.
+ * Écartement des couches de flammes (§2.8a) : la couche 0 est **petite, proche
+ * du corps** (à peine perceptible à 0 énergie), chaque palier suivant **ajoute**
+ * une strate de flammes nettement plus large — l'aura **grandit** avec l'énergie,
+ * taille et densité des flammes inchangées.
  */
-const ECARTEMENTS_COUCHES: readonly number[] = [0.9, 1.15, 1.4];
+const ECARTEMENTS_COUCHES: readonly number[] = [0.9, 1.3, 1.7];
 
 /**
  * Poses d'un combattant : clés de textures `mk-<id>-<i>` (chargées par
@@ -262,15 +264,11 @@ export class Personnage {
       this.textureTeintee(`flamme${v}`, coeur, `flamme${v}-c${suffixe}`)
     );
 
-    // vignette sombre feutrée (7 anneaux emboîtés) : arrière-plan assombri qui
-    // garantit le contraste ≥ 3:1 des flammes sur le décor clair (WCAG 1.4.11)
+    // ombre portée au sol (fine) — le halo sombre hérité de l'ancienne animation
+    // a été retiré (artefact parasite sur le décor)
     const ombre = scene.add.graphics();
-    for (let i = 0; i < 7; i++) {
-      ombre.fillStyle(0x18102e, 0.07);
-      ombre.fillEllipse(0, -180, 330 - i * 30, 560 - i * 50);
-    }
     ombre.fillStyle(0x000000, 0.5);
-    ombre.fillEllipse(0, -4, 130, 26); // ombre portée au sol
+    ombre.fillEllipse(0, -4, 150, 22);
 
     // enveloppe de flammes (§2.8a) : la **couche 0** = les flammes très proches
     // du corps (« niveau 1 ») ; chaque palier AJOUTE une strate « un peu moins
@@ -543,10 +541,17 @@ export class Personnage {
   }
 
   /**
-   * Parade (§2.8c) : garde côté attaquant, étincelles à la hauteur du coup.
+   * Parade (§2.8c) : l'attaquant s'est approché pour frapper — le défenseur
+   * **bloque** (garde) puis **contre au poing ou au pied, selon le coup de
+   * l'assaillant** (demande utilisateur). Étincelles à la hauteur du coup.
    */
   parade(coup: Coup, tier: number, _versAttaquantDroite: boolean): void {
-    this.jouerPose('garde-defense', this.skin.sprites.dureePoseMs);
+    // 1. le blocage (garde)…
+    this.jouerPose('garde-defense');
+    // 2. …puis un CONTRE du même type que l'attaque : poing ou pied
+    this.scene.time.delayedCall(250, () =>
+      this.jouerPose(coup === 'poing' ? 'poing' : 'pied', this.skin.sprites.dureePoseMs)
+    );
     this.scene.tweens.add({
       targets: this.corps,
       scaleX: this.corps.scaleX * 1.06,
@@ -764,20 +769,21 @@ export function palierDe(energie: number): number {
 
 /**
  * Emplacement des langues de flamme autour du personnage (§2.8a, style
- * Dragon Ball : l'enveloppe suit la silhouette). Coords locales du conteneur
- * (pieds = 0, tête ≈ −420, demi-largeur ≈ 95) ; `l`×`h` = taille affichée,
- * `d` = densité d'éclat (0..1). Le vacillement est animé par tweens.
+ * Dragon Ball : l'enveloppe **épouse la silhouette**, sans s'en éloigner).
+ * Coords locales du conteneur (pieds = 0, tête ≈ −217) calées sur les sprites
+ * (260 px de large, 236 px de haut) ; `l`×`h` = taille affichée,
+ * `d` = densité d'éclat. Le vacillement est animé par tweens.
  */
 const FLAMMES: readonly { x: number; y: number; l: number; h: number; d: number }[] = [
-  { x: -52, y: 6, l: 86, h: 180, d: 1.0 }, // pied gauche
-  { x: 52, y: 6, l: 86, h: 180, d: 1.0 }, // pied droit
-  { x: -86, y: -30, l: 74, h: 195, d: 0.95 }, // jambe gauche
-  { x: 86, y: -30, l: 74, h: 195, d: 0.95 }, // jambe droite
-  { x: -100, y: -170, l: 66, h: 185, d: 0.85 }, // torse gauche
-  { x: 100, y: -170, l: 66, h: 185, d: 0.85 }, // torse droit
-  { x: -78, y: -300, l: 62, h: 170, d: 0.75 }, // épaule gauche
-  { x: 78, y: -300, l: 62, h: 170, d: 0.75 }, // épaule droite
-  { x: -34, y: -400, l: 66, h: 175, d: 0.8 }, // tête gauche
-  { x: 34, y: -400, l: 66, h: 175, d: 0.8 }, // tête droite
-  { x: 0, y: -435, l: 78, h: 185, d: 0.85 }, // couronne
+  { x: -45, y: 3, l: 98, h: 98, d: 1.0 }, // pied gauche
+  { x: 45, y: 3, l: 98, h: 98, d: 1.0 }, // pied droit
+  { x: -74, y: -16, l: 85, h: 106, d: 0.95 }, // jambe gauche
+  { x: 74, y: -16, l: 85, h: 106, d: 0.95 }, // jambe droite
+  { x: -86, y: -92, l: 76, h: 100, d: 0.85 }, // torse gauche
+  { x: 86, y: -92, l: 76, h: 100, d: 0.85 }, // torse droit
+  { x: -67, y: -163, l: 71, h: 92, d: 0.75 }, // épaule gauche
+  { x: 67, y: -163, l: 71, h: 92, d: 0.75 }, // épaule droite
+  { x: -29, y: -217, l: 76, h: 95, d: 0.8 }, // tête gauche
+  { x: 29, y: -217, l: 76, h: 95, d: 0.8 }, // tête droite
+  { x: 0, y: -236, l: 89, h: 100, d: 0.85 }, // couronne
 ];

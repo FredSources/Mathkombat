@@ -97,8 +97,6 @@ export class FightScene extends Phaser.Scene {
   private journalEvenements: string[] = [];
   /** Ralenti « hitstop » en cours (restauré par ralentir()). */
   private ralentiActif = false;
-  /** Nombre de sprites de coup vivants (diagnostic). */
-  private coupsActifs = 0;
   private manches = { j1: 0, j2: 0 };
   /** Mesures de score par joueur (§2.7) : énergies gagnées + secondes restantes. */
   private scores: Record<'j1' | 'j2', MesuresScore> = {
@@ -791,12 +789,14 @@ export class FightScene extends Phaser.Scene {
     tier: number,
     contre: boolean,
     coup: Coup,
-    droite: boolean
+    _droite: boolean
   ): void {
     const x = cible.corps.x;
     const y = SOL - CONFIG.rig.impactY[coup];
     const couleur = contre ? '#ff9d6b' : '#ffffff';
     const teinteEtoiles = contre ? '#ff9d6b' : '#ffd76b'; // or : lisible sur le sol clair
+    // flash d'impact : cercle net, court — pas de sprite de coup (artefacts
+    // hérités de l'ancienne animation, retirés sur demande)
     const flash = this.add.circle(x, y, 20 + tier * 6, Phaser.Display.Color.HexStringToColor(couleur).color);
     flash.setBlendMode(Phaser.BlendModes.ADD).setDepth(10);
     this.tweens.add({
@@ -806,29 +806,6 @@ export class FightScene extends Phaser.Scene {
       duration: 130,
       onComplete: () => flash.destroy(),
     });
-    // sprite de coup réutilisé en flash d'impact (docs/assets.md §3a) : le
-    // poing ou le pied marque l'instant de l'impact puis s'efface
-    const cleTex = coup === 'poing' ? 'coups-poing' : 'coups-pied';
-    if (this.textures.exists(cleTex)) {
-      const marque = this.add
-        .image(x, y, cleTex)
-        .setOrigin(0.5, 0.5)
-        .setFlipX(!droite)
-        .setScale(0.7 + tier * 0.1)
-        .setBlendMode(Phaser.BlendModes.ADD)
-        .setDepth(12);
-      this.coupsActifs++;
-      marque.once('destroy', () => {
-        this.coupsActifs = Math.max(0, this.coupsActifs - 1);
-      });
-      this.tweens.add({
-        targets: marque,
-        alpha: 0,
-        scale: marque.scale * 1.3,
-        duration: CONFIG.rig.flashCoupMs,
-        onComplete: () => marque.destroy(),
-      });
-    }
     this.etincelles(x, y, CONFIG.juice.etincellesParTier * tier, teinteEtoiles);
     if (tier >= 2) this.ondeDeChoc(x, y, tier);
   }
@@ -1044,6 +1021,20 @@ export class FightScene extends Phaser.Scene {
       }),
       // sélection de combat (§3) : skins et niveaux appliqués à ce combat
       selection: () => ({ ...selection }),
+      // validation des animations (E13) : déclenche un mouvement et renvoie la
+      // pose affichée juste après (même frame)
+      anim: (action: string) => {
+        const j = scene.j1;
+        if (action === 'marche') j.vaADroite();
+        else if (action === 'saut') j.saut();
+        else if (action === 'poing') j.coupDePoing('direct');
+        else if (action === 'pied') j.coupDePied('haut');
+        else if (action === 'garde') j.gardeHaute();
+        else if (action === 'touche') j.encaisse(2);
+        else if (action === 'ko') j.ko();
+        else return { pose: j.pose, ok: false };
+        return { pose: j.pose, ok: true };
+      },
       // score de combat (§2.7) : mesures cumulées + scores affichés
       scores: () => ({
         j1: { ...scene.scores.j1 },
@@ -1112,12 +1103,9 @@ export class FightScene extends Phaser.Scene {
         scene.mettreAJourEnergies();
         return true;
       },
-      // diagnostics des coups et du rig articulé (§3a) : flashs, membres en
-      // cours d'animation, angles des pièces, saut du contre, textures
+      // diagnostics des mouvements (sprites MK) : poses courantes, temps
       coups: () => ({
-        actifs: scene.coupsActifs,
         timeScale: scene.tweens.timeScale,
-        textures: ['coups-poing', 'coups-pied'].filter((k) => scene.textures.exists(k)),
         poses: { j1: scene.j1.pose, j2: scene.j2.pose },
       }),
       // force l'énergie de défense du tour en cours (captures E04)

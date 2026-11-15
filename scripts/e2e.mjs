@@ -865,6 +865,36 @@ async function main() {
         e12.skinJ2 !== 'combattante', // ◀ fait changer le combattant de J2
       `ecran=${e12.ecran} tour=${e12.tour} · sélection: niveauJ1=${e12.niveauJ1} skinJ2=${e12.skinJ2}`
     );
+
+    // ---------------------------------------------------------- E13
+    // Validation des mouvements (sprites MK) : chaque action joue bien sa pose.
+    await relancer();
+    await lancerCombat();
+    const e13 = await page.evaluate(() => {
+      const h = window.__mathkombat;
+      return {
+        marche: h.anim('marche'),
+        saut: h.anim('saut'),
+        poing: h.anim('poing'),
+        pied: h.anim('pied'),
+        garde: h.anim('garde'),
+        touche: h.anim('touche'),
+        ko: h.anim('ko'),
+      };
+    });
+    verifier(
+      'E13',
+      'Mouvements des combattants : marche, saut, poing, pied, garde, touché, K.O.',
+      e13.marche.ok &&
+        e13.marche.pose === 'marche-avant' &&
+        e13.saut.pose === 'saut' &&
+        e13.poing.pose === 'poing' &&
+        e13.pied.pose === 'pied' &&
+        e13.garde.pose === 'garde-defense' &&
+        e13.touche.pose === 'touche' &&
+        e13.ko.pose === 'touche',
+      `marche=${e13.marche.pose} saut=${e13.saut.pose} poing=${e13.poing.pose} pied=${e13.pied.pose} garde=${e13.garde.pose} touche=${e13.touche.pose} ko=${e13.ko.pose}`
+    );
   } finally {
     await navigateur.close();
     if (serveur) serveur.kill();

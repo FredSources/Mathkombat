@@ -227,8 +227,8 @@ export const CONFIG: ConfigJeu = {
     ],
   },
   energieVisuelleMax: 30,
-  // palier 0 : à peine visible (« très proche, voire invisible »), puis strates
-  auraAlphas: [0.18, 0.74, 0.88, 0.98],
+  // palier 0 : à peine perceptible (petite, près du corps), puis strates visibles
+  auraAlphas: [0.12, 0.74, 0.88, 0.98],
   tiersFrappe: [5, 12, 20],
   coupsParTier: ['poing', 'poing', 'pied-bas', 'pied-haut'],
   juice: {
@@ -261,9 +261,9 @@ export const CONFIG: ConfigJeu = {
     koChuteY: 26,
     deplacementPas: 36,
     deplacementDureeMs: 120,
-    distanceFrappe: 150,
-    approcheDureeMs: 140,
-    retourDureeMs: 180,
+    distanceFrappe: 230,
+    approcheDureeMs: 220,
+    retourDureeMs: 280,
     impactY: { poing: 185, 'pied-haut': 100, 'pied-bas': 40 },
   },
   saisieMaxChiffres: 3,

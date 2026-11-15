@@ -35,32 +35,40 @@ HAUTEUR_CIBLE = 300
 
 
 def detourer(case: Image.Image) -> Image.Image:
-    """Fond magenta chroma → transparent, bords lissés (anti-aliasing conservé)."""
+    """Fond magenta chroma → transparent (distance à la couleur franche).
+
+    La « dominance magenta » mangeait les teintes violettes (NYX) : on mesure
+    ici la **distance au magenta de référence** (251, 4, 250) — seul le fond en
+    est proche, les violets du personnage restent.
+    """
     rgba = case.convert("RGBA")
     px = rgba.load()
     w, h = rgba.size
+    r0, g0, b0 = 251, 4, 250
     for y in range(h):
         for x in range(w):
             r, g, b, a = px[x, y]
-            dominant = min(r, b) - g  # dominance magenta (rouge ET bleu)
-            if dominant > 40:  # magenta franc : fond
+            distance = abs(r - r0) + abs(g - g0) + abs(b - b0)
+            if distance < 60:  # magenta franc : fond
                 px[x, y] = (r, g, b, 0)
-            elif dominant > 0:  # bord : alpha proportionnel (lissage)
-                px[x, y] = (r, g, b, max(0, a - int(255 * (dominant / 40))))
+            elif distance < 110:  # bord : alpha proportionnel (lissage)
+                px[x, y] = (r, g, b, max(0, a - int(255 * ((110 - distance) / 50))))
     return rgba
 
 
-def recadrer(sprite: Image.Image) -> Image.Image:
-    """Recadre sur le contenu, aligne par les pieds (bas) et centre horizontalement."""
-    bbox = sprite.getbbox()
+def recadrer(sprite: Image.Image, echelle: float) -> Image.Image:
+    """Recadre sur le contenu OPAQUE (vrais pieds — les planches intègrent une
+    ombre douce sous les pieds qui faisait « voler » les personnages), à
+    l'échelle fixe de la planche, pieds collés au bas du canevas.
+    """
+    net = sprite.getchannel("A").point(lambda v: 255 if v > 200 else 0)
+    bbox = net.getbbox()
     if not bbox:
         return sprite
     contenu = sprite.crop(bbox)
-    # mise à l'échelle sur la hauteur cible (proportions gardées)
-    echelle = HAUTEUR_CIBLE / contenu.height
     nouvelle = (
         max(1, int(contenu.width * echelle)),
-        HAUTEUR_CIBLE,
+        max(1, int(contenu.height * echelle)),
     )
     contenu = contenu.resize(nouvelle, Image.LANCZOS)
     # canevas de largeur constante, pieds collés au bas
@@ -68,6 +76,18 @@ def recadrer(sprite: Image.Image) -> Image.Image:
     canevas = Image.new("RGBA", (largeur, HAUTEUR_CIBLE), (0, 0, 0, 0))
     canevas.paste(contenu, ((largeur - contenu.width) // 2, HAUTEUR_CIBLE - contenu.height))
     return canevas
+
+
+def echelle_planche(image: Image.Image) -> float:
+    """Échelle de la planche, calculée sur la pose de référence (garde) : toutes
+    les poses gardent la même taille (sinon le personnage « respire »)."""
+    case_w = image.width // COLONNES
+    case_h = image.height // LIGNES
+    garde = image.crop((0, 0, case_w, case_h))
+    net = garde.getchannel("A").point(lambda v: 255 if v > 200 else 0)
+    bbox = net.getbbox() or (0, 0, case_w, case_h)
+    hauteur = bbox[3] - bbox[1]
+    return HAUTEUR_CIBLE / max(1, hauteur)
 
 
 def main() -> int:
@@ -82,11 +102,12 @@ def main() -> int:
         image = Image.open(planche).convert("RGBA")
         case_w = image.width // COLONNES
         case_h = image.height // LIGNES
-        print(f"{planche.name} : {image.width}x{image.height} → cases {case_w}x{case_h}")
+        echelle = echelle_planche(image)  # taille identique pour toutes les poses
+        print(f"{planche.name} : {image.width}x{image.height} → cases {case_w}x{case_h} (échelle {echelle:.2f})")
         for i, pose in enumerate(POSES):
             col, ligne = i % COLONNES, i // COLONNES
             case = image.crop((col * case_w, ligne * case_h, (col + 1) * case_w, (ligne + 1) * case_h))
-            sprite = recadrer(detourer(case))
+            sprite = recadrer(detourer(case), echelle)
             cible = SORTIE / f"{identifiant}-{i}-{pose}.png"
             sprite.save(cible)
             print(f"  {cible.name}")
