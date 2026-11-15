@@ -17,7 +17,7 @@ export type ModeJeu = 'solo' | 'duel';
  * bornée 5–60 s (curseur ◀ ▶ de l'écran CONFIG).
  */
 export type PresetTempo = 'rapide' | 'normal' | 'long' | 'personnalise';
-/** Coup articulé du rig cut-out (§2.8b, docs/assets.md §3a). */
+/** Coup de combat (§2.8b) : sert aux impacts et au choix de l'animation. */
 export type Coup = 'poing' | 'pied-bas' | 'pied-haut';
 /** v1 : multiplication + division seules ; addition/soustraction prévues (I14). */
 export type TypeOperation = 'addition' | 'soustraction' | 'multiplication' | 'division';
@@ -219,21 +219,8 @@ export const CONFIG: ConfigJeu = {
   },
   rig: {
     dureeExtensionMs: 90,
-    dureeRetourMs: 150,
-    flashCoupMs: 150,
-    angles: {
-      poing: 92,
-      uppercut: 92,
-      crochet: 92,
-      piedHaut: 78,
-      piedBas: 36,
-      gardeHaute: 150,
-      gardeBasse: 58,
-      contrePied: 85,
-    },
     sautHauteur: 140,
     sautDureeMs: 260,
-    echelle: 0.42,
     koChuteY: 26,
     deplacementPas: 36,
     deplacementDureeMs: 120,

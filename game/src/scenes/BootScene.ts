@@ -1,7 +1,8 @@
 /**
  * BootScene — chargement des assets (J5) puis ouverture de l'écran de
  * lancement (J6 étape 2 : Menu RUN/CONFIG).
- * Assets servis depuis `game/assets/` (publicDir Vite) : arène + personnages cut-out.
+ * Assets servis depuis `game/assets/` (publicDir Vite) : arène, sprites des
+ * combattants (style Mortal Kombat), effets et sons.
  */
 import Phaser from 'phaser';
 import { getLogger } from '../core/logger';

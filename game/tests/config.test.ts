@@ -79,25 +79,30 @@ describe('coupPourTier — §2.8b (coupsParTier)', () => {
   });
 });
 
-describe('rig — angles et durées (§2.8b/c)', () => {
-  it('garde haute > poing (bras levé au-dessus de la tête)', () => {
-    expect(CONFIG.rig.angles.gardeHaute).toBeGreaterThan(CONFIG.rig.angles.poing);
-  });
-
-  it('pied bas < pied haut (coup de bas ↔ coup de haut)', () => {
-    expect(CONFIG.rig.angles.piedBas).toBeLessThan(CONFIG.rig.angles.piedHaut);
-  });
-
-  it('contre : coup de pied de riposte + saut bornés', () => {
-    expect(CONFIG.rig.angles.contrePied).toBeGreaterThan(CONFIG.rig.angles.piedHaut);
+describe('rig — mise en scène des sprites (§2.8b/c)', () => {
+  it('saut du contre : hauteur et durée strictement positives', () => {
     expect(CONFIG.rig.sautHauteur).toBeGreaterThan(0);
     expect(CONFIG.rig.sautDureeMs).toBeGreaterThan(0);
   });
 
-  it('extension et retour au repos : durées strictement positives', () => {
+  it('déplacements : pas et durée strictement positifs', () => {
+    expect(CONFIG.rig.deplacementPas).toBeGreaterThan(0);
+    expect(CONFIG.rig.deplacementDureeMs).toBeGreaterThan(0);
+  });
+
+  it('coup : pénétration bornée (le sprite touche l\'adversaire) et durées', () => {
+    expect(CONFIG.rig.penetrationFrappe).toBeGreaterThan(0);
+    expect(CONFIG.rig.penetrationFrappe).toBeLessThan(200);
+    expect(CONFIG.rig.approcheDureeMs).toBeGreaterThan(0);
+    expect(CONFIG.rig.retourDureeMs).toBeGreaterThan(0);
     expect(CONFIG.rig.dureeExtensionMs).toBeGreaterThan(0);
-    expect(CONFIG.rig.dureeRetourMs).toBeGreaterThan(0);
-    expect(CONFIG.rig.flashCoupMs).toBeGreaterThan(0);
+  });
+
+  it('impacts : hauteurs par coup et chute du K.O. bornées', () => {
+    for (const coup of ['poing', 'pied-bas', 'pied-haut'] as const) {
+      expect(CONFIG.rig.impactY[coup]).toBeGreaterThan(0);
+    }
+    expect(CONFIG.rig.koChuteY).toBeGreaterThan(0);
   });
 });
 

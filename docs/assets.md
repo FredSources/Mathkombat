@@ -129,6 +129,30 @@ solution livrée **conserve l'illustration existante** (`perso-a.png`/`perso-b.p
   (membres tendus, flash à la bonne hauteur). Typecheck 0 erreur, Vitest 58/58
   couverture 100 %, scénarios 11/11, smoke L0, E2E 9/9.
 
+## 3bis. Sprites animés « Mortal Kombat / Street Fighter » (méthode actuelle)
+
+Les combattants sont des **planches de 8 poses** générées puis découpées :
+
+1. **Génération** (modèle d'image) : grille **4 colonnes × 2 lignes** de poses —
+   garde, marche avant, marche arrière, saut, coup de poing, coup de pied,
+   garde défensive, touché — sur **fond magenta uni** (`#FF00FF`, exigé dans le
+   prompt : « no gradient, no glow, no shadow »), personnage identique dans
+   chaque case, vue 3/4 de face. Fichiers : `game/assets/sprites-mk/sprites-<id>.png`.
+2. **Découpe** : `python3 scripts/assets-sprites-mk.py` →
+   `<id>-<i>-<pose>.png` (8 par combattant) :
+   - **détourage** par distance au magenta (franc, sombre ou rosé) — les
+     teintes violettes des personnages (NYX) sont préservées ;
+   - **coupe des résidus** : ombres noires sous les pieds et pixels de bord
+     (les chaussures se retrouvent sur le **pixel du bas du sprite**) ;
+   - **gabarits** (`RATIOS`) : TITAN 1,12 · BLAZE 1,08 · KENJI/KIRA 1,00 ·
+     ZANE 0,98 · NYX 0,92 — les proportions entre combattants sont conservées.
+3. **Intégration** : `BootScene` charge `mk-<id>-<i>` ; `SKINS` (`rig/personnage.ts`)
+   déclare les 8 poses par combattant via `posesMk(id)`.
+
+Règles de qualité : pieds sur le pixel du bas **pour les 8 poses des 6
+combattants** (contrôle automatisé), tailles homogènes entre les poses d'un
+même combattant.
+
 ## 4. Méthode 2 — spritesheet frame-by-frame (dépannage)
 
 Pour les animations qui se prêtent mal au cut-out (chute élaborée, éclairs d'aura) :

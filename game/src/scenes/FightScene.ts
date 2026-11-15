@@ -12,8 +12,9 @@
  *  - l'IA joue ses phases sur la durée configurée, énergie progressive (§2.6) ;
  *  - résolution : solde = attaque − défense → dégâts ou CONTRE-ATTAQUE (§2.4),
  *    barres de vie animées, K.O. (I5) ;
- *  - mise en scène : rig cut-out articulé — poing, pied haut/bas, gardes et
- *    contre sautant (§2.8, docs/assets.md §3a) + juice d'impact ;
+ *  - mise en scène : combattants en **sprites animés** (style Mortal Kombat,
+ *    `rig/personnage.ts`) — marche, saut, coups, garde, touché — + juice
+ *    d'impact (§2.8) ;
  *  - traces par le logger (DEBUG) ; hook de debug `window.__mathkombat` (DEBUG).
  */
 import Phaser from 'phaser';
@@ -65,7 +66,7 @@ const LIMITES_PERSONNAGE = {
 
 type NaturePhase = 'attaque' | 'defense' | 'simultane';
 
-// Les modèles de combattant (rig cut-out, skins, aura) vivent dans
+// Les modèles de combattant (sprites animés, skins, aura) vivent dans
 // `rig/personnage.ts` (docs/architecture.md §9) : `FightScene` n'en contient
 // plus la présentation fine.
 

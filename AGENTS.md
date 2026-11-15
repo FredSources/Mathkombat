@@ -288,6 +288,12 @@ l'**arène animée** (bas). Toutes les intensités d'animation sont des **foncti
 déterministes de la puissance**, définies dans `core/config.ts` (testables, jamais
 estimées « à l'œil » dans le code d'animation).
 
+> **Rendu** : les combattants sont des **sprites animés style Mortal Kombat /
+> Street Fighter** (8 poses : garde, marche, saut, poing, pied, garde défensive,
+> touché — `rig/personnage.ts`, assets dans `game/assets/sprites-mk/`). L'ancien
+> rig cut-out articulé a été retiré ; les intensités ci-dessous (tiers, aura,
+> impacts) restent valables.
+
 #### a) Chargement d'énergie (phase de calcul) — style « Ki » façon Dragon Ball
 
 Sous les calculs, l'attaquant est en **concentration** : une **aura d'énergie** dont

@@ -104,6 +104,12 @@ export function texteRetro(
     .setOrigin(ox, oy);
 }
 
+/** Voisin dans une liste bornée (flèches ◀ ▶ des écrans rétro). */
+export function suivant<T>(liste: readonly T[], actuel: T, delta: number): T {
+  const index = liste.indexOf(actuel);
+  return liste[Math.min(liste.length - 1, Math.max(0, index + delta))];
+}
+
 /**
  * Cadre de borne d'arcade : double filet inscrit dans l'écran (§1), repris sur
  * l'écran CONFIG pour que les deux écrans rétro partagent la même ossature.

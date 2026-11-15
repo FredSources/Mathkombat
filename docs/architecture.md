@@ -159,9 +159,12 @@ export class Personnage {
   orientation: Orientation;        // état de l'instance, pas un paramètre
 
   // déplacement / garde
-  orienter(o: Orientation): void;  // miroir du rig + table de profondeurs
+  orienter(o: Orientation): void;  // symétrie du sprite (miroir)
+  orienterVers(autre: Personnage): void;  // face à l'adversaire (auto)
   vaAGauche(): void;
   vaADroite(): void;
+  vaEnHaut(): void;
+  vaEnBas(): void;
   gardeHaute(): void;
   gardeBasse(): void;
 
@@ -169,9 +172,11 @@ export class Personnage {
   coupDePoing(c: CoupDePoing): void;   // direct / uppercut / crochet
   coupDePied(c: CoupDePied): void;     // haut / bas
   saut(): void;
-  parade(coup: Coup): void;
-  contre(): void;
-  encaisse(tier: number): void;
+  frapper(cible: Personnage, tier: number): CoupLance; // approche → coup → retour
+  parade(coup: Coup, tier: number, versAttaquantDroite: boolean): void;
+  contre(attaquant: Personnage, tier: number, apresRiposte?): void;
+  encaisse(tier: number, direction?: number): void;
+  whiff(): void;
   ko(): void;
 
   // énergie (§2.8a) — intensité lue dans config.ts
@@ -187,11 +192,11 @@ quelle que soit l'orientation et le skin.
 
 ```ts
 export interface SkinPersonnage {
-  id: string;                                  // 'persoA' | 'persoB' | …
-  pieces: Record<Membre, string>;              // textures des 5 pièces cut-out
-  meta: MetaRig;                               // pivots épaule / hanche
-  profondeurs: Record<Membre, number>;         // ordre de recouvrement
-  teintes: { lueur: number; coeur: number };   // teinte d'aura
+  id: string;                                  // 'karateka' | 'boxeur' | …
+  nom: string;                                 // prénom affiché (KENJI, TITAN…)
+  orientation: Orientation;                    // sens de dessin des sprites
+  teintes: { base: number; lueur: number; coeur: number };
+  sprites: SpritesSkin;                        // 8 poses animées (clés de textures)
 }
 ```
 

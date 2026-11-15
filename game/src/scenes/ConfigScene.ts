@@ -31,7 +31,7 @@ import type {
 } from '../core/config';
 import { getLogger } from '../core/logger';
 import { declarerEcran } from '../ui/ecran';
-import { RETRO, creerBoutonRetro, creerCadreBorne, texteRetro } from '../ui/retro';
+import { RETRO, creerBoutonRetro, creerCadreBorne, suivant, texteRetro } from '../ui/retro';
 
 const log = getLogger('Config');
 
@@ -67,12 +67,6 @@ interface LigneConfig {
   moins: () => void;
   plus: () => void;
   texte?: Phaser.GameObjects.Text;
-}
-
-/** Voisin dans une liste bornée (les extrémités restent sur place). */
-function suivant<T>(liste: readonly T[], actuel: T, delta: number): T {
-  const index = liste.indexOf(actuel);
-  return liste[Math.min(liste.length - 1, Math.max(0, index + delta))];
 }
 
 export class ConfigScene extends Phaser.Scene {

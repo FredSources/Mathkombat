@@ -15,7 +15,7 @@ import type { Niveau } from '../core/config';
 import { getLogger } from '../core/logger';
 import { declarerEcran } from '../ui/ecran';
 import { selection } from '../ui/selection';
-import { RETRO, creerBoutonRetro, creerCadreBorne, texteRetro } from '../ui/retro';
+import { RETRO, creerBoutonRetro, creerCadreBorne, suivant, texteRetro } from '../ui/retro';
 import { SKINS } from '../rig/personnage';
 
 const log = getLogger('Select');
@@ -41,12 +41,6 @@ export const PLACE_SELECT = {
   libelle: 110,
   lancer: { x: 640, y: 520, largeur: 700, hauteur: 92 },
 } as const;
-
-/** Voisin dans une liste bornée (les extrémités restent sur place). */
-function suivant<T>(liste: readonly T[], actuel: T, delta: number): T {
-  const index = liste.indexOf(actuel);
-  return liste[Math.min(liste.length - 1, Math.max(0, index + delta))];
-}
 
 interface LigneSelect {
   libelle: string;
