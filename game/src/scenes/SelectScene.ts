@@ -26,12 +26,10 @@ const LIBELLES_NIVEAU: Record<Niveau, string> = {
   intermediaire: 'INTERMÉDIAIRE',
   avance: 'AVANCÉ',
 };
-/** Noms affichés des skins (clé = id de `SKINS`). */
-const LIBELLES_SKIN: Record<string, string> = {
-  persoA: 'PERSO A',
-  persoB: 'PERSO B',
-};
-const IDS_SKIN = Object.keys(SKINS);
+/** Combattants jouables : les skins animés (« Mortal Kombat »), avec leur nom. */
+const IDS_SKIN = Object.values(SKINS)
+  .filter((s) => s.sprites)
+  .map((s) => s.id);
 
 /** Positions des commandes (coordonnées de référence des tests E2E). */
 export const PLACE_SELECT = {
@@ -99,7 +97,7 @@ export class SelectScene extends Phaser.Scene {
     this.dessinerLigne(
       {
         libelle: 'JOUEUR 1  ........',
-        valeur: () => LIBELLES_SKIN[selection.skinJ1] ?? selection.skinJ1.toUpperCase(),
+        valeur: () => SKINS[selection.skinJ1]?.nom ?? selection.skinJ1.toUpperCase(),
         moins: () => {
           selection.skinJ1 = suivant(IDS_SKIN, selection.skinJ1, -1);
         },
@@ -125,7 +123,7 @@ export class SelectScene extends Phaser.Scene {
     this.dessinerLigne(
       {
         libelle: libelleJ2,
-        valeur: () => LIBELLES_SKIN[selection.skinJ2] ?? selection.skinJ2.toUpperCase(),
+        valeur: () => SKINS[selection.skinJ2]?.nom ?? selection.skinJ2.toUpperCase(),
         moins: () => {
           selection.skinJ2 = suivant(IDS_SKIN, selection.skinJ2, -1);
         },

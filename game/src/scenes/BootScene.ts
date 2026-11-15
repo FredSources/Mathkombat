@@ -38,6 +38,17 @@ export class BootScene extends Phaser.Scene {
     for (const nom of ['fond-menu', 'fond-config']) {
       this.load.image(nom, `fonds/${nom}.png`);
     }
+    // sprites des combattants animés (style Mortal Kombat, docs/assets.md) :
+    // 8 poses par combattant, clés `mk-<id>-<i>`
+    const poses = [
+      'garde', 'marche-avant', 'marche-arriere', 'saut',
+      'poing', 'pied', 'garde-defense', 'touche',
+    ];
+    for (const id of ['j1', 'j2', 'h2', 'f2', 'z1', 'z2']) {
+      poses.forEach((pose, i) => {
+        this.load.image(`mk-${id}-${i}`, `sprites-mk/${id}-${i}-${pose}.png`);
+      });
+    }
   }
 
   create(): void {

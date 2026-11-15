@@ -17,7 +17,7 @@
  *  - traces par le logger (DEBUG) ; hook de debug `window.__mathkombat` (DEBUG).
  */
 import Phaser from 'phaser';
-import { CONFIG, coupPourTier, lireTempsPhase } from '../core/config.ts';
+import { CONFIG, lireTempsPhase } from '../core/config.ts';
 import type { ConfigJeu, Coup, Difficulte, ModeJeu, Rythme } from '../core/config.ts';
 import {
   CombatEngine,
@@ -131,6 +131,11 @@ export class FightScene extends Phaser.Scene {
   create(): void {
     declarerEcran('fight');
     this.dessinerArene();
+    // à chaque déplacement, les deux se retournent face à face (symétrie sprites)
+    const onDeplace = () => {
+      this.j1.orienterVers(this.j2);
+      this.j2.orienterVers(this.j1);
+    };
     this.j1 = new Personnage({
       scene: this,
       id: 'j1',
@@ -141,6 +146,7 @@ export class FightScene extends Phaser.Scene {
       orientation: 'droite',
       limites: LIMITES_PERSONNAGE,
       effets: this.effetsPersonnage(),
+      onDeplace,
     });
     this.j2 = new Personnage({
       scene: this,
@@ -152,6 +158,7 @@ export class FightScene extends Phaser.Scene {
       orientation: 'gauche',
       limites: LIMITES_PERSONNAGE,
       effets: this.effetsPersonnage(),
+      onDeplace,
     });
     this.dessinerHud();
 
@@ -704,17 +711,16 @@ export class FightScene extends Phaser.Scene {
       this.noterJournal(`${FightScene.nomJoueur(r.defenseur)} parade`);
       this.jouerSon('blocage');
       const tierBlocage = tierFrappe(r.attaque);
-      // garde côté attaquant : bras contre un coup haut, jambe contre un coup bas
-      defenseur.parade(
-        coupPourTier(tierBlocage),
-        tierBlocage,
-        attaquant.corps.x > defenseur.corps.x
-      );
+      // l'attaquant s'approche et frappe… le défenseur bloque (garde)
+      const { coup } = attaquant.frapper(defenseur, tierBlocage);
+      defenseur.parade(coup, tierBlocage, attaquant.corps.x > defenseur.corps.x);
     } else if (r.degats > 0) {
       this.noterJournal(`${FightScene.nomJoueur(r.defenseur)} encaisse ${r.degats}`);
       this.jouerSon('frappe');
       const tierFrappeCourant = tierFrappe(r.attaque);
+      // l'attaquant s'approche et frappe… le défenseur encaisse (coup porté)
       const { coup, droite } = attaquant.frapper(defenseur, tierFrappeCourant);
+      defenseur.encaisse(tierFrappeCourant, droite ? 1 : -1);
       this.apresImpact(() =>
         this.impactVisuel(defenseur, tierFrappeCourant, false, coup, droite)
       );
@@ -1110,10 +1116,9 @@ export class FightScene extends Phaser.Scene {
       // cours d'animation, angles des pièces, saut du contre, textures
       coups: () => ({
         actifs: scene.coupsActifs,
-        membresActifs: [...scene.j1.membresActifs, ...scene.j2.membresActifs],
         timeScale: scene.tweens.timeScale,
         textures: ['coups-poing', 'coups-pied'].filter((k) => scene.textures.exists(k)),
-        rig: { j1: scene.j1.etatRig(), j2: scene.j2.etatRig() },
+        poses: { j1: scene.j1.pose, j2: scene.j2.pose },
       }),
       // force l'énergie de défense du tour en cours (captures E04)
       forcerEnergieDefense: (v: number) => {

@@ -20,8 +20,8 @@ export interface SelectionCombat {
 
 /** Sélection courante (valeurs par défaut = wireframe §3). */
 export const selection: SelectionCombat = {
-  skinJ1: 'persoA',
-  skinJ2: 'persoB',
+  skinJ1: 'karateka',
+  skinJ2: 'combattante',
   niveauJ1: 'intermediaire',
   niveauJ2: 'intermediaire',
 };

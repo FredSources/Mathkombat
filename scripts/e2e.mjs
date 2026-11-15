@@ -862,7 +862,7 @@ async function main() {
       e12.ecran === 'fight' &&
         e12.tour >= 1 &&
         e12.niveauJ1 === 'debutant' &&
-        e12.skinJ2 === 'persoA',
+        e12.skinJ2 !== 'combattante', // ◀ fait changer le combattant de J2
       `ecran=${e12.ecran} tour=${e12.tour} · sélection: niveauJ1=${e12.niveauJ1} skinJ2=${e12.skinJ2}`
     );
   } finally {

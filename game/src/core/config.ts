@@ -146,6 +146,10 @@ export interface ConfigJeu {
     /** Déplacement libre du personnage (§9.2 `vaAGauche`…`vaEnBas`). */
     deplacementPas: number;
     deplacementDureeMs: number;
+    /** Approche de la cible avant un coup (§2.8b) : distance et durées. */
+    distanceFrappe: number;
+    approcheDureeMs: number;
+    retourDureeMs: number;
     /** Hauteur d'impact au-dessus du sol (px) selon le coup. */
     impactY: Record<Coup, number>;
   };
@@ -223,7 +227,8 @@ export const CONFIG: ConfigJeu = {
     ],
   },
   energieVisuelleMax: 30,
-  auraAlphas: [0.55, 0.74, 0.88, 0.98],
+  // palier 0 : à peine visible (« très proche, voire invisible »), puis strates
+  auraAlphas: [0.18, 0.74, 0.88, 0.98],
   tiersFrappe: [5, 12, 20],
   coupsParTier: ['poing', 'poing', 'pied-bas', 'pied-haut'],
   juice: {
@@ -256,6 +261,9 @@ export const CONFIG: ConfigJeu = {
     koChuteY: 26,
     deplacementPas: 36,
     deplacementDureeMs: 120,
+    distanceFrappe: 150,
+    approcheDureeMs: 140,
+    retourDureeMs: 180,
     impactY: { poing: 185, 'pied-haut': 100, 'pied-bas': 40 },
   },
   saisieMaxChiffres: 3,

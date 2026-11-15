@@ -6,23 +6,23 @@
  * (`coupDePoing`, `coupDePied`, `saut`, `parade`, `contre`, `encaisse`, `ko`),
  * énergie (`charger`, `impulsion`).
  *
+ * Rendu : **sprites animés style Mortal Kombat / Street Fighter** (8 poses par
+ * combattant, `game/assets/sprites-mk/`) — l'ancien rig cut-out a été retiré.
+ *
  * Règles d'architecture (§9.4) :
- *  - **orientation = état** (`gauche`/`droite`) : le sens des coups et le miroir
- *    de la table de profondeurs en découlent, jamais un paramètre re-passé ;
- *  - **skin = donnée** (`SkinPersonnage`) : textures, pivots, profondeurs,
- *    teintes — ajouter un skin = ajouter un descripteur, aucun code ;
- *  - **intensités lues dans `config.ts`** (§2.8) : cette classe n'en contient
- *    aucune.
+ *  - **orientation = état** (`gauche`/`droite`) : le sens des coups et la
+ *    symétrie du sprite (miroir) en découlent ; les deux combattants se
+ *    retournent d'eux-mêmes (`orienterVers`) pour toujours se faire face ;
+ *  - **skin = donnée** (`SkinPersonnage`) : sprites, teintes, prénom — ajouter
+ *    un combattant = ajouter un descripteur, aucun code ;
+ *  - **intensités lues dans `config.ts`** (§2.8) et dans le skin (durée de
+ *    frame) : cette classe n'en contient aucune.
  */
 import Phaser from 'phaser';
 import { CONFIG, coupPourTier } from '../core/config.ts';
 import type { Coup } from '../core/config.ts';
 
 // ---------------------------------------------------------------- types
-
-/** Pièces du rig cut-out articulé (scripts/assets-rig.py, docs/assets.md §3a). */
-export type Membre = 'buste' | 'bras-g' | 'bras-d' | 'jambe-g' | 'jambe-d';
-export const PIECES_RIG: readonly Membre[] = ['buste', 'bras-g', 'bras-d', 'jambe-g', 'jambe-d'];
 
 /** Sens du personnage : côté vers lequel il fait face et frappe (§9.4, état). */
 export type Orientation = 'gauche' | 'droite';
@@ -31,37 +31,42 @@ export type CoupDePoing = 'direct' | 'uppercut' | 'crochet';
 /** Vocabulaire de coups de pied (§9.2). */
 export type CoupDePied = 'haut' | 'bas';
 
-/** Meta d'une pièce telle que produite par scripts/assets-rig.py (rig-meta.json). */
-export interface MetaPiece {
-  fichier: string;
-  x: number;
-  y: number;
-  largeur: number;
-  hauteur: number;
-  pivotX?: number;
-  pivotY?: number;
-}
+/**
+ * Poses d'un combattant (style Mortal Kombat / Street Fighter) : le déplacement
+ * joue `marche-*`, les coups jouent `poing`/`pied`, les chocs `touche`, etc.
+ */
+export type PoseSprite =
+  | 'garde'
+  | 'marche-avant'
+  | 'marche-arriere'
+  | 'saut'
+  | 'poing'
+  | 'pied'
+  | 'garde-defense'
+  | 'touche';
 
-export interface MetaRig {
+/** Rendu par sprites animés : les poses sont des clés de textures. */
+export interface SpritesSkin {
+  /** Une ou plusieurs images par pose (la marche alterne deux frames). */
+  poses: Record<PoseSprite, string[]>;
+  /** Largeur d'affichage du sprite (hauteur proportionnelle). */
   largeur: number;
-  hauteur: number;
-  pieces: Record<Membre, MetaPiece>;
+  /** Durée d'une frame de marche (ms) — « un peu moins rapide » que la v1. */
+  dureeFrameMs: number;
+  /** Durée d'une pose d'action avant le retour à la garde (ms). */
+  dureePoseMs: number;
 }
 
 /** Skin = descripteur de DONNÉES (§9.3) : changer de skin = changer de skin. */
 export interface SkinPersonnage {
   id: string;
-  /** Texture de l'image plate (repli si le rig cut-out est absent). */
-  sprite: string;
-  /** Clé du rig dans `rig-meta.json`. */
-  metaCle: string;
-  /** Textures des 5 pièces cut-out. */
-  pieces: Record<Membre, string>;
-  /** Sens dans lequel les textures sont dessinées (pas de miroir inutile). */
+  /** Libellé affiché (sélection, écrans) — le prénom du combattant. */
+  nom: string;
+  /** Sens dans lequel les sprites sont dessinés (le jeu miroir au besoin). */
   orientation: Orientation;
-  /** Profondeurs pour l'orientation du skin ; miroirées si on l'oriente autrement. */
-  profondeurs: Record<Membre, number>;
   teintes: { base: number; lueur: number; coeur: number };
+  /** Rendu par sprites animés (style Mortal Kombat / Street Fighter). */
+  sprites: SpritesSkin;
 }
 
 /** Mélange une teinte vers le blanc : la lueur reste lisible sur décor clair. */
@@ -78,54 +83,82 @@ function teintesDe(base: number): SkinPersonnage['teintes'] {
   return { base, lueur: melangerVersBlanc(base, 0.55), coeur: melangerVersBlanc(base, 0.85) };
 }
 
-/** Profondeur du membre en cours d'animation (passe devant, §3a). */
-const PROFONDEUR_ANIME = 16;
+/**
+ * Échelle FIXE de l'enveloppe de flammes : les flammes gardent la taille et la
+ * densité du début — l'aura grandit par **ajout de couches** (paliers), jamais
+ * par étirement (demande utilisateur, §2.8a).
+ */
+const ECHELLE_AURA = 0.85;
 
 /**
- * Skins disponibles (§9.3) — données pures : ajouter un personnage = ajouter
- * une entrée ici (+ ses textures), aucune modification de `Personnage` ni des
- * scènes. Un skin inconnu est une **erreur explicite** (pas de repli silencieux).
+ * Écartement des couches de flammes (§2.8a) : la couche 0 est **très proche du
+ * corps** (voire invisible à 0 énergie), chaque palier suivant **ajoute** une
+ * strate « un peu moins proche » — même taille de flammes, densité constante.
  */
-export const SKINS: Record<string, SkinPersonnage> = {
-  persoA: {
-    id: 'persoA',
-    sprite: 'persoA',
-    metaCle: 'rig-a',
-    pieces: {
-      buste: 'rig-a-buste',
-      'bras-g': 'rig-a-bras-g',
-      'bras-d': 'rig-a-bras-d',
-      'jambe-g': 'rig-a-jambe-g',
-      'jambe-d': 'rig-a-jambe-d',
-    },
-    orientation: 'droite',
-    profondeurs: { 'bras-g': 5, 'jambe-g': 8, buste: 10, 'jambe-d': 12, 'bras-d': 15 },
-    teintes: teintesDe(0x3f7fe0),
-  },
-  persoB: {
-    id: 'persoB',
-    sprite: 'persoB',
-    metaCle: 'rig-b',
-    pieces: {
-      buste: 'rig-b-buste',
-      'bras-g': 'rig-b-bras-g',
-      'bras-d': 'rig-b-bras-d',
-      'jambe-g': 'rig-b-jambe-g',
-      'jambe-d': 'rig-b-jambe-d',
-    },
-    orientation: 'gauche',
-    profondeurs: { 'bras-g': 15, 'jambe-g': 12, buste: 10, 'jambe-d': 8, 'bras-d': 5 },
-    teintes: teintesDe(0xd4433a),
-  },
-};
+const ECARTEMENTS_COUCHES: readonly number[] = [0.9, 1.15, 1.4];
 
-/** Miroir gauche↔droite des pièces du rig (§9.4). */
-const MIROIR_MEMBRE: Record<Membre, Membre> = {
-  buste: 'buste',
-  'bras-g': 'bras-d',
-  'bras-d': 'bras-g',
-  'jambe-g': 'jambe-d',
-  'jambe-d': 'jambe-g',
+/**
+ * Poses d'un combattant : clés de textures `mk-<id>-<i>` (chargées par
+ * `BootScene` depuis `game/assets/sprites-mk/`). La marche alterne le pas et la
+ * garde pour donner l'impression de marcher (deux frames).
+ */
+function posesMk(id: string): Record<PoseSprite, string[]> {
+  return {
+    garde: [`mk-${id}-0`],
+    'marche-avant': [`mk-${id}-1`, `mk-${id}-0`],
+    'marche-arriere': [`mk-${id}-2`, `mk-${id}-0`],
+    saut: [`mk-${id}-3`],
+    poing: [`mk-${id}-4`],
+    pied: [`mk-${id}-5`],
+    'garde-defense': [`mk-${id}-6`],
+    touche: [`mk-${id}-7`],
+  };
+}
+
+/** Les 6 combattants (prénoms) — ajouter un combattant = ajouter une entrée ici. */
+export const SKINS: Record<string, SkinPersonnage> = {
+  karateka: {
+    id: 'karateka',
+    nom: 'KENJI',
+    orientation: 'droite',
+    teintes: teintesDe(0x3f7fe0),
+    sprites: { poses: posesMk('j1'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
+  },
+  combattante: {
+    id: 'combattante',
+    nom: 'KIRA',
+    orientation: 'gauche',
+    teintes: teintesDe(0xd4433a),
+    sprites: { poses: posesMk('j2'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
+  },
+  boxeur: {
+    id: 'boxeur',
+    nom: 'TITAN',
+    orientation: 'droite',
+    teintes: teintesDe(0xd4a13a),
+    sprites: { poses: posesMk('h2'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
+  },
+  ninja: {
+    id: 'ninja',
+    nom: 'NYX',
+    orientation: 'droite',
+    teintes: teintesDe(0x7a5fd4),
+    sprites: { poses: posesMk('f2'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
+  },
+  guerrier: {
+    id: 'guerrier',
+    nom: 'ZANE',
+    orientation: 'droite',
+    teintes: teintesDe(0x3f7fe0),
+    sprites: { poses: posesMk('z1'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
+  },
+  guerriere: {
+    id: 'guerriere',
+    nom: 'BLAZE',
+    orientation: 'droite',
+    teintes: teintesDe(0xd4433a),
+    sprites: { poses: posesMk('z2'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
+  },
 };
 
 /** Skin par id — erreur explicite si inconnu (§9.3 : pas de fallback en dur). */
@@ -159,6 +192,8 @@ export interface OptionsPersonnage {
   /** Bornes de déplacement dans l'arène (px). */
   limites: { xMin: number; xMax: number; yMin: number; yMax: number };
   effets?: EffetsPersonnage;
+  /** Appelé à la fin de chaque déplacement (mise à jour des orientations). */
+  onDeplace?: () => void;
 }
 
 /** Résultat d'un coup lancé : ce que la scène a besoin de savoir pour l'impact. */
@@ -177,10 +212,8 @@ export class Personnage {
   readonly corps: Phaser.GameObjects.Container;
   /** Conteneur des flammes (fusion ADD) : alpha = palier, échelle = intensité. */
   readonly aura: Phaser.GameObjects.Container;
-  /** Conteneur du rig cut-out : pièces articulées, ou l'image plate en repli. */
+  /** Conteneur du sprite (bouge lors du saut, avec l'aura). */
   readonly rig: Phaser.GameObjects.Container;
-  /** Pièces articulées (pivots épaule/hanche) — null = repli image plate. */
-  readonly membres: Record<Membre, Phaser.GameObjects.Image> | null;
   /** Étiquette de nom sous le personnage (libellé J1 / IA / J2). */
   readonly etiquette: Phaser.GameObjects.Text;
   readonly teinte: number;
@@ -188,8 +221,6 @@ export class Personnage {
   readonly lueur: number;
   /** Palier d'aura courant (§2.8a) — debug/E2E. */
   palier = -1;
-  /** Membres en cours d'animation, clés `id:membre` (debug/E2E). */
-  readonly membresActifs = new Set<string>();
 
   private readonly scene: Phaser.Scene;
   private readonly options: OptionsPersonnage;
@@ -198,6 +229,14 @@ export class Personnage {
   /** Tween d'impulsion en cours (une seule à la fois). */
   private impulsionEnCours: Phaser.Tweens.Tween | null = null;
   private nomInterne: string;
+  /** Sprite animé (style Mortal Kombat). */
+  private spriteAnime: Phaser.GameObjects.Image;
+  /** Pose affichée (debug/E2E). */
+  private poseCourante: PoseSprite = 'garde';
+  /** Minuteur d'animation courant (marche alternée / retour à la garde). */
+  private minuteurAnim: Phaser.Time.TimerEvent | null = null;
+  /** Couches de flammes (§2.8a) : la 0 = base, les suivantes élargissent l'aura. */
+  private readonly couchesAura: Phaser.GameObjects.Container[] = [];
 
   constructor(options: OptionsPersonnage) {
     this.options = options;
@@ -211,7 +250,6 @@ export class Personnage {
 
     const scene = this.scene;
     const conteneur = scene.add.container(options.x, options.y);
-    conteneur.setScale(CONFIG.rig.echelle);
     const lueur = options.skin.teintes.lueur;
     const coeur = options.skin.teintes.coeur;
     // teinte CPU : le tint WebGL (`setTint`) n'est pas appliqué par certains
@@ -234,33 +272,40 @@ export class Personnage {
     ombre.fillStyle(0x000000, 0.5);
     ombre.fillEllipse(0, -4, 130, 26); // ombre portée au sol
 
-    // enveloppe de flammes (style Dragon Ball) : textures douces en fusion
-    // additive, vacillement par tweens — alpha/échelle = palier (§2.8a).
-    // Flamme à DEUX couches : langue colorée (enveloppe) + noyau blanc chaud.
-    const aura = scene.add.container(0, 0).setAlpha(0);
-    FLAMMES.forEach((f, i) => {
-      const flamme = scene.add
-        .image(f.x, f.y, texLueur[i % 2])
-        .setOrigin(0.5, 1)
-        // fusion NORMALE : la langue garde sa couleur sur le décor clair
-        // (l'ADD la délavait en blanc) — le noyau, lui, reste en ADD.
-        .setBlendMode(Phaser.BlendModes.NORMAL)
-        .setDisplaySize(f.l, f.h)
-        .setAlpha(f.d * 0.9);
-      aura.add(flamme);
-      this.vaciller(flamme, f.d * 0.9, i);
-      // noyau incandescent sur les langues épaisses (pieds, jambes, torses, tête, couronne)
-      if (f.d >= 0.8) {
-        const noyau = scene.add
-          .image(f.x * 0.68, f.y, texCoeur[i % 2])
-          .setBlendMode(Phaser.BlendModes.ADD)
-          .setDisplaySize(f.l * 0.45, f.h * 0.55)
-          .setAlpha(f.d * 0.6);
-        noyau.setOrigin(0.5, 1);
-        aura.add(noyau);
-        this.vaciller(noyau, f.d * 0.6, i + 4);
-      }
-    });
+    // enveloppe de flammes (§2.8a) : la **couche 0** = les flammes très proches
+    // du corps (« niveau 1 ») ; chaque palier AJOUTE une strate « un peu moins
+    // proche » — **densité constante, taille des flammes inchangée** : l'aura
+    // grandit par ajout, jamais par étirement (demande utilisateur).
+    const aura = scene.add.container(0, 0).setAlpha(0).setScale(ECHELLE_AURA);
+    for (let couche = 0; couche < ECARTEMENTS_COUCHES.length; couche++) {
+      const facteur = ECARTEMENTS_COUCHES[couche]; // écartement, pas de taille
+      const assise = scene.add.container(0, 0).setAlpha(couche === 0 ? 1 : 0);
+      FLAMMES.forEach((f, i) => {
+        const flamme = scene.add
+          .image(f.x * facteur, f.y * facteur, texLueur[i % 2])
+          .setOrigin(0.5, 1)
+          // fusion NORMALE : la langue garde sa couleur sur le décor clair
+          // (l'ADD la délavait en blanc) — le noyau, lui, reste en ADD.
+          .setBlendMode(Phaser.BlendModes.NORMAL)
+          .setDisplaySize(f.l, f.h) // TAILLE FIXE : la densité reste celle du début
+          .setAlpha(f.d * 0.9);
+        assise.add(flamme);
+        this.vaciller(flamme, f.d * 0.9, i);
+        // noyau incandescent sur les langues épaisses (pieds, jambes, torses, tête, couronne)
+        if (f.d >= 0.8) {
+          const noyau = scene.add
+            .image(f.x * 0.68 * facteur, f.y * facteur, texCoeur[i % 2])
+            .setBlendMode(Phaser.BlendModes.ADD)
+            .setDisplaySize(f.l * 0.45, f.h * 0.55)
+            .setAlpha(f.d * 0.6);
+          noyau.setOrigin(0.5, 1);
+          assise.add(noyau);
+          this.vaciller(noyau, f.d * 0.6, i + 4);
+        }
+      });
+      aura.add(assise);
+      this.couchesAura.push(assise);
+    }
 
     // étincelles montantes (§2.8a : « quelques particules qui montent »)
     const particules: Phaser.GameObjects.Ellipse[] = [];
@@ -296,13 +341,15 @@ export class Personnage {
       particules.push(p);
     }
 
-    const sprite = scene.add.image(0, 0, options.skin.sprite).setOrigin(0.5, 1);
-    // rig cut-out articulé : 5 pièces posées par bbox source et pivotées autour
-    // de leurs articulations ; si les textures sont absentes, l'image plate
-    // reste visible (repli sans dégradation du rendu)
+    // sprite animé (style Mortal Kombat), posé par les pieds
+    const sprite = scene.add
+      .image(0, 0, options.skin.sprites.poses.garde[0])
+      .setOrigin(0.5, 1);
+    sprite.setScale(options.skin.sprites.largeur / Math.max(1, sprite.width));
+    this.spriteAnime = sprite;
+    this.appliquerMiroir(); // sens initial (symétrie droite/gauche)
+
     const rig = scene.add.container(0, 0);
-    const membres = this.construireRig(rig);
-    if (membres) sprite.setVisible(false);
     rig.add(sprite);
     const etiquette = scene.add
       .text(0, 18, options.nom, {
@@ -326,7 +373,6 @@ export class Personnage {
     this.corps = conteneur;
     this.aura = aura;
     this.rig = rig;
-    this.membres = membres;
     this.etiquette = etiquette;
   }
 
@@ -340,23 +386,35 @@ export class Personnage {
     this.etiquette.setText(valeur);
   }
 
+  /** Pose actuellement affichée (debug/E2E). */
+  get pose(): PoseSprite {
+    return this.poseCourante;
+  }
+
   // ------------------------------------------------------- déplacements (effectifs)
 
   /**
    * Déplacement effectif du personnage dans l'arène (§9.2) : tween court,
    * borné aux limites — le corps bouge vraiment, y compris pour les déplacements
-   * que le gameplay n'utilise pas encore.
+   * que le gameplay n'utilise pas encore. La marche est animée (2 frames).
    */
   private deplacer(dx: number, dy: number): void {
     const l = this.options.limites;
     const x = Math.min(l.xMax, Math.max(l.xMin, this.corps.x + dx));
     const y = Math.min(l.yMax, Math.max(l.yMin, this.corps.y + dy));
+    const avant = dx === 0 ? dy < 0 : dx > 0;
+    const versAvant = (this.orientation === 'droite') === avant;
+    this.jouerMarche(versAvant ? 'marche-avant' : 'marche-arriere');
     this.scene.tweens.add({
       targets: this.corps,
       x,
       y,
       duration: CONFIG.rig.deplacementDureeMs,
       ease: 'quad.out',
+      onComplete: () => {
+        this.jouerPose('garde');
+        this.options.onDeplace?.(); // orientations des deux face à face
+      },
     });
   }
 
@@ -380,52 +438,47 @@ export class Personnage {
     this.deplacer(0, CONFIG.rig.deplacementPas);
   }
 
-  /** Oriente le personnage : sens des coups + miroir des profondeurs (§9.4). */
+  /** Oriente le personnage : sens des coups + symétrie du sprite (§9.4). */
   orienter(orientation: Orientation): void {
     if (orientation === this.orientation) return;
     this.orientation = orientation;
-    // le sens de l'image ne change que si on s'écarte du sens de dessin du skin
-    this.rig.setScale(orientation === this.skin.orientation ? 1 : -1, 1);
-    if (this.membres) this.appliquerProfondeurs();
+    this.appliquerMiroir();
   }
 
-  /** Garde haute (bras levé, §2.8c). */
+  /**
+   * Face à l'adversaire : s'oriente vers lui — un personnage dépassé se
+   * retourne de lui-même (symétrie des sprites).
+   */
+  orienterVers(autre: Personnage): void {
+    this.orienter(this.corps.x <= autre.corps.x ? 'droite' : 'gauche');
+  }
+
+  /** Garde haute (§2.8c). */
   gardeHaute(): void {
-    this.animerMembre(
-      this.orientation === 'droite' ? 'bras-d' : 'bras-g',
-      CONFIG.rig.angles.gardeHaute * (this.orientation === 'droite' ? -1 : 1)
-    );
+    this.jouerPose('garde-defense', this.skin.sprites.dureePoseMs);
   }
 
-  /** Garde basse (jambe levée, §2.8c). */
+  /** Garde basse (§2.8c). */
   gardeBasse(): void {
-    this.animerMembre(
-      this.orientation === 'droite' ? 'jambe-d' : 'jambe-g',
-      CONFIG.rig.angles.gardeBasse * (this.orientation === 'droite' ? -1 : 1)
-    );
+    this.jouerPose('garde-defense', this.skin.sprites.dureePoseMs);
   }
 
   // ------------------------------------------------------- coups (interface unique)
 
   /** Coup de poing nommé (§9.2) : direct / uppercut / crochet. */
-  coupDePoing(coup: CoupDePoing): void {
-    const angle =
-      coup === 'uppercut'
-        ? CONFIG.rig.angles.uppercut
-        : coup === 'crochet'
-          ? CONFIG.rig.angles.crochet
-          : CONFIG.rig.angles.poing;
-    this.animerCoup('poing', angle);
+  coupDePoing(_coup: CoupDePoing): void {
+    this.jouerPose('poing', this.skin.sprites.dureePoseMs);
   }
 
   /** Coup de pied nommé (§9.2) : haut / bas. */
-  coupDePied(coup: CoupDePied): void {
-    this.animerCoup(coup === 'haut' ? 'pied-haut' : 'pied-bas');
+  coupDePied(_coup: CoupDePied): void {
+    this.jouerPose('pied', this.skin.sprites.dureePoseMs);
   }
 
-  /** Saut (§9.2) : rig + aura montent (l'ombre reste au sol). */
+  /** Saut (§9.2) : le sprite et l'aura montent (l'ombre reste au sol). */
   saut(): void {
     const rig = CONFIG.rig;
+    this.jouerPose('saut', rig.sautDureeMs);
     this.scene.tweens.add({
       targets: [this.rig, this.aura],
       y: -rig.sautHauteur,
@@ -436,27 +489,50 @@ export class Personnage {
   }
 
   /**
-   * Frappe graduée (§2.8b) : élan vers la cible, coup du tier, recul de la
-   * cible. L'impact visuel est programmé par la scène à partir du résultat.
+   * Frappe graduée (§2.8b) : l'attaquant **s'approche** de la cible, donne le
+   * coup, puis **revient à sa position d'origine**. La réaction de la cible
+   * (encaisse / parade / contre) est orchestrée par la scène.
    */
   frapper(cible: Personnage, tier: number): CoupLance {
     const droite = cible.corps.x > this.corps.x;
-    const avance = droite ? 1 : -1;
-    const direction = droite ? 1 : -1; // recul de la cible, à l'opposé de l'attaque
-    this.scene.tweens.add({
-      targets: this.corps,
-      x: this.corps.x + avance * (16 + tier * 10),
-      duration: 90,
-      yoyo: true,
-    });
     const coup = coupPourTier(tier);
-    this.animerCoup(coup);
-    cible.encaisse(tier, direction);
+    this.approcher(cible, () =>
+      this.jouerPose(coup === 'poing' ? 'poing' : 'pied', this.skin.sprites.dureePoseMs)
+    );
     return { coup, droite };
   }
 
-  /** Recul de la cible touchée (§2.8b). */
+  /**
+   * Approche de la cible pour donner un coup, puis **retour à la position
+   * d'origine** (chorégraphie §2.8b) : `action` est jouée au contact.
+   */
+  private approcher(cible: Personnage, action: () => void): void {
+    const xDepart = this.corps.x;
+    const versDroite = cible.corps.x > this.corps.x;
+    const xContact = cible.corps.x + (versDroite ? -1 : 1) * CONFIG.rig.distanceFrappe;
+    this.scene.tweens.add({
+      targets: this.corps,
+      x: xContact,
+      duration: CONFIG.rig.approcheDureeMs,
+      ease: 'quad.out',
+      onComplete: () => {
+        action(); // le coup est donné
+        // retour à la position d'origine une fois la pose jouée
+        this.scene.time.delayedCall(this.skin.sprites.dureePoseMs, () => {
+          this.scene.tweens.add({
+            targets: this.corps,
+            x: xDepart,
+            duration: CONFIG.rig.retourDureeMs,
+            ease: 'quad.inOut',
+          });
+        });
+      },
+    });
+  }
+
+  /** Recul de la cible touchée (§2.8b) — pose « touché ». */
   encaisse(tier: number, direction = 1): void {
+    this.jouerPose('touche', this.skin.sprites.dureePoseMs);
     this.scene.tweens.add({
       targets: this.corps,
       x: this.corps.x + direction * (10 + tier * 8),
@@ -467,20 +543,10 @@ export class Personnage {
   }
 
   /**
-   * Parade (§2.8c) : garde côté attaquant — bras levé contre un coup haut,
-   * jambe levée contre un coup bas ; étincelles à la hauteur du coup.
+   * Parade (§2.8c) : garde côté attaquant, étincelles à la hauteur du coup.
    */
-  parade(coup: Coup, tier: number, versAttaquantDroite: boolean): void {
-    const haut = coup !== 'pied-bas';
-    const membre: Membre = haut
-      ? versAttaquantDroite
-        ? 'bras-d'
-        : 'bras-g'
-      : versAttaquantDroite
-        ? 'jambe-d'
-        : 'jambe-g';
-    const base = haut ? CONFIG.rig.angles.gardeHaute : CONFIG.rig.angles.gardeBasse;
-    this.animerMembre(membre, base * (versAttaquantDroite ? -1 : 1));
+  parade(coup: Coup, tier: number, _versAttaquantDroite: boolean): void {
+    this.jouerPose('garde-defense', this.skin.sprites.dureePoseMs);
     this.scene.tweens.add({
       targets: this.corps,
       scaleX: this.corps.scaleX * 1.06,
@@ -502,25 +568,21 @@ export class Personnage {
   }
 
   /**
-   * CONTRE (§2.8c) : l'attaquant frappe dans le vide, ce personnage saute et
-   * riposte d'un coup de pied. `apresRiposte` est appelé quand la riposte part
-   * (la scène y programme son impact visuel).
+   * CONTRE (§2.8c) : l'attaquant **s'approche et frappe dans le vide** (esquive),
+   * ce personnage saute et riposte — l'attaquant reçoit le coup (« coup reçu »)
+   * puis **tout le monde revient à sa position d'origine**.
    */
   contre(
     attaquant: Personnage,
     tier: number,
     apresRiposte?: (droite: boolean) => void
   ): void {
-    // l'attaquant avance VERS ce personnage (il rate : esquive)
+    // 1. l'attaquant s'approche et frappe… dans le vide (esquive)
+    attaquant.approcher(this, () =>
+      attaquant.jouerPose('poing', this.skin.sprites.dureePoseMs)
+    );
+    // 2. ce personnage se décale (esquive), saute et riposte d'un coup de pied
     const versAvant = attaquant.corps.x < this.corps.x ? 1 : -1;
-    attaquant.animerCoup('poing');
-    this.scene.tweens.add({
-      targets: attaquant.corps,
-      x: attaquant.corps.x + versAvant * 34,
-      duration: 120,
-      ease: 'quad.out',
-    });
-    // ce personnage se décale, saute et frappe dans la foulée
     this.scene.tweens.add({
       targets: this.corps,
       x: this.corps.x + versAvant * -22,
@@ -530,7 +592,9 @@ export class Personnage {
         // la riposte part vers l'attaquant
         const droite = attaquant.corps.x > this.corps.x;
         this.saut();
-        this.animerCoup('pied-haut', CONFIG.rig.angles.contrePied);
+        this.jouerPose('pied', this.skin.sprites.dureePoseMs);
+        // 3. l'attaquant REÇOIT le contre (mouvement « coup reçu » + recul)
+        attaquant.jouerPose('touche', this.skin.sprites.dureePoseMs);
         this.scene.tweens.add({
           targets: attaquant.corps,
           x: attaquant.corps.x - versAvant * (14 + tier * 9),
@@ -545,7 +609,7 @@ export class Personnage {
   /** Coup raté (§2.8b, tier 0) : le poing sort dans le vide, on s'arrête net. */
   whiff(): void {
     const versAvant = this.orientation === 'droite' ? 1 : -1;
-    this.animerCoup('poing');
+    this.jouerPose('poing', this.skin.sprites.dureePoseMs);
     this.scene.tweens.add({
       targets: this.corps,
       x: this.corps.x + versAvant * 20,
@@ -559,6 +623,7 @@ export class Personnage {
 
   /** K.O. (§2.8d) : chute animée du combattant. */
   ko(): void {
+    this.jouerPose('touche');
     this.scene.tweens.add({
       targets: this.corps,
       y: this.options.y + CONFIG.rig.koChuteY,
@@ -570,13 +635,15 @@ export class Personnage {
 
   // ------------------------------------------------------- énergie (§2.8a)
 
-  /** Aura (§2.8a) : intensité = palier déterministe (alpha + taille). */
+  /** Aura (§2.8a) : strates de flammes — 0 = très proche (voire invisible). */
   charger(energie: number): void {
     const palier = palierDe(energie);
     if (palier === this.palier) return;
     this.palier = palier;
     this.aura.setAlpha(CONFIG.auraAlphas[palier]);
-    this.aura.setScale(0.7 + palier * 0.18); // flammes qui grandissent avec l'énergie
+    // palier 0 = à peine visible (couche proche seule) ; puis une strate de plus
+    const actives = palier === 0 ? 1 : palier;
+    this.couchesAura.forEach((couche, i) => couche.setAlpha(i < actives ? 1 : 0));
     this.alphaPalier = CONFIG.auraAlphas[palier];
   }
 
@@ -601,78 +668,54 @@ export class Personnage {
   // ------------------------------------------------------- vie de combat
 
   /**
-   * Remise à pied (rejeu après K.O.) : rig, membres et aura au repos, corps à
-   * sa position de départ.
+   * Remise à pied (rejeu après K.O.) : sprite, aura et corps à leur position de
+   * départ, pose de garde.
    */
   reinitialiser(): void {
     this.scene.tweens.killTweensOf([this.rig, this.aura, this.corps]);
-    this.corps.setPosition(this.options.x, this.options.y).setAngle(0).setScale(CONFIG.rig.echelle);
+    this.corps.setPosition(this.options.x, this.options.y).setAngle(0);
     this.rig.setPosition(0, 0);
     this.aura.setPosition(0, 0);
-    if (this.membres) {
-      for (const piece of Object.values(this.membres)) {
-        this.scene.tweens.killTweensOf(piece);
-        piece.setAngle(0);
-      }
-      this.appliquerProfondeurs();
-    }
+    this.jouerPose('garde');
+    this.couchesAura.forEach((couche, i) => couche.setAlpha(i === 0 ? 1 : 0));
     this.palier = -1;
     this.alphaPalier = 0;
   }
 
-  /** État du rig (debug/E2E) : angles arrondis + saut, null en repli image plate. */
-  etatRig(): { saut: number; angles: Record<string, number> } | null {
-    if (!this.membres) return null;
-    const angles: Record<string, number> = {};
-    for (const p of PIECES_RIG) angles[p] = Math.round(this.membres[p].angle * 10) / 10;
-    return { saut: Math.round(this.rig.y), angles };
-  }
-
   // ------------------------------------------------------- intérieur
 
-  /** Montage du rig cut-out (docs/assets.md §3a) — null = repli image plate. */
-  private construireRig(rig: Phaser.GameObjects.Container): Record<Membre, Phaser.GameObjects.Image> | null {
-    const metaGlobal = this.scene.cache.json.get('rigMeta') as
-      | Record<string, MetaRig>
-      | undefined;
-    const meta = metaGlobal?.[this.skin.metaCle];
-    if (!meta) return null;
-    // vérification d'abord : on ne monte que si les 5 pièces sont présentes
-    const clesTex = new Map<Membre, string>();
-    for (const cle of PIECES_RIG) {
-      const p = meta.pieces[cle];
-      if (!p) return null;
-      const cleTex = p.fichier.replace('/', '-').replace(/\.png$/, '');
-      if (!this.scene.textures.exists(cleTex)) return null;
-      clesTex.set(cle, cleTex);
-    }
-    const membres = {} as Record<Membre, Phaser.GameObjects.Image>;
-    const demiLargeur = meta.largeur / 2;
-    for (const cle of PIECES_RIG) {
-      const p = meta.pieces[cle];
-      const cleTex = clesTex.get(cle)!;
-      const img =
-        p.pivotX !== undefined && p.pivotY !== undefined
-          ? this.scene.add
-              .image(p.pivotX - demiLargeur, p.pivotY - meta.hauteur, cleTex)
-              .setOrigin((p.pivotX - p.x) / p.largeur, (p.pivotY - p.y) / p.hauteur)
-          : this.scene.add.image(p.x - demiLargeur, p.y - meta.hauteur, cleTex).setOrigin(0, 0);
-      rig.add(img);
-      membres[cle] = img;
-    }
-    this.appliquerProfondeurs();
-    return membres;
+  /** Pose courante : annule les animations en cours. */
+  private jouerPose(pose: PoseSprite, retourApresMs = 0): void {
+    this.minuteurAnim?.remove(false);
+    this.poseCourante = pose;
+    this.spriteAnime.setTexture(this.skin.sprites.poses[pose][0]);
+    this.appliquerMiroir();
+    this.minuteurAnim =
+      retourApresMs > 0
+        ? this.scene.time.delayedCall(retourApresMs, () => this.jouerPose('garde'))
+        : null;
   }
 
-  /** Profondeurs du skin, miroirées si l'orientation diffère du dessin (§9.4). */
-  private appliquerProfondeurs(): void {
-    if (!this.membres) return;
-    const table = this.skin.profondeurs;
-    const miroir = this.orientation !== this.skin.orientation;
-    for (const cle of PIECES_RIG) {
-      const cleTable = miroir ? MIROIR_MEMBRE[cle] : cle;
-      this.membres[cle].setDepth(table[cleTable]);
-    }
+  /** Marche animée : alterne le pas et la garde pendant le déplacement. */
+  private jouerMarche(pose: 'marche-avant' | 'marche-arriere'): void {
+    const frames = this.skin.sprites.poses[pose];
+    this.minuteurAnim?.remove(false);
+    this.poseCourante = pose;
+    let i = 0;
+    this.minuteurAnim = this.scene.time.addEvent({
+      delay: this.skin.sprites.dureeFrameMs,
+      loop: true,
+      callback: () => {
+        i = (i + 1) % frames.length;
+        this.spriteAnime.setTexture(frames[i]);
+        this.appliquerMiroir();
+      },
+    });
+  }
+
+  /** Symétrie du sprite : miroir selon l'orientation et le sens de dessin. */
+  private appliquerMiroir(): void {
+    this.spriteAnime.setFlipX(this.orientation !== this.skin.orientation);
   }
 
   /** Vacillement déterministe d'une langue de flamme (phases décalées par index). */
@@ -699,51 +742,6 @@ export class Personnage {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     this.scene.textures.addCanvas(cible, canvas);
     return cible;
-  }
-
-  /**
-   * Extension d'un membre vers la cible (docs/assets.md §3a) : angle négatif
-   * vers la droite, positif vers la gauche (Phaser : horaire positif). No-op en
-   * repli image plate.
-   */
-  private animerCoup(coup: Coup, angleForce?: number): void {
-    const droite = this.orientation === 'droite';
-    const membre: Membre =
-      coup === 'poing' ? (droite ? 'bras-d' : 'bras-g') : droite ? 'jambe-d' : 'jambe-g';
-    const angles = CONFIG.rig.angles;
-    const base =
-      angleForce ??
-      (coup === 'poing' ? angles.poing : coup === 'pied-haut' ? angles.piedHaut : angles.piedBas);
-    this.animerMembre(membre, base * (droite ? -1 : 1));
-  }
-
-  /** Rotation d'une pièce autour de son pivot : extension puis retour au repos. */
-  private animerMembre(cle: Membre, angle: number): void {
-    const piece = this.membres?.[cle];
-    if (!piece) return; // repli image plate : l'élan du corps suffit
-    const rig = CONFIG.rig;
-    const suivi = `${this.id}:${cle}`;
-    this.membresActifs.add(suivi);
-    this.scene.tweens.killTweensOf(piece);
-    piece.setDepth(PROFONDEUR_ANIME); // le membre animé passe devant (§3a)
-    this.scene.tweens.add({
-      targets: piece,
-      angle,
-      duration: rig.dureeExtensionMs,
-      ease: 'quad.out',
-      onComplete: () => {
-        this.scene.tweens.add({
-          targets: piece,
-          angle: 0,
-          duration: rig.dureeRetourMs,
-          ease: 'sine.inout',
-          onComplete: () => {
-            this.membresActifs.delete(suivi);
-            this.appliquerProfondeurs();
-          },
-        });
-      },
-    });
   }
 }
 
