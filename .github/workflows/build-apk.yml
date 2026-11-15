@@ -42,6 +42,11 @@ jobs:
         with:
           node-version: '20'
 
+      # tools/ (SDK Android, Gradle, JDK) n'est PAS versionné : le projet le
+      # reconstitue avec scripts/setup-sdk.sh (isolation, AGENTS.md §4) — idem ici.
+      - name: Outillage embarqué (SDK 34 + Gradle + JDK dans tools/)
+        run: bash scripts/setup-sdk.sh
+
       - name: Dépendances du jeu web
         run: npm install
         working-directory: game
