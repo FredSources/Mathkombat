@@ -73,7 +73,7 @@ else
   export PATH="$JAVA_HOME/bin:$PATH"
   telecharger "$URL_CMDLINE" "$TMP/cmdline.zip"
   mkdir -p "$TMP/cmdline" "$ANDROID_HOME/cmdline-tools"
-  unzip -q "$TMP/cmdline.zip" -C "$TMP/cmdline"
+  unzip -q "$TMP/cmdline.zip" -d "$TMP/cmdline"
   mv "$TMP/cmdline/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
   SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
   yes | "$SDKMGR" --sdk_root="$ANDROID_HOME" --licenses >/dev/null 2>&1 || true
