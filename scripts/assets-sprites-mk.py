@@ -80,11 +80,12 @@ def detourer(case: Image.Image) -> Image.Image:
 
 
 def couper_residus(sprite: Image.Image) -> Image.Image:
-    """Efface les **ombres noires** de la bande basse puis coupe tout ce qui
-    dépasse sous la dernière **rangée significative** (≥ 5 pixels opaques) :
-    résidus de bord et ombres des planches descendaient jusqu'au bas des cases
-    et faisaient « voler » les personnages — les chaussures se retrouvent ainsi
-    sur le **pixel du bas**."""
+    """Efface les **ombres noires** de la bande basse puis coupe les **4 bords**
+    sous la dernière ligne/colonne significative (≥ 5 pixels opaques) :
+    résidus de bord, traits de séparation des cases et ombres des planches
+    formaient un **contour rectangulaire** autour du sprite et faisaient
+    « voler » les personnages — les chaussures se retrouvent sur le **pixel du
+    bas**, et la silhouette est nette sur tous les côtés."""
     px = sprite.load()
     w, h = sprite.size
     # 1) ombres noires sous la dernière rangée « colorée » du personnage
@@ -99,12 +100,18 @@ def couper_residus(sprite: Image.Image) -> Image.Image:
             r, g, b, a = px[x, y]
             if a > 0 and max(r, g, b) < 25 and max(r, g, b) - min(r, g, b) < 12:
                 px[x, y] = (r, g, b, 0)
-    # 2) coupe sous la dernière rangée significative (résidus de bord)
-    bas = -1
-    for y in range(h):
-        if sum(1 for x in range(w) if px[x, y][3] > 200) >= 5:
-            bas = y
-    return sprite.crop((0, 0, w, bas + 1)) if 0 <= bas < h - 1 else sprite
+    # 2) coupe des 4 bords sous les lignes/colonnes significatives (≥ 5 px)
+    def significatif_ligne(y):
+        return sum(1 for x in range(w) if px[x, y][3] > 200) >= 5
+
+    def significatif_colonne(x):
+        return sum(1 for y in range(h) if px[x, y][3] > 200) >= 5
+
+    haut = next((y for y in range(h) if significatif_ligne(y)), 0)
+    bas = next((y for y in range(h - 1, -1, -1) if significatif_ligne(y)), h - 1)
+    gauche = next((x for x in range(w) if significatif_colonne(x)), 0)
+    droite = next((x for x in range(w - 1, -1, -1) if significatif_colonne(x)), w - 1)
+    return sprite.crop((gauche, haut, droite + 1, bas + 1))
 
 
 def bbox_personnage(sprite: Image.Image):

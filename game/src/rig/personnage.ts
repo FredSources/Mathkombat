@@ -689,12 +689,15 @@ export class Personnage {
     });
   }
 
-  /** K.O. (§2.8d) : chute animée du combattant. */
+  /** K.O. (§2.8d) : bascule en arrière autour des pieds — la respiration s'arrête. */
   ko(): void {
     this.jouerPose('touche');
+    // la respiration s'arrête au K.O. (demande utilisateur)
+    this.scene.tweens.killTweensOf(this.rig);
+    // bascule EN ARRIÈRE autour des pieds, **sans déplacement en hauteur**
+    // (demande utilisateur) — l'ombre reste au sol, droite, sous le personnage
     this.scene.tweens.add({
-      targets: this.corps,
-      y: this.options.y + CONFIG.rig.koChuteY,
+      targets: this.rig,
       angle: this.orientation === 'droite' ? -80 : 80,
       duration: 550,
       ease: 'quad.in',
@@ -742,7 +745,7 @@ export class Personnage {
   reinitialiser(): void {
     this.scene.tweens.killTweensOf([this.rig, this.aura, this.corps]);
     this.corps.setPosition(this.options.x, this.options.y).setAngle(0);
-    this.rig.setPosition(0, 0);
+    this.rig.setPosition(0, 0).setAngle(0); // le K.O. pivote le sprite : remis droit
     this.aura.setPosition(0, 0);
     this.jouerPose('garde');
     this.couchesAura.forEach((couche, i) => couche.setAlpha(i === 0 ? 1 : 0));

@@ -116,8 +116,6 @@ export interface ConfigJeu {
     /** Saut du CONTRE : hauteur (px) et durée totale (ms). */
     sautHauteur: number;
     sautDureeMs: number;
-    /** Chute du K.O. : enfoncement sous le sol (px). */
-    koChuteY: number;
     /** Déplacement libre du personnage (§9.2 `vaAGauche`…`vaEnBas`). */
     deplacementPas: number;
     deplacementDureeMs: number;
@@ -221,7 +219,6 @@ export const CONFIG: ConfigJeu = {
     dureeExtensionMs: 90,
     sautHauteur: 140,
     sautDureeMs: 260,
-    koChuteY: 26,
     deplacementPas: 36,
     deplacementDureeMs: 120,
     /** Pénétration du coup dans la silhouette adverse (px) : le sprite du

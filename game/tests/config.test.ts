@@ -102,7 +102,6 @@ describe('rig — mise en scène des sprites (§2.8b/c)', () => {
     for (const coup of ['poing', 'pied-bas', 'pied-haut'] as const) {
       expect(CONFIG.rig.impactY[coup]).toBeGreaterThan(0);
     }
-    expect(CONFIG.rig.koChuteY).toBeGreaterThan(0);
   });
 });
 
