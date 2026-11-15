@@ -235,7 +235,7 @@ export const CONFIG: ConfigJeu = {
     zoomProfondeur: 0.04,
     /** Pénétration du coup dans la silhouette adverse (px) : le sprite du
      *  poing/pied doit **toucher** l'adversaire, même en cas de blocage. */
-    penetrationFrappe: 90,
+    penetrationFrappe: 110,
     approcheDureeMs: 220,
     retourDureeMs: 280,
     impactY: { poing: 185, 'pied-haut': 100, 'pied-bas': 40 },
