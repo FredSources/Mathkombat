@@ -1908,3 +1908,13 @@ records détaillés par famille de table (voir `todo.md`, « Idées / dette »).
 | **Contenu** | Chorégraphie du coup réécrite (marche accélérée 4× à distance fixe, effets au coup porté, réactions séquencées, contre sur égalité) + source `tools/keystore.env` pour la signature. |
 | **Validation pré-tag** | Batterie complète sur l'état final : typecheck ✅ · Vitest 87/87 · scénarios S01→S11 ✅ · S12 calibration 80.0 / 50.5 / 29.0 % ✅ · **E2E 28/28 ✅** (`e2e-2026-11-15T22-09-11.md`, E15 stabilisé par `figerManoeuvres`). |
 | **Publication** | Tag `v0.0.15` → CI (2m32s) → release GitHub avec `MathKombat-0.0.15-release.apk` + `-debug.apk` (signés clé debug — secrets `KEYSTORE_*` encore à poser). |
+
+### Cohérence version produit ↔ tag (2026-11-15)
+
+| Sujet | Contenu |
+|-------|---------|
+| **Constat** | L'APK portait `versionName '0.1.0'` / `versionCode 1` **figés** dans `build.gradle` alors que la release était `v0.0.15` (seul le nom de fichier suivait le tag) ; le log `session.debut` du jeu durcissait aussi `version: '0.1.0', build: 'debug'`. |
+| **Règle** | **La source de vérité est le tag git `v*`** : `scripts/env.sh` résout `MK_VERSION` (tag exact → `git describe` → repli `0.0.0-dev`) et l'injecte partout — `versionName` de l'APK (`versionCode` dérivé du semver `x*10000+y*100+z` : 0.0.15 → 15), log du jeu (`__MK_VERSION__` via vite.config), nom des APK (CI). |
+| **CI** | Étape « Version du produit » (tag → `MK_VERSION` en `$GITHUB_ENV`) ; l'étape Vérifications **refuse le build** si `aapt dump badging` ne montre pas `versionName='<version du tag>'` sur les deux APK ; re-publication d'un tag = remplacement des assets homonymes (boucle `delete-asset` élargie). |
+| **Correctif signature** | PKCS12 : `keyPassword` **doit** valoir `storePassword` (« Given final block not properly padded » au build) — `tools/keystore.env` et `tools/secrets-github.txt` réalignés (KEY_PASSWORD = KEYSTORE_PASSWORD). |
+| **Validation** | `MK_VERSION=0.0.15 bash scripts/build-apk.sh` → `aapt` : `versionName='0.0.15' versionCode='15'` ✅ · bundle : `session.debut {version:'0.0.15', build:'release'}` ✅ · typecheck ✅ · Vitest 87/87 · scénarios TOUT VERT · certif RELEASE 7/7 · E2E 28/28 (`e2e-2026-11-15T23-21-34.md`). |

@@ -1,6 +1,6 @@
 {
   "name": "mathkombat",
-  "version": "0.1.0",
+  "version": "0.0.15",
   "private": true,
   "type": "module",
   "description": "MathKombat — jeu de combat éducatif (calcul mental)",

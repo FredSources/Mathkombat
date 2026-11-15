@@ -42,11 +42,23 @@ jobs:
         with:
           node-version: '20'
 
+      # Version du produit : le TAG fait foi (cohérence versionName/versionCode
+      # de l'APK, log du jeu et nom des fichiers) — injectée en MK_VERSION pour
+      # tout le build (scripts/env.sh la respecte si déjà définie).
+      - name: Version du produit (tag → MK_VERSION)
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="dev-${GITHUB_SHA::7}"
+          fi
+          echo "MK_VERSION=$V" >> "$GITHUB_ENV"
+          echo "Version du build : $V"
+
       # tools/ (SDK Android, Gradle, JDK) n'est PAS versionné : le projet le
       # reconstitue avec scripts/setup-sdk.sh (isolation, AGENTS.md §4) — idem ici.
       - name: Outillage embarqué (SDK 34 + Gradle + JDK dans tools/)
         run: bash scripts/setup-sdk.sh
-
       - name: Dépendances du jeu web
         run: npm install
         working-directory: game
@@ -84,12 +96,17 @@ jobs:
           test -f output/MathKombat-debug.apk
           unzip -l output/MathKombat.apk | grep -q 'assets/index.html'
           ./tools/android-sdk/build-tools/34.0.0/aapt dump badging output/MathKombat.apk | grep "package:"
+          # Cohérence version/tag (demande) : chaque APK porte la version du tag
+          ./tools/android-sdk/build-tools/34.0.0/aapt dump badging output/MathKombat.apk \
+            | grep -q "versionName='$MK_VERSION'"
+          ./tools/android-sdk/build-tools/34.0.0/aapt dump badging output/MathKombat-debug.apk \
+            | grep -q "versionName='$MK_VERSION'"
+          echo "Cohérence version OK : versionName=$MK_VERSION (tag $GITHUB_REF_NAME)"
 
       # Nommage : mathkombat-<version>-release.apk / -debug.apk (demande)
       - name: Nommage des APK selon la version
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          [ "$GITHUB_REF_TYPE" = "tag" ] || VERSION="dev"
+          VERSION="$MK_VERSION"
           cp output/MathKombat.apk "output/MathKombat-${VERSION}-release.apk"
           cp output/MathKombat-debug.apk "output/MathKombat-${VERSION}-debug.apk"
           rm output/MathKombat.apk output/MathKombat-debug.apk
@@ -106,7 +123,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for a in MathKombat.apk MathKombat-debug.apk; do
+          VERSION="${GITHUB_REF_NAME#v}"
+          for a in "MathKombat.apk" "MathKombat-debug.apk" \
+                   "MathKombat-${VERSION}-release.apk" "MathKombat-${VERSION}-debug.apk"; do
             gh release delete-asset "${GITHUB_REF_NAME}" "$a" --repo "${GITHUB_REPOSITORY}" -y 2>/dev/null || true
           done
 

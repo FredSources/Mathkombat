@@ -30,6 +30,18 @@ if [ -x "$JAVA_HOME/bin/java" ]; then
   export PATH="$JAVA_HOME/bin:$PROJ/tools/gradle/gradle-*/bin:$PATH"
 fi
 
+# --- Version du produit — SOURCE DE VÉRITÉ : le tag git v* ---
+# Priorité : MK_VERSION (env, ex. CI) > tag exact sur HEAD > describe (dev) >
+# repli. Injectée dans le jeu web (__MK_VERSION__, vite.config) et dans l'APK
+# (versionName/versionCode, android/app/build.gradle) : jamais durcie ailleurs.
+if [ -z "${MK_VERSION:-}" ]; then
+  MK_VERSION="$(git -C "$PROJ" describe --tags --exact-match 2>/dev/null | sed 's/^v//')" || true
+fi
+if [ -z "${MK_VERSION:-}" ]; then
+  MK_VERSION="$(git -C "$PROJ" describe --tags 2>/dev/null | sed 's/^v//')" || true
+fi
+export MK_VERSION="${MK_VERSION:-0.0.0-dev}"
+
 log() { printf '\033[1;34m[env]\033[0m %s\n' "$*"; }
 log "PROJ=$PROJ"
 log "ANDROID_HOME=$ANDROID_HOME$([ -d "$ANDROID_HOME/platforms" ] && echo ' (OK)' || echo ' (pas encore installé — lancer scripts/setup-sdk.sh)')"

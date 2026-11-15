@@ -9,6 +9,17 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+// Version du produit : la SOURCE DE VÉRITÉ est le tag git v* — MK_VERSION est
+// injecté par scripts/env.sh (local) ou la CI (GITHUB_REF_NAME). versionCode est
+// dérivé du semver (x*10000 + y*100 + z) : croissant avec la version, jamais figé.
+def mkVersion = System.getenv('MK_VERSION') ?: '0.0.0-dev'
+def mkMatcher = (mkVersion =~ /^(\d+)\.(\d+)\.(\d+)/)
+def mkVersionCode = mkMatcher.find()
+    ? Integer.parseInt(mkMatcher.group(1)) * 10000 +
+      Integer.parseInt(mkMatcher.group(2)) * 100 +
+      Integer.parseInt(mkMatcher.group(3))
+    : 1
+
 android {
     namespace 'fr.mathkombat'
     compileSdk 34
@@ -17,8 +28,8 @@ android {
         applicationId 'fr.mathkombat'
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName '0.1.0'
+        versionCode mkVersionCode
+        versionName mkVersion
     }
 
     // Signature release : clés de l'environnement (CI — secrets GitHub, même

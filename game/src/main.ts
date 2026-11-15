@@ -11,7 +11,14 @@ import { MenuScene } from './scenes/MenuScene';
 import { SelectScene } from './scenes/SelectScene';
 
 const log = initLogger({ scene: 'App' });
-log.info('session.debut', { version: '0.1.0', build: 'debug' });
+// Version du produit et mode de build : injectés par vite.config (__MK_VERSION__
+// vient de MK_VERSION — source de vérité : le tag git v*, scripts/env.sh).
+declare const __MK_VERSION__: string | undefined;
+declare const __BUILD_MODE__: string | undefined;
+log.info('session.debut', {
+  version: typeof __MK_VERSION__ !== 'undefined' ? __MK_VERSION__ : '0.0.0-dev',
+  build: typeof __BUILD_MODE__ !== 'undefined' ? __BUILD_MODE__ : 'debug',
+});
 
 new Phaser.Game({
   type: Phaser.AUTO,

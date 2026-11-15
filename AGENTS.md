@@ -544,6 +544,15 @@ node scripts/certif-release.mjs         # J7 : certification RELEASE zéro log (
 bash scripts/build-apk.sh               # J7 : APK release → output/MathKombat.apk (SDK local, wrappers qemu si aarch64)
 ```
 
+**Version du produit — cohérence tag ↔ APK** : la source de vérité est le **tag
+git `v*`**. `scripts/env.sh` résout `MK_VERSION` (tag exact sur HEAD → `git
+describe` → repli `0.0.0-dev`) et l'injecte partout : `versionName` de l'APK
+(`versionCode` dérivé du semver `x*10000+y*100+z`), log `session.debut` du jeu
+(`__MK_VERSION__`, vite.config) et nom des APK de release. La CI (tag `v*`)
+vérifie la cohérence au build (`aapt dump badging` = version du tag). À chaque
+release : poser le tag `vX.Y.Z` — tout le reste en découle (`game/package.json`
+reste informationnel, à tenir à jour).
+
 ## 9. Journal et TODO — discipline de session
 
 - **`journal.md`** : à **chaque session de travail**, ajouter une entrée datée listant
