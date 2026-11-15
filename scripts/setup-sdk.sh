@@ -17,7 +17,12 @@ GRADLE_VER="gradle-8.10.2"
 SRC_BASE="/data/data/com.termux/files/home/openwebui-android"
 # Sources officielles (repli réseau)
 URL_GRADLE="https://services.gradle.org/distributions/${GRADLE_VER}-bin.zip"
-URL_JDK="https://api.adoptium.net/v3/binary/latest/21/ga/linux/aarch64/jdk/hotspot/normal/eclipse"
+# JDK selon l'architecture de la machine (aarch64 = Termux/ARM, x64 = PC/CI)
+case "$(uname -m)" in
+  aarch64 | arm64) ARCH_JDK="aarch64" ;;
+  *) ARCH_JDK="x64" ;;
+esac
+URL_JDK="https://api.adoptium.net/v3/binary/latest/21/ga/linux/${ARCH_JDK}/jdk/hotspot/normal/eclipse"
 URL_CMDLINE="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
 
 TMP="$PROJ/.tmp/setup-sdk"
