@@ -61,18 +61,42 @@ describe('classerFait — couleur du fait (§2.5, I11)', () => {
     }
   });
 
-  it('🟠 difficile : les 5 résistants + les durs élargis, y compris en Débutant', () => {
+  it('🟠 difficile : les 5 résistants + les durs + la table 12 dure, y compris en Débutant', () => {
     // les 5 résistants (§2.5)
     for (const [a, b] of [[6, 7], [6, 8], [7, 7], [7, 8], [8, 8]] as const) {
       expect(classerFait(a, b)).toBe('difficile');
     }
-    // les durs élargis (option B) : 7×9, 8×9, 9×9, 11×12…
-    for (const [a, b] of [[6, 9], [7, 9], [8, 9], [9, 9], [11, 12]] as const) {
+    // les durs : 6×9, 7×9, 8×9, 9×9
+    for (const [a, b] of [[6, 9], [7, 9], [8, 9], [9, 9]] as const) {
+      expect(classerFait(a, b)).toBe('difficile');
+    }
+    // table 12 dure : ×3, ×6, ×7, ×8, ×9 (et 11×12)
+    for (const [a, b] of [[3, 12], [6, 12], [7, 12], [8, 12], [9, 12], [11, 12]] as const) {
       expect(classerFait(a, b)).toBe('difficile');
     }
     // repli Débutant (option A) : 3×3, 3×4, 4×4 sont DIFFICILES sous la borne 5
     for (const [a, b] of [[3, 3], [3, 4], [4, 4]] as const) {
       expect(classerFait(a, b, CONFIG, 'debutant')).toBe('difficile');
+    }
+  });
+
+  it('🟢 table 11 = facile (sauf 11×11 moyen et 11×12 difficile)', () => {
+    for (const b of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      expect(classerFait(11, b)).toBe('facile');
+    }
+    expect(classerFait(11, 11)).toBe('moyen');
+    expect(classerFait(11, 12)).toBe('difficile');
+  });
+
+  it('table 12 : facile {×1, ×2} · moyen {×4, ×5, ×10, ×12} · difficile {×3, ×6, ×7, ×8, ×9, ×11}', () => {
+    for (const b of [1, 2]) {
+      expect(classerFait(12, b)).toBe('facile');
+    }
+    for (const b of [4, 5, 10, 12]) {
+      expect(classerFait(12, b)).toBe('moyen');
+    }
+    for (const b of [3, 6, 7, 8, 9, 11]) {
+      expect(classerFait(12, b)).toBe('difficile');
     }
   });
 
@@ -94,13 +118,13 @@ describe('classerFait — couleur du fait (§2.5, I11)', () => {
 });
 
 describe('poolFaits — bornes et remplissage (I6, I11)', () => {
-  it('tous les faits du pool ont le second facteur ≤ borne du niveau (I6)', () => {
+  it('tous les faits du pool ont les deux facteurs ≤ borne du niveau (I6)', () => {
     for (const niveau of NIVEAUX) {
       const borne = CONFIG.bornesNiveau[niveau];
       for (const diff of DIFFICULTES) {
         for (const [table, second] of poolFaits(diff, niveau)) {
           expect(table).toBeGreaterThanOrEqual(1);
-          expect(table).toBeLessThanOrEqual(12);
+          expect(table).toBeLessThanOrEqual(borne);
           expect(second).toBeGreaterThanOrEqual(1);
           expect(second).toBeLessThanOrEqual(borne);
         }
@@ -126,6 +150,14 @@ describe('poolFaits — bornes et remplissage (I6, I11)', () => {
 
   it('repli Débutant : difficile = {3×3, 3×4, 4×4} (résistants impossibles)', () => {
     const pool = poolFaits('difficile', 'debutant');
+    const cles = new Set(pool.map(([t, s]) => cleFait(t, s)));
+    expect(cles).toEqual(new Set(['3x3', '3x4', '4x4']));
+  });
+
+  it('Débutant : le pool « moyen » reste rempli (repli partagé, jamais de pool vide)', () => {
+    const pool = poolFaits('moyen', 'debutant');
+    expect(pool.length).toBeGreaterThan(0);
+    // les faits du repli servent aussi de « moyen » (+3) au Débutant
     const cles = new Set(pool.map(([t, s]) => cleFait(t, s)));
     expect(cles).toEqual(new Set(['3x3', '3x4', '4x4']));
   });
@@ -273,22 +305,24 @@ describe('Chemins défensifs (robustesse du cœur)', () => {
   });
 
   it('pool épuisé par la non-répétition → tirage de secours dans le pool entier', () => {
+    // pool = {(3,4), (4,3)} — même fait commutatif : après le 1er tirage, le
+    // filtre de non-répétition vide les candidats → secours dans le pool entier
     const doublons = {
       ...CONFIG,
       familles: {
         ...CONFIG.familles,
         resistants: [],
         repliDebutant: [
-          [3, 3],
-          [3, 3],
+          [3, 4],
+          [4, 3],
         ] as const,
       },
     };
     const gen = new GenerateurMath(doublons, alea(11));
     const q1 = gen.nouvelleQuestion('multiplication', 'difficile', 'debutant');
     const q2 = gen.nouvelleQuestion('multiplication', 'difficile', 'debutant');
-    expect(q1.enonce).toBe('3 × 3');
-    expect(q2.enonce).toBe('3 × 3'); // « sauf impossibilité » (§2.5)
+    expect(q1.reponse).toBe(12);
+    expect(q2.reponse).toBe(12); // « sauf impossibilité » (§2.5)
   });
 
   it('pool vide → erreur explicite (garde-fou)', () => {

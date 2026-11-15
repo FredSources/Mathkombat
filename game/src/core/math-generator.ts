@@ -35,9 +35,10 @@ export interface Question {
 
 /**
  * Couleur du fait (§2.5) : 🟠 si le fait est dans la famille **difficile**
- * (les 5 résistants + les durs élargis) ou si c'est le **repli Débutant** ;
- * 🟢 si un facteur est vert ; 🟡 sinon si un facteur est jaune ;
- * 🟠 par défaut (les deux facteurs sont « durs »).
+ * (les 5 résistants + les durs + la table 12 dure) ou si c'est le **repli
+ * Débutant** ; 🟢 si le fait est dans la famille **facile** (table 11, 12×1,
+ * 12×2) ou si un facteur est vert ; 🟡 si le fait est dans la famille **moyen**
+ * (reste de la table 12, 11×11) ou si un facteur est jaune ; 🟠 par défaut.
  */
 export function classerFait(
   a: number,
@@ -50,6 +51,9 @@ export function classerFait(
     return 'difficile';
   }
   if (dansFamille(config.familles.difficile, a, b)) return 'difficile';
+  if (dansFamille(config.familles.facile, a, b)) return 'facile';
+  // famille « moyen » AVANT la règle verte : 12×5, 12×10 (table 12) sont moyens
+  if (dansFamille(config.familles.moyen, a, b)) return 'moyen';
   if (config.familles.vert.includes(a) || config.familles.vert.includes(b)) return 'facile';
   if (config.familles.jaune.includes(a) || config.familles.jaune.includes(b)) return 'moyen';
   return 'difficile';
@@ -62,9 +66,10 @@ function dansFamille(liste: readonly Fait[], a: number, b: number): boolean {
 
 /**
  * Pool de faits générables pour (difficulté, niveau) — paires ordonnées
- * (table, second facteur) avec second facteur ≤ borne du niveau.
+ * (table, second facteur) avec **les deux facteurs** ≤ borne du niveau
+ * (§2.5 : Intermédiaire = tables 1–10, Avancé = 1–12, Débutant = 1–5).
  *
- * Pour « difficile » : les faits résistants dès qu'ils sont possibles, sinon le
+ * Pour « difficile » : les faits difficiles dès qu'ils sont possibles, sinon le
  * **repli Débutant** (familles.repliDebutant).
  */
 export function poolFaits(
@@ -74,14 +79,15 @@ export function poolFaits(
 ): Fait[] {
   const borne = config.bornesNiveau[niveau];
   const pool: Fait[] = [];
-  for (let table = 1; table <= 12; table++) {
+  for (let table = 1; table <= borne; table++) {
     for (let second = 1; second <= borne; second++) {
       if (classerFait(table, second, config, niveau) === difficulte) pool.push([table, second]);
     }
   }
-  if (difficulte === 'difficile' && pool.length === 0) {
-    // Repli Débutant : les faits les plus durs disponibles sous la borne
-    return config.familles.repliDebutant.filter(([, s]) => s <= borne);
+  if (pool.length === 0) {
+    // Repli (§2.5) : au Débutant, « moyen » et « difficile » tirent dans le même
+    // ensemble — le repli (3×3, 3×4, 4×4), seuls faits « sans table verte ».
+    return config.familles.repliDebutant.filter(([t, s]) => t <= borne && s <= borne);
   }
   return pool;
 }

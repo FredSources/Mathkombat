@@ -122,15 +122,19 @@ est un fait « × 2 » 🟢). Le gain reste +1 / +3 / +7 :
 | Difficulté | Gain | Règle de classement du fait | Exemples |
 |------------|------|------------------------------|----------|
 | Facile | +1 | 🟢 **Vert** : au moins un facteur ∈ {1, 2, 5, 10} | `2 × 4`, `5 × 6` |
-| Moyen | +3 | 🟡 **Jaune** (déductible par astuce) : sinon, au moins un facteur ∈ {3, 4, 6, 8, 9, 11, 12} | `4 × 7`, `3 × 8` |
-| Difficile | +7 | 🟠 **Orange** : les **faits difficiles** (`familles.difficile`) = les 5 résistants **+ les plus durs élargis** (6×9, 7×9, 8×9, 9×9, 7×11, 8×11, 9×11, 11×11, 11×12, 12×12) ; en **Débutant**, le repli `3×3, 3×4, 4×4` | `7 × 8`, `6 × 7`, `9 × 9` |
+| Moyen | +3 | 🟡 **Jaune** (déductible par astuce) : sinon, au moins un facteur ∈ {3, 4, 6, 8, 9, 11, 12} ; le **reste de la table 12** (`12×4`, `12×5`, `12×10`, `12×12`) et `11×11` | `4 × 7`, `3 × 8`, `12 × 5` |
+| Difficile | +7 | 🟠 **Orange** : les **faits difficiles** (`familles.difficile`) = les 5 résistants **+ les durs** (6×9, 7×9, 8×9, 9×9) **+ la table 12 dure** (12×3, 12×6, 12×7, 12×8, 12×9) **+ 11×12** ; en **Débutant**, le repli `3×3`, `3×4`, `4×4` | `7 × 8`, `6 × 7`, `12 × 9` |
 
 Les **5 faits résistants** (à mémoriser, d'après le document) : `6×7`, `6×8`, `7×7`,
 `7×8`, `8×8`. Ils apparaissent en Difficile dès que la **borne du niveau** le permet
-(second facteur ≥ 6 pour les produire) ; sinon (niveau **Débutant**, résistants
-impossibles), Difficile tire dans les faits **sans table verte** : `3×3`, `3×4`, `4×4`.
+(les deux facteurs ≥ 6) ; sinon (niveau **Débutant**, résistants impossibles), Difficile **et** Moyen tirent dans le **repli** (faits sans table verte) : `3×3`, `3×4`, `4×4`.
 
-**Niveau = borne du second facteur** (multiplications) et du **quotient** (divisions),
+**Règles de table 11 et 12** (demande 2026-11-15) :
+- **table 11 = FACILE** (`11×1` … `11×10`), sauf `11×11` → **Moyen** et `11×12` → **Difficile** ;
+- **table 12** : `12×1`, `12×2` → **Facile** ; `12×3`, `12×6`, `12×7`, `12×8`, `12×9`, `12×11` → **Difficile** ; le reste (`12×4`, `12×5`, `12×10`, `12×12`) → **Moyen** ;
+- **tables 11 et 12 réservées au niveau Avancé** (la borne du niveau s'applique aux **deux facteurs**).
+
+**Niveau = borne des deux facteurs** (multiplications : table **et** second facteur ; divisions : diviseur **et** quotient), choisi en début de combat par chaque joueur ; l'IA utilise le niveau du joueur humain :
 choisi en début de combat par chaque joueur ; l'IA utilise le niveau du joueur humain :
 
 | Niveau | Borne |

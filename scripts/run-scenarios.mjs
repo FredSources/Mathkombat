@@ -64,7 +64,7 @@ function jouerGeneration(sc) {
         const borne = CONFIG.bornesNiveau[niveau];
 
         if (sc.oracles.includes('I6')) {
-          const ok = table >= 1 && table <= 12 && second >= 1 && second <= borne;
+          const ok = table >= 1 && table <= borne && second >= 1 && second <= borne;
           if (!ok) details.push(`I6 ✗ ${q.enonce} hors borne ${niveau} (≤ ${borne})`);
           verdicts.push({ oracle: 'I6', ok });
         }

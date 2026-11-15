@@ -69,7 +69,17 @@ export interface ConfigJeu {
     jaune: readonly number[];
     /** 🟠 les 5 faits résistants à mémoriser (forcés « difficile »). */
     resistants: readonly Fait[];
-    /** 🟠 faits DIFFICILES (+7) : les résistants + les plus durs (élargi). */
+    /** 🟢 table 11 = FACILE (sauf 11×11 → moyen, 11×12 → difficile) ; + 12×1, 12×2. */
+    facile: readonly Fait[];
+    /**
+     * 🟡 le reste de la table 12 = MOYEN (12×4, 12×5, 12×10, 12×12) ; + 11×11.
+     * (12×1 et 12×2 sont FACILES, 12×3/×6/×7/×8/×9/×11 sont DIFFICILES.)
+     */
+    moyen: readonly Fait[];
+    /**
+     * 🟠 faits DIFFICILES (+7) : les 5 résistants + les durs (6×9…9×9) +
+     * la table 12 dure (×3, ×6, ×7, ×8, ×9) + 11×12.
+     */
     difficile: readonly Fait[];
     /** 🟠 repli du niveau Débutant (résistants impossibles à la borne 5). */
     repliDebutant: readonly Fait[];
@@ -207,11 +217,23 @@ export const CONFIG: ConfigJeu = {
       [7, 8],
       [8, 8],
     ],
-    // +7 élargi : les 5 résistants (§2.5) + les faits les plus durs
+    // table 11 = facile (sauf 11×11 → moyen, 11×12 → difficile) ; 12×1 et 12×2 aussi
+    facile: [
+      [1, 11], [2, 11], [3, 11], [4, 11], [5, 11],
+      [6, 11], [7, 11], [8, 11], [9, 11], [10, 11],
+      [1, 12], [2, 12],
+    ],
+    // le reste de la table 12 = moyen ; + 11×11
+    moyen: [
+      [4, 12], [5, 12], [10, 12], [12, 12],
+      [11, 11],
+    ],
+    // +7 : les 5 résistants (§2.5) + les durs + la table 12 dure (×3, ×6, ×7, ×8, ×9) + 11×12
     difficile: [
       [6, 7], [6, 8], [7, 7], [7, 8], [8, 8],
       [6, 9], [7, 9], [8, 9], [9, 9],
-      [7, 11], [8, 11], [9, 11], [11, 11], [11, 12], [12, 12],
+      [3, 12], [6, 12], [7, 12], [8, 12], [9, 12],
+      [11, 12],
     ],
     repliDebutant: [
       [3, 3],

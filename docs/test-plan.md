@@ -27,7 +27,7 @@ Vérifiés par L1/L2 à chaque exécution ; toute violation = **FAIL bloquant**.
 | I3 | L'énergie d'un coup = somme des gains (+1/+3/+7) des calculs réussis de la phase |
 | I4 | Un calcul ne rapporte de l'énergie qu'à sa résolution ; une erreur ne rapporte rien **ni ne change le calcul** (il reste affiché et retentable) ; seule la cadence sur la durée de phase compte |
 | I5 | PV ≥ 0 à tout instant ; PV ≤ 0 ⇒ K.O. exactement une fois |
-| I6 | Les niveaux bornent le **second facteur** (multiplications) et le **quotient** (divisions) : Débutant ≤ 5, Intermédiaire ≤ 10, Avancé ≤ 12 ; le premier facteur suit la famille de table (≤ 12) |
+| I6 | Les niveaux bornent **les deux facteurs** (multiplications : table **et** second facteur ; divisions : diviseur **et** quotient) : Débutant ≤ 5, Intermédiaire ≤ 10, Avancé ≤ 12 — **les tables 11 et 12 sont réservées au niveau Avancé** |
 | I7 | Toute division générée est exacte ; tout quotient est unique dans sa question |
 | I8 | La réponse est saisie sur le **clavier numérique** (0–9, **⌫ Effacer** un chiffre, **C Tout effacer**) ; **la valeur saisie est affichée sur le clavier** (ligne d'entrée unique, valeur seule — elle ne correspond à un calcul qu'à la **validation avec le bouton de la bonne couleur**) ; validation par les **3 boutons VALIDER colorés** (un par calcul) ou la touche Entrée (calcul ciblé) ; une saisie n'est évaluée qu'à la validation ; saisie bornée à 3 chiffres (réponses 0–144), abandonnée en fin de phase ; réponse attendue unique |
 | I9 | La durée de phase est **unique et configurable** (identique attaque/défense, défaut 15 s, bornes 5–60 s, validée à la lecture) ; le **rythme de calcul** (Différé / Simultané) est configurable ; il n'existe **aucun timer par calcul** |
