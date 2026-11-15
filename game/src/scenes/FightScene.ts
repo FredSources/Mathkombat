@@ -316,8 +316,7 @@ export class FightScene extends Phaser.Scene {
       taille: 20,
       onClic: () => this.basculerPause(),
     });
-    // Résolution du coup : centrée, sous le menu (demande : résultat du fight
-    // aligné centre et plus en haut)
+    // Bannière K.O. : centrée, sous le menu (visible uniquement au K.O.)
     this.bandeauResolution = this.add.text(LARGEUR / 2, 240, '', {
       fontFamily: 'monospace', fontSize: '30px', color: '#ffd76b',
       backgroundColor: '#1b2a52', padding: { x: 18, y: 8 },
@@ -774,20 +773,8 @@ export class FightScene extends Phaser.Scene {
    * Priorité visuelle : CONTRE > blocage > frappe > coup raté.
    */
   private afficherResolution(r: ResultatTour): void {
-    const libelle = r.contre
-      ? `CONTRE-ATTAQUE : ${r.degats} dégâts pour ${r.attaquant.toUpperCase()} !`
-      : r.sur === 'aucun'
-        ? 'Coup bloqué !'
-        : `${r.degats} dégâts pour ${r.defenseur.toUpperCase()}`;
-    this.bandeauResolution
-      .setText(`attaque ${r.attaque} − défense ${r.defense} = ${r.solde > 0 ? '+' : ''}${r.solde}\n${libelle}`)
-      .setAlpha(1);
-    this.tweens.add({
-      targets: this.bandeauResolution,
-      alpha: 0,
-      delay: 1500,
-      duration: 400,
-    });
+    // (le bandeau central de résumé « attaque − défense = solde » a été retiré
+    //  sur demande — seul le bilan par animations/journal/dégâts flottants reste)
 
     const attaquant = r.attaquant === 'j1' ? this.j1 : this.j2;
     const defenseur = r.defenseur === 'j1' ? this.j1 : this.j2;
