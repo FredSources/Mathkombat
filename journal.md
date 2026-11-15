@@ -1854,3 +1854,12 @@ note de répartition), `docs/assets.md` §3bis (méthode sprites), `todo.md`.
 | **Doc** | AGENTS.md §2.6/§2.9, test-plan I16/S09/S12 mis à jour. |
 
 Prochaine étape : grille manuelle L5 + build Android Studio, puis best-of-3 / idées optionnelles.
+
+### Correctifs après reprise du menu pause (2026-11-15)
+
+| Sujet | Contenu |
+|-------|---------|
+| **Clavier IA au retour du menu** (bug utilisateur) | `reactiverZones()` réactivait les zones de tout joueur en phase, **y compris l'IA** (j2 en Solo). Corrigé : seuls les joueurs **humains** (`estHumain`) sont réactivés — le clavier de l'IA reste désactivé **en tout temps** (§2.6). Hooks `zones()` + `estActif()` ajoutés, **E10 durci** (vérifie `zones.j2` inactives après reprise) ✅ |
+| **Libellé SIMULTANÉ** | Message de phase « ATTAQUE × / DÉFENSE ÷ (même chrono) » → « ATTAQUE × / DÉFENSE ÷ » (demande utilisateur). |
+| **E2E pilotage d'énergie** | Le score IA croissant avec le temps de phase (§2.6 nouveau modèle) faisait K.O. le joueur de test avant le tour 3 (E01 met `tempsPhase=45`). E03 et le tour 4 d'E05 pilotent désormais les énergies IA (`forcerEnergie*`, comme E04/E05) : la batterie vérifie la **maths de résolution**, pas l'équilibrage (couvert par S12). |
+| **Batterie** | Vitest 87/87 · scénarios S01→S12 ✅ · **E2E 28/28 ✅** (rapport `e2e-2026-11-15T17-30-34.md`). |
