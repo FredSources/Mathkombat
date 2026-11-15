@@ -119,6 +119,9 @@ export interface ConfigJeu {
     /** Déplacement libre du personnage (§9.2 `vaAGauche`…`vaEnBas`). */
     deplacementPas: number;
     deplacementDureeMs: number;
+    /** Profondeur (déplacement haut/bas) : zoom du sprite — + vers le bas,
+     *  − vers le haut — pour simuler la perspective de l'arène. */
+    zoomProfondeur: number;
     /** Approche de la cible avant un coup (§2.8b) : pénétration et durées.
      *  `penetrationFrappe` : le sprite du poing/pied doit **toucher** l'adversaire. */
     penetrationFrappe: number;
@@ -150,6 +153,11 @@ export interface ConfigJeu {
     facteurTempsRestant: number;
     /** Bonus fixe pour la victoire par K.O. */
     bonusKo: number;
+  };
+  /** Manœuvres pendant le chrono (§2.8b) : feintes à distance, sans contact. */
+  manoeuvres: {
+    /** Intervalle entre deux manœuvres (ms). */
+    intervalleMs: number;
   };
   /** IA « gentille » (§2.6) : battable, suspense garanti. */
   ia: {
@@ -221,6 +229,7 @@ export const CONFIG: ConfigJeu = {
     sautDureeMs: 260,
     deplacementPas: 36,
     deplacementDureeMs: 120,
+    zoomProfondeur: 0.12,
     /** Pénétration du coup dans la silhouette adverse (px) : le sprite du
      *  poing/pied doit **toucher** l'adversaire, même en cas de blocage. */
     penetrationFrappe: 90,
@@ -240,6 +249,9 @@ export const CONFIG: ConfigJeu = {
     facteurEnergie: 1,
     facteurTempsRestant: 1,
     bonusKo: 25,
+  },
+  manoeuvres: {
+    intervalleMs: 2500,
   },
   ia: {
     difficulte: 'moyen',

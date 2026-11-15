@@ -984,6 +984,31 @@ async function main() {
         e15.poseContre === 'pied',
       `déplacements ${e15.p0} → ${e15.pAvant} → ${e15.pArriere} · pose coup=${e15.poseCoup} contre=${e15.poseContre}`
     );
+
+    // ---------------------------------------------------------- E16
+    // Profondeur (zoom) : déplacement vers le bas = zoom +, vers le haut = zoom − ;
+    // et manœuvres à distance pendant le chrono (feintes, sans contact).
+    await relancer();
+    await lancerCombat();
+    const e16 = await page.evaluate(async () => {
+      const h = window.__mathkombat;
+      const e0 = h.profondeurs().j1;
+      h.anim('monter'); // vers le haut → zoom −
+      await new Promise((r) => setTimeout(r, 250));
+      const eHaut = h.profondeurs().j1;
+      h.anim('descendre'); // vers le bas → zoom +
+      await new Promise((r) => setTimeout(r, 250));
+      const eBas = h.profondeurs().j1;
+      const m0 = h.manoeuvres();
+      await new Promise((r) => setTimeout(r, 6000)); // le chrono tourne
+      return { e0, eHaut, eBas, m0, m1: h.manoeuvres() };
+    });
+    verifier(
+      'E16',
+      'Profondeur (zoom haut/bas) et manœuvres à distance pendant le chrono',
+      e16.eHaut < e16.e0 && e16.eBas > e16.eHaut && e16.m1 > e16.m0,
+      `zoom: haut=${e16.eHaut} base=${e16.e0} bas=${e16.eBas} · manœuvres ${e16.m0} → ${e16.m1}`
+    );
   } finally {
     await navigateur.close();
     if (serveur) serveur.kill();

@@ -79,6 +79,10 @@ export class FightScene extends Phaser.Scene {
   private dureePhaseCourante = CONFIG.tempsPhase;
   private chronoRestant = 0;
   private minuteur: Phaser.Time.TimerEvent | null = null;
+  /** Manœuvres pendant le chrono (§2.8b) : feintes à distance, sans contact. */
+  private minuteurManoeuvres: Phaser.Time.TimerEvent | null = null;
+  /** Nombre de manœuvres exécutées (debug/E2E). */
+  private compteurManoeuvres = 0;
 
   private j1!: Personnage;
   private j2!: Personnage;
@@ -378,6 +382,60 @@ export class FightScene extends Phaser.Scene {
     );
   }
 
+  // ============================================================== manœuvres (§2.8b)
+
+  /**
+   * Manœuvres pendant le chrono : les combattants s'échauffent **à distance**
+   * (jamais de contact — la résolution gère les vrais coups) :
+   *  - l'**attaquant se déplace et le défenseur le suit** (distance constante) ;
+   *  - **sauts et coups en l'air** indépendants (l'autre ne suit pas), y compris
+   *    à l'initiative du **défenseur** ;
+   *  - feintes de contre et gardes.
+   */
+  private demarrerManoeuvres(): void {
+    this.stopperManoeuvres();
+    this.minuteurManoeuvres = this.time.addEvent({
+      delay: CONFIG.manoeuvres.intervalleMs,
+      loop: true,
+      callback: () => this.executerManoeuvre(),
+    });
+  }
+
+  private stopperManoeuvres(): void {
+    this.minuteurManoeuvres?.remove(false);
+    this.minuteurManoeuvres = null;
+  }
+
+  private executerManoeuvre(): void {
+    if (this.engine.etat.fini || this.enPause) return;
+    this.compteurManoeuvres++;
+    const attaquant = this.joueurDe('attaque') === 'j1' ? this.j1 : this.j2;
+    const defenseur = attaquant === this.j1 ? this.j2 : this.j1;
+    // l'un ou l'autre initie l'action (le défenseur a sa propre initiative)
+    const acteur = Math.random() < 0.5 ? attaquant : defenseur;
+    const choix = Math.random();
+    if (choix < 0.32) {
+      // déplacement de COUPLE : l'attaquant bouge, le défenseur le suit —
+      // la distance entre les deux reste constante
+      const versDroite = Math.random() < 0.5;
+      if (versDroite) {
+        attaquant.vaADroite();
+        defenseur.vaADroite();
+      } else {
+        attaquant.vaAGauche();
+        defenseur.vaAGauche();
+      }
+    } else if (choix < 0.55) {
+      acteur.saut(); // saut indépendant (l'autre ne suit pas)
+    } else if (choix < 0.8) {
+      acteur.saut({ action: 'coup' }); // coup en l'air, dans le vide
+    } else if (choix < 0.92) {
+      acteur.saut({ action: 'contre' }); // feinte de contre
+    } else {
+      acteur.gardeHaute(); // garde
+    }
+  }
+
   // ============================================================== menu de pause (§8)
 
   /** ☰ MENU / raccourci M : bascule du menu de pause. */
@@ -533,6 +591,7 @@ export class FightScene extends Phaser.Scene {
     }
     this.textePhase.setText('ATTAQUE ×  /  DÉFENSE ÷   (même chrono)');
     this.demarrerMinuteur(this.tempsPhase);
+    this.demarrerManoeuvres(); // feintes à distance pendant le chrono (§2.8b)
   }
 
   /** Phases enchaînées (rythme DIFFÉRÉ, I15) ; phase IA = chrono immédiat (§2.6). */
@@ -551,6 +610,7 @@ export class FightScene extends Phaser.Scene {
     // chrono immédiat pour l'IA (solo) : score déjà calculé, l'humain n'attend
     // pas — en duel, les deux joueurs sont humains : toujours tempsPhase
     this.demarrerMinuteur(this.estHumain(joueur) ? this.tempsPhase : CONFIG.ia.dureeChronoIA);
+    this.demarrerManoeuvres(); // feintes à distance pendant le chrono (§2.8b)
   }
 
   /**
@@ -623,6 +683,7 @@ export class FightScene extends Phaser.Scene {
   }
 
   private finDePhase(): void {
+    this.stopperManoeuvres(); // les feintes s'arrêtent : la résolution commence
     this.minuteur?.remove();
     this.minuteur = null;
     this.iaEnCours = false;
@@ -1027,6 +1088,8 @@ export class FightScene extends Phaser.Scene {
       anim: (action: string) => {
         const j = scene.j1;
         if (action === 'marche') j.vaADroite();
+        else if (action === 'monter') j.vaEnHaut();
+        else if (action === 'descendre') j.vaEnBas();
         else if (action === 'saut') j.saut();
         else if (action === 'poing') j.coupDePoing('direct');
         else if (action === 'pied') j.coupDePied('haut');
@@ -1043,6 +1106,10 @@ export class FightScene extends Phaser.Scene {
         scene.j1.saut(options as never);
         return { pose: scene.j1.pose, ok: true };
       },
+      // profondeur (E16) : échelle du sprite (zoom + vers le bas, − vers le haut)
+      profondeurs: () => ({ j1: scene.j1.echelleSprite, j2: scene.j2.echelleSprite }),
+      // manœuvres exécutées pendant le chrono (E16)
+      manoeuvres: () => scene.compteurManoeuvres,
       // score de combat (§2.7) : mesures cumulées + scores affichés
       scores: () => ({
         j1: { ...scene.scores.j1 },

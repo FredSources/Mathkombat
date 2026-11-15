@@ -245,6 +245,8 @@ export class Personnage {
   private nomInterne: string;
   /** Sprite animé (style Mortal Kombat). */
   private spriteAnime: Phaser.GameObjects.Image;
+  /** Échelle d'affichage de base du sprite (le zoom de profondeur s'y applique). */
+  private echelleAffichage = 1;
   /** Pose affichée (debug/E2E). */
   private poseCourante: PoseSprite = 'garde';
   /** Minuteur d'animation courant (marche alternée / retour à la garde). */
@@ -356,7 +358,8 @@ export class Personnage {
     const sprite = scene.add
       .image(0, 0, options.skin.sprites.poses.garde[0])
       .setOrigin(0.5, 1);
-    sprite.setScale(options.skin.sprites.largeur / Math.max(1, sprite.width));
+    this.echelleAffichage = options.skin.sprites.largeur / Math.max(1, sprite.width);
+    sprite.setScale(this.echelleAffichage);
     this.spriteAnime = sprite;
     this.appliquerMiroir(); // sens initial (symétrie droite/gauche)
 
@@ -408,6 +411,11 @@ export class Personnage {
     return this.poseCourante;
   }
 
+  /** Échelle du sprite (profondeur : zoom + vers le bas, − vers le haut). */
+  get echelleSprite(): number {
+    return this.spriteAnime.scale;
+  }
+
   // ------------------------------------------------------- déplacements (effectifs)
 
   /**
@@ -422,6 +430,17 @@ export class Personnage {
     const avant = dx === 0 ? dy < 0 : dx > 0;
     const versAvant = (this.orientation === 'droite') === avant;
     this.jouerMarche(versAvant ? 'marche-avant' : 'marche-arriere');
+    // profondeur : le bas de l'arène est plus près (zoom +), le haut plus loin
+    // (zoom −) — le sprite change d'échelle en même temps que le déplacement
+    if (dy !== 0) {
+      const facteur = 1 + (dy > 0 ? CONFIG.rig.zoomProfondeur : -CONFIG.rig.zoomProfondeur);
+      this.scene.tweens.add({
+        targets: this.spriteAnime,
+        scale: this.echelleAffichage * facteur,
+        duration: CONFIG.rig.deplacementDureeMs,
+        ease: 'quad.out',
+      });
+    }
     this.scene.tweens.add({
       targets: this.corps,
       x,
