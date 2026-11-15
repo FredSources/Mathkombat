@@ -40,8 +40,21 @@ else
 fi
 
 # ---------------------------------------------------------- 3bis. icône + outils
-# Icône d'application (mipmap) depuis l'image source carrée du projet.
-/opt/opencode-venv/bin/python3 "$PROJ/scripts/assets-icone-apk.py"
+# Icône d'application (mipmap) : régénérée si un Python avec PIL est trouvé
+# (portabilité : venv, système, CI) — sinon les mipmaps versionnées sont gardées.
+PYTHON_ICONE=""
+for candidat in "${PYTHON_ICONE_CANDIDAT:-}" /opt/opencode-venv/bin/python3 python3 python; do
+  [ -n "$candidat" ] || continue
+  if command -v "$candidat" >/dev/null 2>&1 && "$candidat" -c 'import PIL' 2>/dev/null; then
+    PYTHON_ICONE="$candidat"
+    break
+  fi
+done
+if [ -n "$PYTHON_ICONE" ]; then
+  "$PYTHON_ICONE" "$PROJ/scripts/assets-icone-apk.py"
+else
+  log "Python+PIL indisponible : icônes conservées (mipmaps déjà présentes)"
+fi
 # Sur hôte aarch64 : les binaires x86-64 du SDK sont émulés par wrappers qemu.
 bash "$PROJ/scripts/setup-sdk-qemu.sh"
 
