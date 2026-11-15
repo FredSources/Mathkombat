@@ -147,6 +147,11 @@ export class QuizOverlay {
     if (!actif) this.messages.setText('');
   }
 
+  /** État d'activité de la zone (test E2E : l'IA reste inactive en tout temps). */
+  estActif(): boolean {
+    return this.actif;
+  }
+
   private appliquerFocus(): void {
     for (const [difficulte, cadre] of this.cadres) {
       const vise = difficulte === this.focusCourant && this.actif;

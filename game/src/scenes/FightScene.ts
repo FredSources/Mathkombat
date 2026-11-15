@@ -515,9 +515,11 @@ export class FightScene extends Phaser.Scene {
     this.scene.start('Menu');
   }
 
-  /** Réactive quiz + clavier des seuls joueurs en jeu pendant cette phase. */
+  /** Réactive quiz + clavier des seuls joueurs **humains** en jeu pendant cette
+   *  phase — le clavier de l'IA reste désactivé en tout temps (§2.6). */
   private reactiverZones(): void {
     for (const joueur of ['j1', 'j2'] as const) {
+      if (!this.estHumain(joueur)) continue; // IA : jamais de clavier
       if (!this.naturePourJoueur(joueur)) continue;
       const { quiz, numpad } = this.zoneDe(joueur);
       quiz.setActif(true);
@@ -625,7 +627,7 @@ export class FightScene extends Phaser.Scene {
       if (this.estHumain(joueur)) this.preparerJoueur(joueur, nature);
       else this.preparerIA(nature);
     }
-    this.textePhase.setText('ATTAQUE ×  /  DÉFENSE ÷   (même chrono)');
+    this.textePhase.setText('ATTAQUE ×  /  DÉFENSE ÷');
     this.demarrerMinuteur(this.tempsPhase);
     this.demarrerManoeuvres(); // feintes à distance pendant le chrono (§2.8b)
   }
@@ -1100,6 +1102,17 @@ export class FightScene extends Phaser.Scene {
       // menu de pause (§8) : état + bascule (le clic réel reste testé en E2E)
       pause: () => ({ ouverte: scene.enPause }),
       basculerPause: () => scene.basculerPause(),
+      // état d'activité des zones (E10) : le clavier de l'IA reste inactif
+      zones: () => ({
+        j1: {
+          quiz: scene.quizJ1.estActif(),
+          numpad: scene.numpadJ1.estActif(),
+        },
+        j2: {
+          quiz: scene.quizJ2.estActif(),
+          numpad: scene.numpadJ2.estActif(),
+        },
+      }),
       // fin de combat (§7) : bannière K.O. + boutons [ REJOUER ] / [ MENU ]
       fin: () => ({
         affichee: scene.engine.etat.fini,

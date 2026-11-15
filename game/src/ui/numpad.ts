@@ -361,6 +361,11 @@ export class Numpad {
     this.majSaisie();
   }
 
+  /** État d'activité du clavier (test E2E : l'IA reste inactif en tout temps). */
+  estActif(): boolean {
+    return this.actif;
+  }
+
   detruire(): void {
     this.minuteurSurbrillance?.remove(false);
     this.minuteurSurbrillance = null;

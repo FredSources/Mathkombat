@@ -262,6 +262,9 @@ async function main() {
     // attaque IA → DÉFENSE du joueur (divisions) → résolution
     await page.evaluate(() => window.__mathkombat.forceFinDePhase()); // fin attaque J1
     await attendre(400);
+    // énergie de l'IA pilotée : le score IA croît avec le temps de phase (§2.6),
+    // ce test vérifie la MATHS de résolution (I1/I2), pas l'équilibrage
+    await page.evaluate(() => window.__mathkombat.forcerEnergieDefense(20));
     await page.evaluate(() => window.__mathkombat.forceFinDePhase()); // fin défense IA
     await attendre(2300); // résolution + tour suivant
     await page.waitForFunction(
@@ -281,6 +284,8 @@ async function main() {
       },
       { timeout: 15000 }
     );
+    // énergie d'attaque de l'IA pilotée (cf. plus haut) : résolution déterministe
+    await page.evaluate(() => window.__mathkombat.forcerEnergieAttaque(20));
 
     const avantResolution = await etat();
     const attaqueIA = avantResolution.energieAttaque;
@@ -374,6 +379,12 @@ async function main() {
       },
       { timeout: 20000 }
     );
+    // « à vide » = énergies nulles explicites : le score IA croît avec le temps
+    // de phase (§2.6), la résolution doit rester déterministe
+    await page.evaluate(() => {
+      window.__mathkombat.forcerEnergieAttaque(0);
+      window.__mathkombat.forcerEnergieDefense(0);
+    });
     await page.evaluate(() => window.__mathkombat.forceFinDePhase());
     await page.waitForFunction(() => window.__mathkombat.etat().phase === 'defense', {
       timeout: 10000,
@@ -787,6 +798,8 @@ async function main() {
     const e10Reprise = await page.evaluate(() => ({
       ouverte: window.__mathkombat.pause().ouverte,
       chrono: window.__mathkombat.etat().chrono,
+      // en SOLO, J2 = IA : ses zones doivent rester inactives APRÈS la reprise
+      zones: window.__mathkombat.zones(),
     }));
     await attendre(1300); // le chrono doit avoir REPARTI
     const e10Reparti = await page.evaluate(() => window.__mathkombat.etat().chrono);
@@ -797,13 +810,15 @@ async function main() {
     const e10Menu = await page.evaluate(() => window.__mathkombatEcrans.ecran);
     verifier(
       'E10',
-      '☰ MENU en jeu : pause (chrono figé) → RETOUR AU JEU (reprise) → QUITTER → MENU',
+      '☰ MENU en jeu : pause (chrono figé) → RETOUR AU JEU (reprise, clavier IA inactif) → QUITTER → MENU',
       e10Pause.ouverte === true &&
         e10Gele === e10Pause.chrono &&
         e10Reprise.ouverte === false &&
         e10Reparti < e10Reprise.chrono &&
+        e10Reprise.zones.j2.numpad === false &&
+        e10Reprise.zones.j2.quiz === false &&
         e10Menu === 'menu',
-      `pause=${e10Pause.ouverte} chrono=${e10Pause.chrono} gelé=${e10Gele} · reprise: ouverte=${e10Reprise.ouverte} chrono=${e10Reprise.chrono} puis ${e10Reparti} · écran=${e10Menu}`
+      `pause=${e10Pause.ouverte} chrono=${e10Pause.chrono} gelé=${e10Gele} · reprise: ouverte=${e10Reprise.ouverte} chrono=${e10Reprise.chrono} puis ${e10Reparti} · zones J2 (IA) actives=${e10Reprise.zones.j2.numpad || e10Reprise.zones.j2.quiz} · écran=${e10Menu}`
     );
 
     // ---------------------------------------------------------- E11
