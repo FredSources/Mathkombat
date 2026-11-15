@@ -178,19 +178,22 @@ def main() -> int:
 
     for planche in planches:
         identifiant = planche.stem.replace("sprites-", "")
+        marche = identifiant.startswith("m")  # planche de cycle de marche (8 frames)
+        cle = identifiant[1:] if marche else identifiant
         image = Image.open(planche).convert("RGBA")
         case_w = image.width // COLONNES
         case_h = image.height // LIGNES
-        ratio = RATIOS.get(identifiant, 1.0)
-        echelle = echelle_planche(image, identifiant)  # gabarit + poses homogènes
+        ratio = RATIOS.get(cle, 1.0)
+        echelle = echelle_planche(image, cle)  # gabarit + poses homogènes
         print(f"{planche.name} : {image.width}x{image.height} → cases {case_w}x{case_h} (ratio {ratio}, échelle {echelle:.2f})")
-        for i, pose in enumerate(POSES):
+        for i in range(COLONNES * LIGNES):
             col, ligne = i % COLONNES, i // COLONNES
             case = image.crop((col * case_w, ligne * case_h, (col + 1) * case_w, (ligne + 1) * case_h))
             # détourage + coupe des résidus de bord (les chaussures finissent sur
             # le pixel du bas du sprite)
             sprite = recadrer(couper_residus(detourer(case)), echelle, ratio)
-            cible = SORTIE / f"{identifiant}-{i}-{pose}.png"
+            nom = f"{identifiant}-{i}.png" if marche else f"{identifiant}-{i}-{POSES[i]}.png"
+            cible = SORTIE / nom
             sprite.save(cible)
             print(f"  {cible.name}")
     return 0

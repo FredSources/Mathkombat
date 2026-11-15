@@ -414,22 +414,32 @@ export class FightScene extends Phaser.Scene {
     // l'un ou l'autre initie l'action (le défenseur a sa propre initiative)
     const acteur = Math.random() < 0.5 ? attaquant : defenseur;
     const choix = Math.random();
-    if (choix < 0.32) {
-      // déplacement de COUPLE : l'attaquant bouge, le défenseur le suit —
-      // la distance entre les deux reste constante
+    if (choix < 0.24) {
+      // déplacement de COUPLE horizontal : l'attaquant bouge, le défenseur le
+      // suit avec un léger RETARD (temps de réaction simulé)
       const versDroite = Math.random() < 0.5;
-      if (versDroite) {
-        attaquant.vaADroite();
-        defenseur.vaADroite();
-      } else {
-        attaquant.vaAGauche();
-        defenseur.vaAGauche();
-      }
-    } else if (choix < 0.55) {
+      if (versDroite) attaquant.vaADroite();
+      else attaquant.vaAGauche();
+      this.time.delayedCall(CONFIG.manoeuvres.tempsReactionMs, () => {
+        if (versDroite) defenseur.vaADroite();
+        else defenseur.vaAGauche();
+      });
+    } else if (choix < 0.48) {
+      // déplacement de COUPLE en PROFONDEUR : les deux montent ou descendent
+      // ensemble (distance constante), le défenseur en retard — le zoom simule
+      // la perspective
+      const versLeBas = Math.random() < 0.5;
+      if (versLeBas) attaquant.vaEnBas();
+      else attaquant.vaEnHaut();
+      this.time.delayedCall(CONFIG.manoeuvres.tempsReactionMs, () => {
+        if (versLeBas) defenseur.vaEnBas();
+        else defenseur.vaEnHaut();
+      });
+    } else if (choix < 0.66) {
       acteur.saut(); // saut indépendant (l'autre ne suit pas)
-    } else if (choix < 0.8) {
+    } else if (choix < 0.84) {
       acteur.saut({ action: 'coup' }); // coup en l'air, dans le vide
-    } else if (choix < 0.92) {
+    } else if (choix < 0.94) {
       acteur.saut({ action: 'contre' }); // feinte de contre
     } else {
       acteur.gardeHaute(); // garde

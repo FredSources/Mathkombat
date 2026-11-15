@@ -158,6 +158,8 @@ export interface ConfigJeu {
   manoeuvres: {
     /** Intervalle entre deux manœuvres (ms). */
     intervalleMs: number;
+    /** Temps de réaction du défenseur (ms) : il suit l'attaquant en retard. */
+    tempsReactionMs: number;
   };
   /** IA « gentille » (§2.6) : battable, suspense garanti. */
   ia: {
@@ -229,7 +231,7 @@ export const CONFIG: ConfigJeu = {
     sautDureeMs: 260,
     deplacementPas: 36,
     deplacementDureeMs: 120,
-    zoomProfondeur: 0.12,
+    zoomProfondeur: 0.04,
     /** Pénétration du coup dans la silhouette adverse (px) : le sprite du
      *  poing/pied doit **toucher** l'adversaire, même en cas de blocage. */
     penetrationFrappe: 90,
@@ -252,6 +254,7 @@ export const CONFIG: ConfigJeu = {
   },
   manoeuvres: {
     intervalleMs: 2500,
+    tempsReactionMs: 220,
   },
   ia: {
     difficulte: 'moyen',

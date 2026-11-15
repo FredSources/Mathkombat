@@ -37,6 +37,12 @@ export class BootScene extends Phaser.Scene {
         this.load.image(`mk-${id}-${i}`, `sprites-mk/${id}-${i}-${pose}.png`);
       });
     }
+    // cycles de marche (8 frames de pas par combattant), clés `mk-m<id>-<i>`
+    for (const id of ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']) {
+      for (let i = 0; i < 8; i++) {
+        this.load.image(`mk-${id}-${i}`, `sprites-mk/${id}-${i}.png`);
+      }
+    }
   }
 
   create(): void {

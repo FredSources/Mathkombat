@@ -113,14 +113,16 @@ const ECARTEMENTS_COUCHES: readonly number[] = [0.9, 1.3, 1.7];
 
 /**
  * Poses d'un combattant : clés de textures `mk-<id>-<i>` (chargées par
- * `BootScene` depuis `game/assets/sprites-mk/`). La marche alterne le pas et la
- * garde pour donner l'impression de marcher (deux frames).
+ * `BootScene` depuis `game/assets/sprites-mk/`). La marche joue le **cycle de
+ * pas** (`marche` = 8 frames générées) — l'avant et l'arrière partagent le
+ * cycle (l'arrière le joue à l'envers).
  */
-function posesMk(id: string): Record<PoseSprite, string[]> {
+function posesMk(id: string, marche: string): Record<PoseSprite, string[]> {
+  const pas = Array.from({ length: 8 }, (_, i) => `mk-${marche}-${i}`);
   return {
     garde: [`mk-${id}-0`],
-    'marche-avant': [`mk-${id}-1`, `mk-${id}-0`],
-    'marche-arriere': [`mk-${id}-2`, `mk-${id}-0`],
+    'marche-avant': pas,
+    'marche-arriere': [...pas].reverse(),
     saut: [`mk-${id}-3`],
     poing: [`mk-${id}-4`],
     pied: [`mk-${id}-5`],
@@ -136,42 +138,42 @@ export const SKINS: Record<string, SkinPersonnage> = {
     nom: 'KENJI',
     orientation: 'droite',
     teintes: teintesDe(0x3f7fe0),
-    sprites: { poses: posesMk('j1'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
+    sprites: { poses: posesMk('j1', 'm1'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
   },
   combattante: {
     id: 'combattante',
     nom: 'KIRA',
     orientation: 'gauche',
     teintes: teintesDe(0xd4433a),
-    sprites: { poses: posesMk('j2'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
+    sprites: { poses: posesMk('j2', 'm2'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
   },
   boxeur: {
     id: 'boxeur',
     nom: 'TITAN',
     orientation: 'droite',
     teintes: teintesDe(0xd4a13a),
-    sprites: { poses: posesMk('h2'), largeur: 291, dureeFrameMs: 200, dureePoseMs: 500 },
+    sprites: { poses: posesMk('h2', 'm3'), largeur: 291, dureeFrameMs: 200, dureePoseMs: 500 },
   },
   ninja: {
     id: 'ninja',
     nom: 'NYX',
     orientation: 'droite',
     teintes: teintesDe(0x7a5fd4),
-    sprites: { poses: posesMk('f2'), largeur: 239, dureeFrameMs: 200, dureePoseMs: 500 },
+    sprites: { poses: posesMk('f2', 'm4'), largeur: 239, dureeFrameMs: 200, dureePoseMs: 500 },
   },
   guerrier: {
     id: 'guerrier',
     nom: 'ZANE',
     orientation: 'droite',
     teintes: teintesDe(0x3f7fe0),
-    sprites: { poses: posesMk('z1'), largeur: 255, dureeFrameMs: 200, dureePoseMs: 500 },
+    sprites: { poses: posesMk('z1', 'm5'), largeur: 255, dureeFrameMs: 200, dureePoseMs: 500 },
   },
   guerriere: {
     id: 'guerriere',
     nom: 'BLAZE',
     orientation: 'droite',
     teintes: teintesDe(0xd4433a),
-    sprites: { poses: posesMk('z2'), largeur: 281, dureeFrameMs: 200, dureePoseMs: 500 },
+    sprites: { poses: posesMk('z2', 'm6'), largeur: 281, dureeFrameMs: 200, dureePoseMs: 500 },
   },
 };
 
