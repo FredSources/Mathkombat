@@ -116,7 +116,8 @@ export interface ConfigJeu {
     /** Saut du CONTRE : hauteur (px) et durée totale (ms). */
     sautHauteur: number;
     sautDureeMs: number;
-    /** Déplacement libre du personnage (§9.2 `vaAGauche`…`vaEnBas`). */
+    /** Déplacement libre du personnage (§9.2 `vaAGauche`…`vaEnBas`).
+     *  Assez long pour voir le **pas de marche** (plusieurs frames de cycle). */
     deplacementPas: number;
     deplacementDureeMs: number;
     /** Profondeur (déplacement haut/bas) : zoom du sprite — + vers le bas,
@@ -229,8 +230,8 @@ export const CONFIG: ConfigJeu = {
     dureeExtensionMs: 90,
     sautHauteur: 140,
     sautDureeMs: 260,
-    deplacementPas: 36,
-    deplacementDureeMs: 120,
+    deplacementPas: 90,
+    deplacementDureeMs: 480,
     zoomProfondeur: 0.04,
     /** Pénétration du coup dans la silhouette adverse (px) : le sprite du
      *  poing/pied doit **toucher** l'adversaire, même en cas de blocage. */
