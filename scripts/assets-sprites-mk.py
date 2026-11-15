@@ -46,11 +46,13 @@ RATIOS = {
 
 
 def detourer(case: Image.Image) -> Image.Image:
-    """Fond magenta chroma → transparent (distance à la couleur franche).
+    """Fond magenta chroma → transparent (distance à la couleur franche +
+    magenta sombre des dégradés de bord).
 
     La « dominance magenta » mangeait les teintes violettes (NYX) : on mesure
     ici la **distance au magenta de référence** (251, 4, 250) — seul le fond en
-    est proche, les violets du personnage restent.
+    est proche, les violets du personnage restent. Les **magenta sombres**
+    (dégradés de bord) sont reconnus par leur vert quasi nul.
     """
     rgba = case.convert("RGBA")
     px = rgba.load()
@@ -60,18 +62,73 @@ def detourer(case: Image.Image) -> Image.Image:
         for x in range(w):
             r, g, b, a = px[x, y]
             distance = abs(r - r0) + abs(g - g0) + abs(b - b0)
-            if distance < 60:  # magenta franc : fond
+            # magenta : franc (distance), sombre (vert quasi nul) ou rosé
+            # (min(r,b) très supérieur au vert) — les violets du personnage (NYX)
+            # ont un vert proportionnel et sont conservés
+            magenta = (
+                distance < 60
+                or (g < 18 and min(r, b) > 25)
+                or (min(r, b) > 2 * g + 100 and max(r, b) > 120)
+            )
+            if magenta:
                 px[x, y] = (r, g, b, 0)
             elif distance < 110:  # bord : alpha proportionnel (lissage)
                 px[x, y] = (r, g, b, max(0, a - int(255 * ((110 - distance) / 50))))
     return rgba
 
 
+def couper_residus(sprite: Image.Image) -> Image.Image:
+    """Efface les **ombres noires** de la bande basse puis coupe tout ce qui
+    dépasse sous la dernière **rangée significative** (≥ 5 pixels opaques) :
+    résidus de bord et ombres des planches descendaient jusqu'au bas des cases
+    et faisaient « voler » les personnages — les chaussures se retrouvent ainsi
+    sur le **pixel du bas**."""
+    px = sprite.load()
+    w, h = sprite.size
+    # 1) ombres noires sous la dernière rangée « colorée » du personnage
+    bas_col = -1
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a > 200 and (max(r, g, b) >= 60 or max(r, g, b) - min(r, g, b) >= 30):
+                bas_col = y
+    for y in range(min(h, bas_col + 13), h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a > 0 and max(r, g, b) < 25 and max(r, g, b) - min(r, g, b) < 12:
+                px[x, y] = (r, g, b, 0)
+    # 2) coupe sous la dernière rangée significative (résidus de bord)
+    bas = -1
+    for y in range(h):
+        if sum(1 for x in range(w) if px[x, y][3] > 200) >= 5:
+            bas = y
+    return sprite.crop((0, 0, w, bas + 1)) if 0 <= bas < h - 1 else sprite
+
+
+def bbox_personnage(sprite: Image.Image):
+    """Boîte du PERSONNAGE (opaque et coloré/lumineux) : les ombres intégrées
+    des planches — même opaques — sont grisâtres et sombres ; elles fayaient
+    « voler » les personnages en gonflant le bas du recadrage (KIRA : 38 px)."""
+    px = sprite.load()
+    w, h = sprite.size
+    x0, y0, x1, y1 = w, h, -1, -1
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a <= 200:
+                continue
+            sat = max(r, g, b) - min(r, g, b)
+            val = max(r, g, b)
+            if sat < 25 and val < 110:
+                continue  # ombre (gris sombre désaturé)
+            x0, y0 = min(x0, x), min(y0, y)
+            x1, y1 = max(x1, x), max(y1, y)
+    return (x0, y0, x1 + 1, y1 + 1) if x1 >= x0 else None
+
+
 def recadrer(sprite: Image.Image, echelle: float, ratio: float) -> Image.Image:
-    """Recadre sur le contenu OPAQUE (vrais pieds — les planches intègrent une
-    ombre douce sous les pieds qui faisait « voler » les personnages), à
-    l'échelle du gabarit (`RATIOS`), **pieds garantis au contact du bas**.
-    """
+    """Recadre sur le contenu opaque (chaussures sur le pixel du bas), à
+    l'échelle du gabarit (`RATIOS`), pieds collés au bas du canevas."""
     net = sprite.getchannel("A").point(lambda v: 255 if v > 200 else 0)
     bbox = net.getbbox()
     if not bbox:
@@ -81,30 +138,22 @@ def recadrer(sprite: Image.Image, echelle: float, ratio: float) -> Image.Image:
         (max(1, int(contenu.width * echelle)), max(1, int(contenu.height * echelle))),
         Image.LANCZOS,
     )
-    # canevas proportionnel au gabarit, pieds collés au bas
+    # 2e coupe des résidus : le redimensionnement en recrée sous les pieds
+    contenu = couper_residus(contenu)
     hauteur_canevas = int(HAUTEUR_CIBLE * ratio)
     largeur = int(hauteur_canevas * 1.1)
     canevas = Image.new("RGBA", (largeur, hauteur_canevas), (0, 0, 0, 0))
     canevas.paste(contenu, ((largeur - contenu.width) // 2, hauteur_canevas - contenu.height))
-    # garantie de contact : si le contenu visible ne touche pas le bas, on le
-    # descend (l'anti-aliasing du resize peut ronger les pieds)
-    vis = canevas.getchannel("A").point(lambda v: 255 if v > 40 else 0).getbbox()
-    if vis and vis[3] < hauteur_canevas:
-        canevas = Image.new("RGBA", (largeur, hauteur_canevas), (0, 0, 0, 0))
-        canevas.paste(
-            contenu,
-            ((largeur - contenu.width) // 2, hauteur_canevas - contenu.height + (hauteur_canevas - vis[3])),
-        )
     return canevas
 
 
 def echelle_planche(image: Image.Image, identifiant: str) -> float:
     """Échelle de la planche, calculée sur la pose de référence (garde)
-    **détourée** : le personnage garde son gabarit (`RATIOS`) et toutes les poses
-    la même taille (sinon le personnage « respire »)."""
+    **traitée comme les autres** (détourage + coupe des résidus) : le personnage
+    garde son gabarit (`RATIOS`) et toutes les poses la même taille."""
     case_w = image.width // COLONNES
     case_h = image.height // LIGNES
-    garde = detourer(image.crop((0, 0, case_w, case_h)))
+    garde = couper_residus(detourer(image.crop((0, 0, case_w, case_h))))
     net = garde.getchannel("A").point(lambda v: 255 if v > 200 else 0)
     bbox = net.getbbox() or (0, 0, case_w, case_h)
     hauteur = bbox[3] - bbox[1]
@@ -129,7 +178,9 @@ def main() -> int:
         for i, pose in enumerate(POSES):
             col, ligne = i % COLONNES, i // COLONNES
             case = image.crop((col * case_w, ligne * case_h, (col + 1) * case_w, (ligne + 1) * case_h))
-            sprite = recadrer(detourer(case), echelle, ratio)
+            # détourage + coupe des résidus de bord (les chaussures finissent sur
+            # le pixel du bas du sprite)
+            sprite = recadrer(couper_residus(detourer(case)), echelle, ratio)
             cible = SORTIE / f"{identifiant}-{i}-{pose}.png"
             sprite.save(cible)
             print(f"  {cible.name}")

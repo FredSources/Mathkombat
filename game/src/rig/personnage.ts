@@ -605,11 +605,13 @@ export class Personnage {
         const droite = attaquant.corps.x > this.corps.x;
         this.saut();
         this.jouerPose('pied', this.skin.sprites.dureePoseMs);
-        // 3. l'attaquant REÇOIT le contre (mouvement « coup reçu » + recul)
+        // 3. l'attaquant REÇOIT le contre (« coup reçu ») — le recul est porté
+        // par le SPRITE (rig), pas par le corps : le retour de l'approche
+        // pilote `corps.x` et un tween concurrent l'annulerait
         attaquant.jouerPose('touche', this.skin.sprites.dureePoseMs);
         this.scene.tweens.add({
-          targets: attaquant.corps,
-          x: attaquant.corps.x - versAvant * (14 + tier * 9),
+          targets: attaquant.rig,
+          x: attaquant.rig.x - versAvant * (14 + tier * 9),
           duration: 110,
           yoyo: true,
         });

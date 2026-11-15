@@ -895,6 +895,46 @@ async function main() {
         e13.ko.pose === 'touche',
       `marche=${e13.marche.pose} saut=${e13.saut.pose} poing=${e13.poing.pose} pied=${e13.pied.pose} garde=${e13.garde.pose} touche=${e13.touche.pose} ko=${e13.ko.pose}`
     );
+
+    // ---------------------------------------------------------- E14
+    // Déplacement de l'attaquant sur un coup BLOQUÉ (solde = 0) : il s'approche
+    // de l'adversaire, donne son coup, puis **revient à sa position d'origine**.
+    await relancer();
+    await lancerCombat();
+    // attaque = défense exactement → blocage (§2.4)
+    await page.evaluate(() => {
+      window.__mathkombat.forcerEnergieAttaque(6);
+      window.__mathkombat.forcerEnergieDefense(6);
+    });
+    const e14Depart = await page.evaluate(() => window.__mathkombat.positions());
+    // on suit les positions pendant la résolution (aller-retour de l'attaquant)
+    await page.evaluate(() => {
+      window.__suivi = [];
+      window.__h = setInterval(() => window.__suivi.push(window.__mathkombat.positions()), 60);
+      window.__mathkombat.forceFinDePhase(); // fin attaque → défense IA
+    });
+    await attendre(400);
+    await page.evaluate(() => {
+      window.__mathkombat.forcerEnergieDefense(6);
+      window.__mathkombat.forceFinDePhase(); // fin défense → résolution (blocage)
+    });
+    await attendre(1600);
+    const e14 = await page.evaluate(() => {
+      clearInterval(window.__h);
+      const s = window.__suivi;
+      return {
+        depart: window.__mathkombat.positions(),
+        min: Math.min(...s.map((p) => p.j1)),
+        max: Math.max(...s.map((p) => p.j1)),
+        journal: window.__mathkombat.journal().slice(0, 3),
+      };
+    });
+    verifier(
+      'E14',
+      "Coup bloqué : l'attaquant s'approche (déplacement) puis revient à sa position",
+      e14.max > e14Depart.j1 + 40 && Math.abs(e14.depart.j1 - e14Depart.j1) < 6,
+      `départ=${e14Depart.j1} min=${e14.min} max=${e14.max} retour=${e14.depart.j1} journal=${JSON.stringify(e14.journal)}`
+    );
   } finally {
     await navigateur.close();
     if (serveur) serveur.kill();
