@@ -510,11 +510,18 @@ export class Personnage {
   /**
    * Approche de la cible pour donner un coup, puis **retour à la position
    * d'origine** (chorégraphie §2.8b) : `action` est jouée au contact.
+   *
+   * Le contact est calculé sur les **largeurs réelles des sprites** : le poing
+   * (ou le pied) touche et pénètre légèrement la silhouette adverse — même en
+   * cas de blocage (demande utilisateur).
    */
   private approcher(cible: Personnage, action: () => void): void {
     const xDepart = this.corps.x;
     const versDroite = cible.corps.x > this.corps.x;
-    const xContact = cible.corps.x + (versDroite ? -1 : 1) * CONFIG.rig.distanceFrappe;
+    const portee =
+      (this.skin.sprites.largeur + cible.skin.sprites.largeur) / 2 -
+      CONFIG.rig.penetrationFrappe;
+    const xContact = cible.corps.x + (versDroite ? -1 : 1) * portee;
     this.scene.tweens.add({
       targets: this.corps,
       x: xContact,

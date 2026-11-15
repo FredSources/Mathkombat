@@ -146,8 +146,9 @@ export interface ConfigJeu {
     /** Déplacement libre du personnage (§9.2 `vaAGauche`…`vaEnBas`). */
     deplacementPas: number;
     deplacementDureeMs: number;
-    /** Approche de la cible avant un coup (§2.8b) : distance et durées. */
-    distanceFrappe: number;
+    /** Approche de la cible avant un coup (§2.8b) : pénétration et durées.
+     *  `penetrationFrappe` : le sprite du poing/pied doit **toucher** l'adversaire. */
+    penetrationFrappe: number;
     approcheDureeMs: number;
     retourDureeMs: number;
     /** Hauteur d'impact au-dessus du sol (px) selon le coup. */
@@ -261,7 +262,9 @@ export const CONFIG: ConfigJeu = {
     koChuteY: 26,
     deplacementPas: 36,
     deplacementDureeMs: 120,
-    distanceFrappe: 230,
+    /** Pénétration du coup dans la silhouette adverse (px) : le sprite du
+     *  poing/pied doit **toucher** l'adversaire, même en cas de blocage. */
+    penetrationFrappe: 90,
     approcheDureeMs: 220,
     retourDureeMs: 280,
     impactY: { poing: 185, 'pied-haut': 100, 'pied-bas': 40 },
