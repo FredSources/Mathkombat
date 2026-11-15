@@ -37,7 +37,7 @@ Vérifiés par L1/L2 à chaque exécution ; toute violation = **FAIL bloquant**.
 | I13 | L'intensité d'animation (aura, tier de frappe, contre) est une **fonction déterministe** de la puissance, définie dans `config.ts` (bornes de tiers vérifiables) |
 | I14 | V1 : seules les opérations **× (attaque)** et **÷ (défense)** sont actives ; le générateur est abstrait par type d'opération (architecture prête pour + et −) |
 | I15 | Rythme **SIMULTANÉ** : les deux phases partagent le **même chrono** et se terminent ensemble ; rythme **DIFFÉRÉ** : les phases s'enchaînent avec la **même durée** chacune. Le rythme appliqué est **celui de la configuration choisie** (aucune détection ni adaptation selon l'écran). Exception Solo : une phase jouée par l'IA peut être remplacée par un **chrono immédiat** (score pré-calculé, §2.6) — présentation, la structure des phases reste celle du rythme configuré |
-| I16 | L'IA reste **« gentille » et battable** : rendement plafonné (`iaRendementMax`, sous la cadence humaine de référence), rattrapage doux si elle domine (`ecartSuspense`), score **pré-calculé** et affiché sur un chrono immédiat (`dureeChronoIA`) ; taux de victoires humaines visés : Facile ≈ 80 %, Moyen ≈ 50 %, Difficile ≈ 30 % |
+| I16 | L'IA reste **« gentille » et battable** : **le niveau d'IA = son score moyen** (attaque/défense, `ia.scoreMoyen` — pas les calculs tentés) ; score plafonné par le **temps des calculs** (1 calcul = `tempsParCalcul` s — moins de temps = score plus faible) et sous le score d'un joueur rapide ; rattrapage doux si elle domine (`ecartSuspense`) ; score **pré-calculé** et affiché sur un chrono immédiat (`dureeChronoIA`) ; taux de victoires humaines visés : Facile ≈ 80 %, Moyen ≈ 50 %, Difficile ≈ 30 % |
 
 ## 3. Catalogue de scénarios (L2 — headless)
 
@@ -57,7 +57,7 @@ de phases avec réponses choisies, et attend un état final + une trace d'évén
 | S09 | IA : taux de réussite conforme à sa difficulté (±10 % sur 200 tirages) | config |
 | S10 | Bout en bout : combat complet simulé, trace conforme à la nomenclature §4 archi. | trace |
 | S11 | 3 calculs simultanés : réussite ne remplace que le calcul résolu ; erreur laisse le calcul en place | I12, I4 |
-| S12 | Winnability : 200 combats simulés « joueur de référence » (cadenceHumaineReference, réussite 85 %) vs chaque difficulté d'IA | I16 — taux de victoires humaines dans la fourchette cible (±15 points) |
+| S12 | Winnability : 200 combats simulés « joueur de référence » (temps des calculs 2 s, réussite 85 %) vs chaque difficulté d'IA | I16 — taux de victoires humaines dans la fourchette cible (±15 points) : S12 calibré le 2026-11-15 → **78.7 / 49.3 / 32.3 %** |
 
 ## 4. Tests d'intégration log (L3)
 

@@ -1842,3 +1842,15 @@ note de répartition), `docs/assets.md` §3bis (méthode sprites), `todo.md`.
 - **Équilibrage S12** (taux de victoires humaines 80/50/30 %) — la répartition
   des faits est posée, reste le réglage de l'IA et de la cadence ;
 - Journal final + README (clôture J8).
+
+### S12 — modèle IA « score moyen » et temps des calculs (suite)
+
+| Sujet | Contenu |
+|-------|---------|
+| **Modèle IA** (demande utilisateur) | Le niveau d'IA (Facile/Moyen/Difficile) **indique le score moyen des attaques et des défenses** (`ia.scoreMoyen`) — **pas les multiplications à faire** : `tauxReussite`, `strategieChoix`, `rendementMax` supprimés. Le choix des calculs est indépendant du niveau (proportionnel au gain). |
+| **Temps des calculs** | 1 calcul = **2 s** de saisie + calcul humain (`tempsParCalcul`) : le temps de phase borne le nombre de calculs — **moins de temps = score plus faible** (humain comme IA). |
+| **Calibration S12** | `scripts/s12-sim.mjs` (Monte Carlo sur le cœur réel, dichotomie sur `scoreMoyen`) → **scoreMoyen { facile: 21, moyen: 23, difficile: 24 }** ; validation 300 combats : **78.7 / 49.3 / 32.3 %** de victoires humaines (cibles 80/50/30 ± 15) ✅ |
+| **Tests** | Vitest 87/87 (nouveaux tests : temps des calculs borne le score, score moyen conforme, choix indépendant du niveau, toujours battable) ; scénarios S01→S12 verts (S09 = score moyen ±12 %). |
+| **Doc** | AGENTS.md §2.6/§2.9, test-plan I16/S09/S12 mis à jour. |
+
+Prochaine étape : grille manuelle L5 + build Android Studio, puis best-of-3 / idées optionnelles.

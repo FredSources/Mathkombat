@@ -217,8 +217,7 @@ describe('réglages de l\'écran CONFIG (§2.7)', () => {
     expect(cible.ia.difficulte).toBe('facile');
     // rien d'autre n'a bougé : gains d'énergie et réglages de l'IA
     expect(cible.gains).toEqual(avant.gains);
-    expect(cible.ia.rendementMax).toBe(avant.ia.rendementMax);
-    expect(cible.ia.tauxReussite).toEqual(avant.ia.tauxReussite);
+    expect(cible.ia.scoreMoyen).toEqual(avant.ia.scoreMoyen);
     expect(cible.ia.dureeChronoIA).toBe(avant.ia.dureeChronoIA);
   });
 

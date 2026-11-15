@@ -145,8 +145,10 @@ export interface ConfigJeu {
   };
   /** Saisie au clavier numérique (§2.7). */
   saisieMaxChiffres: number;
-  /** Cadence humaine de référence : 1 calcul réussi toutes les N secondes. */
-  cadenceHumaineReference: number;
+  /** Temps de référence pour saisir et calculer une réponse (s) — humain comme
+   *  IA (§2.9) : le temps des calculs borne le score (moins de temps = moins de
+   *  calculs = score plus faible). */
+  tempsParCalcul: number;
   /** Interface (§2.7) — intensités d'animation des retours visuels des boutons. */
   ui: {
     /** Durée (ms) de la surbrillance d'une touche du clavier quand on l'appuie. */
@@ -178,18 +180,21 @@ export interface ConfigJeu {
   ia: {
     /** Difficulté par défaut (CONFIG écran). */
     difficulte: Difficulte;
-    /** Plafond de rendement (fraction de la cadence humaine de référence). */
-    rendementMax: number;
-    /** Facteur appliqué au rendement quand le rattrapage doux se déclenche. */
+    /**
+     * Score moyen visé (attaque OU défense) par phase de `dureeScoreMoyen` s —
+     * **le niveau d'IA indique ce score, pas les calculs à faire** (§2.6). Le
+     * score effectif croît avec le temps de phase (`tempsParCalcul`) : moins de
+     * temps → moins de calculs → score plus faible.
+     */
+    scoreMoyen: Record<Difficulte, number>;
+    /** Durée de référence (s) du `scoreMoyen` : ramenée au temps de phase réel. */
+    dureeScoreMoyen: number;
+    /** Facteur appliqué au score visé quand le rattrapage doux se déclenche. */
     facteurRattrapage: number;
     /** Écart de PV déclenchant le rattrapage doux. */
     ecartSuspense: number;
-    /** Probabilité de réussite d'un calcul de l'IA par difficulté. */
-    tauxReussite: Record<Difficulte, number>;
     /** Taux de victoires humaines visés (calibrage J8, cible S12). */
     tauxVictoiresCible: Record<Difficulte, number>;
-    /** Stratégie de choix de difficulté par niveau d'IA (somme = 1). */
-    strategieChoix: Record<Difficulte, Record<Difficulte, number>>;
     /**
      * Chrono « immédiat » des phases IA en rythme DIFFÉRÉ Solo : le score est
      * calculé d'avance et totalisé sur cette courte durée (l'humain n'attend
@@ -271,7 +276,8 @@ export const CONFIG: ConfigJeu = {
     impactY: { poing: 185, 'pied-haut': 100, 'pied-bas': 40 },
   },
   saisieMaxChiffres: 3,
-  cadenceHumaineReference: 3,
+  /** 2 s : temps humain pour saisir + calculer une réponse (§2.9). */
+  tempsParCalcul: 2,
   ui: {
     surbrillanceMs: 160,
     surbrillanceTeinte: 0.45,
@@ -289,16 +295,13 @@ export const CONFIG: ConfigJeu = {
   },
   ia: {
     difficulte: 'moyen',
-    rendementMax: 0.7,
+    // Score moyen visé (attaque OU défense) par phase de 15 s — le niveau
+    // d'IA indique CE score (§2.6), calibré par S12 (80/50/30 %, 2026-11-15).
+    scoreMoyen: { facile: 21, moyen: 23, difficile: 24 },
+    dureeScoreMoyen: 15,
     facteurRattrapage: 0.7,
     ecartSuspense: 20,
-    tauxReussite: { facile: 0.55, moyen: 0.7, difficile: 0.8 },
     tauxVictoiresCible: { facile: 0.8, moyen: 0.5, difficile: 0.3 },
-    strategieChoix: {
-      facile: { facile: 0.7, moyen: 0.2, difficile: 0.1 },
-      moyen: { facile: 0.25, moyen: 0.5, difficile: 0.25 },
-      difficile: { facile: 0.1, moyen: 0.2, difficile: 0.7 },
-    },
     dureeChronoIA: 3,
   },
 };

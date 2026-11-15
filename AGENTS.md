@@ -190,25 +190,28 @@ l'architecture mais non implémentées (voir `todo.md`, « Idées / dette »).
 
 ### 2.6 Modes de jeu
 
-- **Solo vs IA** (3 difficultés d'IA : Facile / Moyen / Difficile — probabilité de
-  réussite et stratégie de choix de difficulté paramétrées dans `config.ts`).
+- **Solo vs IA** (3 difficultés d'IA : Facile / Moyen / Difficile — **le niveau
+  indique le score moyen des attaques et des défenses** de l'IA, pas les
+  multiplications qu'elle tente ; paramétré dans `config.ts`).
   - **Déroulé des phases de l'IA** : l'IA **joue ses phases sur la même durée** que
     les joueurs humains (aucune résolution instantanée) ; son énergie s'accumule
     progressivement et est **visible via son aura** ; sa zone de calcul reste en
     veille (aucune interaction). Son score n'est révélé qu'à la résolution.
+  - **Temps des calculs** : 1 calcul = **2 s** de saisie + calcul (`tempsParCalcul`)
+    — le temps de phase borne le nombre de calculs jouables : **moins de temps =
+    score plus faible** (humain comme IA).
   - **Chrono immédiat des phases IA (Solo)** : le score de l'IA est **calculé
-    d'avance** (rendement plafonné) et **totalisé sur un court chrono**
+    d'avance** (score moyen plafonné) et **totalisé sur un court chrono**
     (`ia.dureeChronoIA`, défaut 3 s) — l'humain n'attend jamais la pleine durée
     d'une phase jouée par l'IA.
-  - **IA « gentille » — suspense ET possibilité de gagner** : l'IA **ne maximise
-    jamais sa cadence** et **reste toujours battable**. Son rendement est plafonné
-    (`iaRendementMax`, défaut **70 %** de la cadence humaine de référence,
-    `config.ts`) : **en dessous de ce qu'un joueur rapide peut atteindre** — un bon
-    joueur l'emporte à **toutes les difficultés**. **Rattrapage doux** : si elle
-    mène de plus de `ecartSuspense` PV, son rendement baisse d'un cran. Bilan :
+  - **IA « gentille » — suspense ET possibilité de gagner** : l'IA **reste
+    toujours battable** — son score moyen (`ia.scoreMoyen`) plafonné reste **en
+    dessous de ce qu'un joueur rapide peut atteindre** (gain max × calculs) : un
+    bon joueur l'emporte à **toutes les difficultés**. **Rattrapage doux** : si
+    elle mène de plus de `ecartSuspense` PV, son score baisse d'un cran. Bilan :
     **l'issue reste incertaine jusqu'au K.O.** et le joueur a toujours une
     possibilité réelle de gagner. **Taux de victoires humaines visés** (calibrage
-    J8) : Facile ≈ 80 %, Moyen ≈ 50 %, Difficile ≈ 30 %.
+    J8, vérifié par S12) : Facile ≈ 80 %, Moyen ≈ 50 %, Difficile ≈ 30 %.
 - **2 joueurs**, même appareil : les rôles **alternent à chaque tour** (zones J1/J2) ;
   en rythme SIMULTANÉ, les deux joueurs jouent **dans le même tour**, sur le même
   chrono (§2.1).
@@ -373,14 +376,17 @@ phase** (les deux phases partagent le même chrono).
 | Difficulté de l'IA | Moyen | Facile/Moyen/Difficile | `config.ts` + écran **CONFIG** |
 | Score — facteur énergie / temps restant (`score`) | 1 / 1 | — | `config.ts` |
 | Score — bonus K.O. (`score.bonusKo`) | 25 | — | `config.ts` |
-| Rendement max de l'IA (« gentillesse ») | 70 % de la cadence humaine | 30–100 % | `config.ts` |
-| Cadence humaine de référence (`cadenceHumaineReference`) | 1 calcul réussi / 3 s | — | `config.ts` |
+| Score moyen de l'IA (« gentillesse », `scoreMoyen`) | 21 / 23 / 24 | — | `config.ts` |
+| Temps des calculs (`tempsParCalcul`) | 1 calcul / 2 s | — | `config.ts` |
 | Seuil de rattrapage doux (`ecartSuspense`) | 20 PV | 5–50 | `config.ts` |
 | Taux de victoires humaines visés (par difficulté IA) | 80 / 50 / 30 % | — | cible de calibrage J8 |
 
-**Définitions** : la **cadence humaine de référence** est de **1 calcul réussi toutes
-les 3 s** (≈ 5 réussites par phase de 15 s). Le **« joueur de référence »** des tests
-(S12) est un profil simulé jouant à cette cadence avec **85 % de réussite**.
+**Définitions** : le **temps des calculs** est de **2 s par calcul** (saisie +
+calcul d'une réponse humaine) : le temps de phase borne le nombre de calculs
+jouables — **moins de temps = score plus faible** (≈ 7 calculs par phase de 15 s).
+Le **niveau d'IA indique son score moyen** (attaque/défense) : Facile 21 ·
+Moyen 23 · Difficile 24 (calibrés par S12). Le **« joueur de référence »** des
+tests (S12) est un profil simulé jouant à cette cadence avec **85 % de réussite**.
 
 - **Écran CONFIG** (jalon J6) : presets de tempo **Rapide (10 s)**,
   **Normal (15 s)**, **Long (25 s)** — **même durée pour l'attaque et la défense** —

@@ -285,31 +285,31 @@ function jouerCombat(sc) {
 function jouerIA(sc) {
   const verdicts = [];
   const details = [];
-  const tirages = sc.tirages ?? 200;
+  const phases = sc.phases ?? 200;
 
   for (const difficulte of ['facile', 'moyen', 'difficile']) {
     const ia = new AiController(CONFIG, alea(sc.graine ?? 1));
-    const decisions = [];
+    let total = 0;
     let graine = 1;
-    while (decisions.length < tirages) {
+    for (let p = 0; p < phases; p++) {
       const phase = new PhaseCalcul('division', 'avance', new GenerateurMath(CONFIG, alea(graine++)));
-      decisions.push(...ia.jouerPhase(phase, difficulte, 0));
+      total += ia.jouerPhase(phase, difficulte, 0).reduce((s, d) => s + d.gain, 0);
     }
-    const echantillon = decisions.slice(0, tirages);
-    const taux = echantillon.filter((d) => d.correct).length / tirages;
-    const cible = CONFIG.ia.tauxReussite[difficulte];
-    const ok = Math.abs(taux - cible) <= 0.1;
-    if (!ok) details.push(`I16 ✗ IA ${difficulte} : taux ${taux.toFixed(2)} hors ±10 pts de ${cible}`);
+    // I16 : le niveau indique le SCORE MOYEN (±12 % sur `phases` phases)
+    const scoreMoyen = total / phases;
+    const cible = CONFIG.ia.scoreMoyen[difficulte];
+    const ok = Math.abs(scoreMoyen - cible) <= 0.12 * cible;
+    if (!ok) details.push(`I16 \u2717 IA ${difficulte} : score moyen ${scoreMoyen.toFixed(1)} hors \u00b112 % de ${cible}`);
     verdicts.push({ oracle: 'I16', ok });
 
-    // plafond de tentatives (I16)
-    const plafond = Math.floor(
-      (CONFIG.tempsPhase / CONFIG.cadenceHumaineReference) * CONFIG.ia.rendementMax
-    );
-    for (const d of decisions) void d;
-    const okPlafond = ia.tentativesMax(0) <= plafond;
-    if (!okPlafond) details.push(`I16 ✗ tentativesMax ${ia.tentativesMax(0)} > plafond ${plafond}`);
-    verdicts.push({ oracle: 'I16', ok: okPlafond });
+    // I16 : le temps des calculs borne le score (1 calcul = tempsParCalcul s)
+    const plafond = Math.floor(CONFIG.tempsPhase / CONFIG.tempsParCalcul) * CONFIG.gains.difficile;
+    const okPlafond = ia.calculsMax() <= Math.floor(CONFIG.tempsPhase / CONFIG.tempsParCalcul);
+    const okBorne = cible < plafond;
+    if (!okPlafond || !okBorne) {
+      details.push(`I16 \u2717 scoreMoyen ${difficulte}=${cible} vs plafond temps ${plafond}`);
+    }
+    verdicts.push({ oracle: 'I16', ok: okPlafond && okBorne });
   }
   return { verdicts, details };
 }

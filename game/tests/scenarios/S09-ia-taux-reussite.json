@@ -1,8 +1,8 @@
 {
   "id": "S09",
-  "titre": "IA : taux de réussite conforme à sa difficulté (±10 points sur 200 tirages)",
+  "titre": "IA : score moyen conforme à son niveau (±12 % sur 200 phases)",
   "type": "ia",
   "graine": 42,
-  "tirages": 200,
+  "phases": 200,
   "oracles": ["I16"]
 }

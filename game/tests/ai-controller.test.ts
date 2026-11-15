@@ -1,5 +1,7 @@
 /**
  * Tests Vitest — IA « gentille » (jalons J3). Invariant I16 (docs/test-plan.md).
+ * Modèle §2.6 : le niveau d'IA = son score moyen (attaque/défense) ; le temps
+ * des calculs borne le score (1 calcul = tempsParCalcul s).
  */
 import { describe, expect, it } from 'vitest';
 import type { Difficulte } from '../src/core/config.ts';
@@ -19,98 +21,87 @@ function alea(seed: number): () => number {
   };
 }
 
-describe('AiController — rendement plafonné (I16)', () => {
-  it('tentatives bornées par rendementMax × (tempsPhase / cadenceHumaineReference)', () => {
+describe('AiController — temps des calculs borne le score (I16)', () => {
+  it('calculs par phase = tempsPhase / tempsParCalcul (1 calcul = 2 s)', () => {
     const ia = new AiController(CONFIG, alea(1));
-    const plafondTheorique = Math.floor(
-      (CONFIG.tempsPhase / CONFIG.cadenceHumaineReference) * CONFIG.ia.rendementMax
-    );
-    expect(ia.tentativesMax(0)).toBe(plafondTheorique);
-    // 15 s / 3 s × 0.7 = 3,5 → 3 tentatives max : sous la cadence humaine (5)
-    expect(plafondTheorique).toBe(3);
+    const attendu = Math.floor(CONFIG.tempsPhase / CONFIG.tempsParCalcul);
+    expect(ia.calculsMax()).toBe(attendu);
+    // 15 s / 2 s = 7 calculs max par phase
+    expect(attendu).toBe(7);
   });
 
-  it('rattrapage doux : si l\'IA domine de plus de ecartSuspense PV, son rendement baisse', () => {
-    const ia = new AiController(CONFIG, alea(2));
-    const normal = ia.tentativesMax(0);
-    const enRattrapage = ia.tentativesMax(CONFIG.ia.ecartSuspense + 1);
-    expect(enRattrapage).toBeLessThan(normal);
-    // bordure exacte : à l'écart seuil, pas de rattrapage
-    expect(ia.tentativesMax(CONFIG.ia.ecartSuspense)).toBe(normal);
+  it('moins de temps de phase = score visé plus faible (§2.6)', () => {
+    const court = { ...CONFIG, tempsPhase: 8 };
+    const iaCourt = new AiController(court, alea(2));
+    const iaNormal = new AiController(CONFIG, alea(2));
+    for (const d of ['facile', 'moyen', 'difficile'] as Difficulte[]) {
+      expect(iaCourt.scoreVise(d)).toBeLessThan(iaNormal.scoreVise(d));
+      // proportionnel aux calculs jouables
+      expect(iaCourt.scoreVise(d)).toBeCloseTo(
+        (iaNormal.scoreVise(d) * iaCourt.calculsMax()) / iaNormal.calculsMax(),
+        5
+      );
+    }
   });
 
-  it('joue sur la durée configurée : nombre de décisions = tentativesMax', () => {
+  it('joue sur la durée configurée : nombre de décisions = calculsMax', () => {
     const ia = new AiController(CONFIG, alea(3));
     const phase = new PhaseCalcul('multiplication', 'intermediaire', new GenerateurMath(CONFIG, alea(4)));
     const decisions = ia.jouerPhase(phase, 'moyen', 0);
-    expect(decisions).toHaveLength(ia.tentativesMax(0));
-    expect(decisions.length).toBeLessThanOrEqual(3); // I16 : jamais au-dessus du plafond
+    expect(decisions).toHaveLength(ia.calculsMax());
   });
 
-  it('toujours battable : plafond d\'énergie garanti, sous le joueur rapide', () => {
-    const plafondTentatives = Math.floor(
-      (CONFIG.tempsPhase / CONFIG.cadenceHumaineReference) * CONFIG.ia.rendementMax
-    );
-    const plafondEnergie = plafondTentatives * CONFIG.gains.difficile;
-    for (const difficulte of ['facile', 'moyen', 'difficile'] as Difficulte[]) {
-      for (let essai = 0; essai < 50; essai++) {
-        const ia = new AiController(CONFIG, alea(essai * 31 + 7));
-        const phase = new PhaseCalcul('multiplication', 'avance', new GenerateurMath(CONFIG, alea(essai)));
-        const decisions = ia.jouerPhase(phase, difficulte, 0);
-        const energie = decisions.reduce((s, d) => s + d.gain, 0);
-        expect(energie).toBeLessThanOrEqual(plafondEnergie); // 3 × 7 = 21 max
-      }
-    }
-    // un joueur rapide (cadence de référence, 5 réussites) en gains max = 35 > 21
-    const humainRapide =
-      (CONFIG.tempsPhase / CONFIG.cadenceHumaineReference) * CONFIG.gains.difficile;
-    expect(plafondEnergie).toBeLessThan(humainRapide);
+  it('rattrapage doux : si l\'IA domine de plus de ecartSuspense PV, son score baisse', () => {
+    const ia = new AiController(CONFIG, alea(2));
+    const normal = ia.scoreVise('moyen', 0);
+    const enRattrapage = ia.scoreVise('moyen', CONFIG.ia.ecartSuspense + 1);
+    expect(enRattrapage).toBeLessThan(normal);
+    expect(enRattrapage).toBeCloseTo(normal * CONFIG.ia.facteurRattrapage, 5);
+    // bordure exacte : à l'écart seuil, pas de rattrapage
+    expect(ia.scoreVise('moyen', CONFIG.ia.ecartSuspense)).toBeCloseTo(normal, 10);
   });
 });
 
-describe('AiController — taux de réussite et stratégie (S09, I16)', () => {
-  it('taux de réussite conforme à la difficulté ±10 points sur 200 tirages', () => {
+describe('AiController — le niveau indique le SCORE, pas les calculs (§2.6)', () => {
+  it('score moyen visé conforme au niveau sur 200 phases (±12 %)', () => {
     for (const difficulte of ['facile', 'moyen', 'difficile'] as Difficulte[]) {
       const ia = new AiController(CONFIG, alea(42));
-      const phase = new PhaseCalcul('division', 'avance', new GenerateurMath(CONFIG, alea(43)));
-      const decisions = ia.jouerPhase(phase, difficulte, 0);
-      // on enchaîne des phases pour atteindre 200 décisions
-      while (decisions.length < 200) {
-        decisions.push(
-          ...ia.jouerPhase(
-            new PhaseCalcul('division', 'avance', new GenerateurMath(CONFIG, alea(decisions.length))),
-            difficulte,
-            0
-          )
-        );
+      let total = 0;
+      let graine = 1;
+      for (let p = 0; p < 200; p++) {
+        const phase = new PhaseCalcul('multiplication', 'avance', new GenerateurMath(CONFIG, alea(graine++)));
+        total += ia.jouerPhase(phase, difficulte, 0).reduce((s, d) => s + d.gain, 0);
       }
-      const echantillon = decisions.slice(0, 200);
-      const taux = echantillon.filter((d) => d.correct).length / 200;
-      const cible = CONFIG.ia.tauxReussite[difficulte];
-      expect(Math.abs(taux - cible)).toBeLessThanOrEqual(0.1);
+      const scoreMoyenObtenu = total / 200;
+      const cible = CONFIG.ia.scoreMoyen[difficulte];
+      expect(Math.abs(scoreMoyenObtenu - cible)).toBeLessThanOrEqual(0.12 * cible);
     }
   });
 
-  it('stratégie de choix : distribution conforme (somme = 1 par niveau d\'IA)', () => {
+  it('toujours battable : score moyen < score maximal d\'un joueur rapide', () => {
+    const gainMax = CONFIG.gains.difficile;
+    const calculs = Math.floor(CONFIG.tempsPhase / CONFIG.tempsParCalcul);
+    const scoreJoueurRapide = calculs * gainMax; // tout juste, tout le temps
     for (const difficulte of ['facile', 'moyen', 'difficile'] as Difficulte[]) {
-      const somme = Object.values(CONFIG.ia.strategieChoix[difficulte]).reduce(
-        (s, p) => s + p,
-        0
-      );
-      expect(somme).toBeCloseTo(1);
+      expect(CONFIG.ia.scoreMoyen[difficulte]).toBeLessThan(scoreJoueurRapide);
     }
-    // l'IA facile choisit majoritairement « facile », l'IA difficile « difficile »
-    const ia = new AiController(CONFIG, alea(77));
-    let facileChoisis = 0;
-    for (let i = 0; i < 200; i++) {
-      if (ia.choisirDifficulte('facile') === 'facile') facileChoisis++;
+    // un joueur rapide à la cadence de référence garde une marge
+    expect(scoreJoueurRapide).toBeGreaterThan(CONFIG.ia.scoreMoyen.difficile);
+  });
+
+  it('choix des calculs indépendant du niveau : proportionnel au gain', () => {
+    // à tous les niveaux, la même distribution de difficultés tentées
+    for (const difficulte of ['facile', 'moyen', 'difficile'] as Difficulte[]) {
+      const ia = new AiController(CONFIG, alea(77));
+      const comptes = { facile: 0, moyen: 0, difficile: 0 };
+      for (let p = 0; p < 100; p++) {
+        const phase = new PhaseCalcul('division', 'avance', new GenerateurMath(CONFIG, alea(p + 1)));
+        for (const d of ia.jouerPhase(phase, difficulte, 0)) comptes[d.difficulteChoisie]++;
+      }
+      // poids 1 : 3 : 7 → ≈ 9 % / 27 % / 64 %
+      expect(comptes.difficile).toBeGreaterThan(comptes.moyen);
+      expect(comptes.moyen).toBeGreaterThan(comptes.facile);
     }
-    expect(facileChoisis).toBeGreaterThan(110); // ≈ 70 %
-    let difficileChoisis = 0;
-    for (let i = 0; i < 200; i++) {
-      if (ia.choisirDifficulte('difficile') === 'difficile') difficileChoisis++;
-    }
-    expect(difficileChoisis).toBeGreaterThan(110); // ≈ 70 %
   });
 
   it('émissions de trace : ia.choix_difficulte et ia.reponse par tentative', () => {
@@ -120,26 +111,5 @@ describe('AiController — taux de réussite et stratégie (S09, I16)', () => {
     const decisions = ia.jouerPhase(phase, 'moyen', 0);
     expect(events.filter((e) => e === 'ia.choix_difficulte')).toHaveLength(decisions.length);
     expect(events.filter((e) => e === 'ia.reponse')).toHaveLength(decisions.length);
-  });
-
-  it('stratégie incomplète : repli sur la dernière difficulté (garde-fou)', () => {
-    const strategieTronquee = {
-      ...CONFIG,
-      ia: {
-        ...CONFIG.ia,
-        strategieChoix: {
-          facile: { facile: 0.5, moyen: 0, difficile: 0 },
-          moyen: { facile: 0, moyen: 1, difficile: 0 },
-          difficile: { facile: 0, moyen: 0, difficile: 1 },
-        },
-      },
-    };
-    const ia = new AiController(strategieTronquee, alea(12));
-    // tirage ≥ 0.5 → aucune branche atteinte → repli « difficile »
-    let replisVu = false;
-    for (let i = 0; i < 50 && !replisVu; i++) {
-      replisVu = ia.choisirDifficulte('facile') === 'difficile';
-    }
-    expect(replisVu).toBe(true);
   });
 });
