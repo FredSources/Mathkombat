@@ -950,7 +950,7 @@ async function main() {
       window.__mathkombat.forcerEnergieDefense(6);
       window.__mathkombat.forceFinDePhase(); // fin défense → résolution (blocage)
     });
-    await attendre(1600);
+    await attendre(2200); // chorégraphie complète : marche accélérée + pose + retour
     const e14 = await page.evaluate(() => {
       clearInterval(window.__h);
       const s = window.__suivi;
@@ -975,6 +975,7 @@ async function main() {
     await lancerCombat();
     const e15 = await page.evaluate(async () => {
       const h = window.__mathkombat;
+      h.figerManoeuvres(); // isole la chorégraphie des gestes aléatoires du chrono
       const p0 = h.positions().j1;
       h.saut({ deplacement: 'avant' }); // déplacement seul
       await new Promise((r) => setTimeout(r, 450));

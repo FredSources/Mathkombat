@@ -1880,3 +1880,14 @@ verte (Vitest 87/87 · scénarios 12/12 · E2E 28/28 · certif RELEASE 7/7).
 **Reste ouvert** : build Android Studio sur PC (vérification documentaire),
 best-of-3, mode Entraînement, bouton Indice, addition/soustraction,
 records détaillés par famille de table (voir `todo.md`, « Idées / dette »).
+
+### Chorégraphie du coup réécrite (2026-11-15)
+
+| Sujet | Contenu |
+|-------|---------|
+| **Déplacement du coup** | **Marche accélérée** réelle (`marcherVers` : cadence + vitesse accélérées ensemble, `approcheVitesse: 4`) à **distance fixe** (écart de combat − portée de contact, ancré sur la position de repos), à la **fin des mouvements de suivi** (verrou `quandImmobile` sur les déplacements de couple `deplacer`/`corrigerVers`) — jamais en parallèle d'un déplacement, y compris en cas d'égalité de scores (0 = 0). |
+| **Séquençage du coup** | Coup porté → **choc/flash/étincelles visibles en même temps** (délai `dureeExtensionMs` supprimé) → **réaction du défenseur** (mouvement de choc `encaisse` ou mouvement de contre `contre`) **après le coup et avant le retour de l'attaquant** → retour en marche accélérée. |
+| **Égalité de points** | Le défenseur fait un **mouvement de contre** (esquive + riposte) **au lieu du mouvement de choc** (demande utilisateur) — journal « riposte (égalité) ». |
+| **Nettoyage** | `whiff()`, `parade()`, `apresImpact()`, `dureeExtensionMs`, `approcheDureeMs`, `retourDureeMs` supprimés (durée du déplacement dérivée de la distance et de la vitesse de marche). |
+| **E2E** | E14 : fenêtre 2200 ms (chorégraphie complète), journal « IA riposte (égalité) » ; **E15 fiabilisé** : hook `figerManoeuvres` (les manœuvres aléatoires du chrono jouaient une marche dans la fenêtre de capture → échec flaky). |
+| **Batterie** | typecheck ✅ · Vitest 87/87 · scénarios S01→S11 ✅ · S12 calibration 80.0 / 50.5 / 29.0 % ✅ · E2E 28/28 ✅ (`e2e-2026-11-15T21-21-12.md`). |

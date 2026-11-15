@@ -253,6 +253,9 @@ export class Personnage {
   private poseCourante: PoseSprite = 'garde';
   /** Minuteur d'animation courant (marche alternée / retour à la garde). */
   private minuteurAnim: Phaser.Time.TimerEvent | null = null;
+  /** Mouvement de suivi en cours (marche) — les coups partent à sa fin. */
+  private tweenDeplacement: Phaser.Tweens.Tween | null = null;
+  private apresMouvements: (() => void)[] = [];
   /** Couches de flammes (§2.8a) : la 0 = base, les suivantes élargissent l'aura. */
   private readonly couchesAura: Phaser.GameObjects.Container[] = [];
 
@@ -443,7 +446,7 @@ export class Personnage {
         ease: 'quad.out',
       });
     }
-    this.scene.tweens.add({
+    this.tweenDeplacement = this.scene.tweens.add({
       targets: this.corps,
       x,
       y,
@@ -452,8 +455,31 @@ export class Personnage {
       onComplete: () => {
         this.jouerPose('garde');
         this.options.onDeplace?.(); // orientations des deux face à face
+        this.terminerMouvement();
       },
     });
+  }
+
+  /**
+   * Exécute `action` à la **fin des mouvements de suivi** (§2.8b) : jamais en
+   * parallèle d'un déplacement — le déplacement pour un coup arrive quand les
+   * deux combattants sont immobiles.
+   */
+  quandImmobile(action: () => void): void {
+    if (!this.tweenDeplacement) {
+      action();
+      return;
+    }
+    // le mouvement en cours doit finir d'abord (un autre peut s'enchaîner)
+    this.apresMouvements.push(() => this.quandImmobile(action));
+  }
+
+  /** Mouvement de suivi terminé : les actions en attente repartent. */
+  private terminerMouvement(): void {
+    this.tweenDeplacement = null;
+    const attentes = this.apresMouvements;
+    this.apresMouvements = [];
+    for (const action of attentes) action();
   }
 
   /** Se décale vers la gauche (borné à l'arène). */
@@ -483,13 +509,16 @@ export class Personnage {
    */
   corrigerVers(x: number, y: number): void {
     this.jouerMarche(x > this.corps.x ? 'marche-avant' : 'marche-arriere');
-    this.scene.tweens.add({
+    this.tweenDeplacement = this.scene.tweens.add({
       targets: this.corps,
       x,
       y,
       duration: CONFIG.rig.deplacementDureeMs,
       ease: 'quad.out',
-      onComplete: () => this.jouerPose('garde'),
+      onComplete: () => {
+        this.jouerPose('garde');
+        this.terminerMouvement();
+      },
     });
   }
 
@@ -581,153 +610,137 @@ export class Personnage {
   /**
    * Frappe graduée (§2.8b) : l'attaquant **s'approche** de la cible, donne le
    * coup, puis **revient à sa position d'origine**. La réaction de la cible
-   * (encaisse / parade / contre) est orchestrée par la scène.
+   * (encaisse / parade / contre) part **au contact**, via `auContact` — le
+   * mouvement de choc du défenseur a lieu APRÈS le coup (§2.8c).
    */
-  frapper(cible: Personnage, tier: number): CoupLance {
-    const droite = cible.corps.x > this.corps.x;
-    const coup = coupPourTier(tier);
-    this.approcher(cible, () =>
-      this.jouerPose(coup === 'poing' ? 'poing' : 'pied', this.skin.sprites.dureePoseMs)
-    );
-    return { coup, droite };
+  frapper(cible: Personnage, tier: number, auContact?: (info: CoupLance) => void): CoupLance {
+    const info: CoupLance = { coup: coupPourTier(tier), droite: cible.corps.x > this.corps.x };
+    this.approcher(cible, () => {
+      this.jouerPose(info.coup === 'poing' ? 'poing' : 'pied', this.skin.sprites.dureePoseMs);
+      auContact?.(info);
+    });
+    return info;
+  }
+
+  /**
+   * Marche animée vers `x` (§2.8b) — `vitesse` > 1 = marche accélérée : la
+   * cadence du pas ET la vitesse de déplacement accélèrent ensemble, le
+   * mouvement reste une **marche** (jamais une glissade).
+   */
+  private marcherVers(x: number, vitesse: number, arrivee: () => void): void {
+    const versDroite = x > this.corps.x;
+    const distance = Math.abs(x - this.corps.x);
+    this.jouerMarche(versDroite ? 'marche-avant' : 'marche-arriere', vitesse);
+    this.tweenDeplacement = this.scene.tweens.add({
+      targets: this.corps,
+      x,
+      // durée = distance / vitesse de marche accélérée (pas de marche × vitesse)
+      duration: (distance * CONFIG.rig.deplacementDureeMs) / (CONFIG.rig.deplacementPas * vitesse),
+      ease: 'quad.out',
+      onComplete: () => {
+        arrivee();
+        this.terminerMouvement();
+      },
+    });
   }
 
   /**
    * Approche de la cible pour donner un coup, puis **retour à la position
    * d'origine** (chorégraphie §2.8b) : `action` est jouée au contact.
    *
-   * Le contact est calculé sur les **largeurs réelles des sprites** : le poing
-   * (ou le pied) touche et pénètre légèrement la silhouette adverse — même en
-   * cas de blocage (demande utilisateur).
+   * Le déplacement du coup se fait **à la fin des mouvements de suivi** (jamais
+   * en parallèle d'un déplacement de couple), en **marche accélérée**, et avance
+   * d'une **distance fixe** : le couple gardant une distance constante (corrigée
+   * avant), le contact est identique à chaque coup — le poing/pied touche et
+   * pénètre légèrement la silhouette adverse (`penetrationFrappe`).
    */
   private approcher(cible: Personnage, action: () => void): void {
-    const xDepart = this.corps.x;
-    const versDroite = cible.corps.x > this.corps.x;
-    const portee =
-      (this.skin.sprites.largeur + cible.skin.sprites.largeur) / 2 -
-      CONFIG.rig.penetrationFrappe;
-    const xContact = cible.corps.x + (versDroite ? -1 : 1) * portee;
-    // l'aller se fait EN MARCHANT, en **marche accélérée** (geste d'attaque)
-    this.jouerMarche(versDroite ? 'marche-avant' : 'marche-arriere', 2);
-    this.scene.tweens.add({
-      targets: this.corps,
-      x: xContact,
-      duration: CONFIG.rig.approcheDureeMs,
-      ease: 'quad.out',
-      onComplete: () => {
-        action(); // le coup est donné
-        // retour à la position d'origine, lui aussi EN MARCHANT
-        this.scene.time.delayedCall(this.skin.sprites.dureePoseMs, () => {
-          this.jouerMarche(versDroite ? 'marche-arriere' : 'marche-avant', 2);
-          this.scene.tweens.add({
-            targets: this.corps,
-            x: xDepart,
-            duration: CONFIG.rig.retourDureeMs,
-            ease: 'quad.inOut',
-            onComplete: () => this.jouerPose('garde'),
-          });
+    // à la fin des mouvements de suivi des deux combattants
+    this.quandImmobile(() =>
+      cible.quandImmobile(() => {
+        const xDepart = this.corps.x;
+        const versDroite = cible.corps.x > this.corps.x;
+        // distance fixe du coup : écart de combat − portée de contact
+        const portee =
+          (this.skin.sprites.largeur + cible.skin.sprites.largeur) / 2 -
+          CONFIG.rig.penetrationFrappe;
+        const ecartCombat = Math.abs(cible.options.x - this.options.x);
+        const xContact = xDepart + (versDroite ? 1 : -1) * (ecartCombat - portee);
+        // aller en MARCHE ACCÉLÉRÉE (geste d'attaque) — le coup au contact
+        this.marcherVers(xContact, CONFIG.rig.approcheVitesse, () => {
+          action(); // le coup est donné — effets + réaction du défenseur au contact
+          // retour APRÈS la réaction du défenseur (choc / contre, §2.8c) :
+          // le mouvement de choc du défenseur et le contre arrivent AVANT
+          this.scene.time.delayedCall(this.skin.sprites.dureePoseMs, () =>
+            cible.quandImmobile(() =>
+              this.marcherVers(xDepart, CONFIG.rig.approcheVitesse, () =>
+                this.jouerPose('garde')
+              )
+            )
+          );
         });
-      },
-    });
+      })
+    );
   }
 
-  /** Recul de la cible touchée (§2.8b) — pose « touché ». */
+  /**
+   * Recul de la cible touchée (§2.8b) — pose « touché ». Le recul est le
+   * **mouvement de choc du défenseur** : il a lieu APRÈS le coup de l'attaquant
+   * et AVANT son retour arrière (suivi pour l'ordonnancement, §2.8c).
+   */
   encaisse(tier: number, direction = 1): void {
     this.jouerPose('touche', this.skin.sprites.dureePoseMs);
-    this.scene.tweens.add({
+    this.tweenDeplacement = this.scene.tweens.add({
       targets: this.corps,
       x: this.corps.x + direction * (10 + tier * 8),
       duration: 110,
       yoyo: true,
       delay: 70,
+      onComplete: () => this.terminerMouvement(),
     });
-  }
-
-  /**
-   * Parade (§2.8c) : l'attaquant s'est approché pour frapper — le défenseur
-   * **bloque** (garde) puis **contre au poing ou au pied, selon le coup de
-   * l'assaillant** (demande utilisateur). Étincelles à la hauteur du coup.
-   */
-  parade(coup: Coup, tier: number, _versAttaquantDroite: boolean): void {
-    // 1. le blocage (garde)…
-    this.jouerPose('garde-defense');
-    // 2. …puis un CONTRE du même type que l'attaque : poing ou pied
-    this.scene.time.delayedCall(250, () =>
-      this.jouerPose(coup === 'poing' ? 'poing' : 'pied', this.skin.sprites.dureePoseMs)
-    );
-    this.scene.tweens.add({
-      targets: this.corps,
-      scaleX: this.corps.scaleX * 1.06,
-      scaleY: this.corps.scaleY * 0.96,
-      duration: 60,
-      yoyo: true,
-      repeat: 1,
-    });
-    this.scene.tweens.add({
-      targets: this.aura,
-      alpha: 0.95,
-      duration: 60,
-      yoyo: true,
-      repeat: 2,
-    });
-    const y = this.options.y - CONFIG.rig.impactY[coup];
-    this.options.effets?.etincelles(this.corps.x, y, Math.max(3, tier * 2), '#9fd8ff');
-    if (tier >= 2) this.options.effets?.ondeDeChoc(this.corps.x, y, tier);
   }
 
   /**
    * CONTRE (§2.8c) : l'attaquant **s'approche et frappe dans le vide** (esquive),
-   * ce personnage saute et riposte — l'attaquant reçoit le coup (« coup reçu »)
-   * puis **tout le monde revient à sa position d'origine**.
+   * ce personnage se décale puis riposte — **le contre arrive avant le retour de
+   * l'attaquant** (l'esquive part au coup, le retour attend la riposte).
+   * Joué sur CONTRE-ATTAQUE **et sur égalité de points** (au lieu du mouvement
+   * de choc, demande utilisateur).
    */
   contre(
     attaquant: Personnage,
     tier: number,
     apresRiposte?: (droite: boolean) => void
   ): void {
-    // 1. l'attaquant s'approche et frappe… dans le vide (esquive)
-    attaquant.approcher(this, () =>
-      attaquant.jouerPose('poing', this.skin.sprites.dureePoseMs)
-    );
-    // 2. ce personnage se décale (esquive), saute et riposte d'un coup de pied
-    const versAvant = attaquant.corps.x < this.corps.x ? 1 : -1;
-    this.scene.tweens.add({
-      targets: this.corps,
-      x: this.corps.x + versAvant * -22,
-      duration: 120,
-      yoyo: true,
-      onComplete: () => {
-        // la riposte part vers l'attaquant
-        const droite = attaquant.corps.x > this.corps.x;
-        this.saut();
-        this.jouerPose('pied', this.skin.sprites.dureePoseMs);
-        // 3. l'attaquant REÇOIT le contre (« coup reçu ») — le recul est porté
-        // par le SPRITE (rig), pas par le corps : le retour de l'approche
-        // pilote `corps.x` et un tween concurrent l'annulerait
-        attaquant.jouerPose('touche', this.skin.sprites.dureePoseMs);
-        this.scene.tweens.add({
-          targets: attaquant.rig,
-          x: attaquant.rig.x - versAvant * (14 + tier * 9),
-          duration: 110,
-          yoyo: true,
-        });
-        apresRiposte?.(droite);
-      },
-    });
-  }
-
-  /** Coup raté (§2.8b, tier 0) : le poing sort dans le vide, on s'arrête net. */
-  whiff(): void {
-    const versAvant = this.orientation === 'droite' ? 1 : -1;
-    this.jouerPose('poing', this.skin.sprites.dureePoseMs);
-    this.scene.tweens.add({
-      targets: this.corps,
-      x: this.corps.x + versAvant * 20,
-      duration: 140,
-      ease: 'sine.out',
-      yoyo: true,
-      onComplete: () =>
-        this.options.effets?.etincelles(this.corps.x, this.options.y - 150, 3, '#8fa8d8'),
+    // 1. l'attaquant s'approche et frappe… dans le vide
+    attaquant.approcher(this, () => {
+      attaquant.jouerPose('poing', this.skin.sprites.dureePoseMs);
+      // 2. AU COUP : ce personnage se décale (esquive), puis riposte au pied
+      const versAvant = attaquant.corps.x < this.corps.x ? 1 : -1;
+      this.tweenDeplacement = this.scene.tweens.add({
+        targets: this.corps,
+        x: this.corps.x + versAvant * -22,
+        duration: 120,
+        yoyo: true,
+        onComplete: () => {
+          this.terminerMouvement();
+          // la riposte part vers l'attaquant
+          const droite = attaquant.corps.x > this.corps.x;
+          this.saut();
+          this.jouerPose('pied', this.skin.sprites.dureePoseMs);
+          // 3. l'attaquant REÇOIT le contre (« coup reçu ») — le recul est porté
+          // par le SPRITE (rig), pas par le corps : le retour de l'approche
+          // pilote `corps.x` et un tween concurrent l'annulerait
+          attaquant.jouerPose('touche', this.skin.sprites.dureePoseMs);
+          this.scene.tweens.add({
+            targets: attaquant.rig,
+            x: attaquant.rig.x - versAvant * (14 + tier * 9),
+            duration: 110,
+            yoyo: true,
+          });
+          apresRiposte?.(droite);
+        },
+      });
     });
   }
 
@@ -786,6 +799,10 @@ export class Personnage {
    */
   reinitialiser(): void {
     this.scene.tweens.killTweensOf([this.rig, this.aura, this.corps]);
+    // un tween tué ne passe pas par onComplete : le verrou d'immobilité est
+    // remis à zéro (sinon les coups suivants resteraient en attente)
+    this.tweenDeplacement = null;
+    this.apresMouvements = [];
     this.corps.setPosition(this.options.x, this.options.y).setAngle(0);
     this.rig.setPosition(0, 0).setAngle(0); // le K.O. pivote le sprite : remis droit
     this.aura.setPosition(0, 0);

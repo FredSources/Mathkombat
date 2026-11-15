@@ -123,8 +123,6 @@ export interface ConfigJeu {
    * durées, déplacements et impacts — pilotés d'ici, jamais durcis dans la scène.
    */
   rig: {
-    /** Délai entre le coup et l'impact visuel (ms). */
-    dureeExtensionMs: number;
     /** Saut du CONTRE : hauteur (px) et durée totale (ms). */
     sautHauteur: number;
     sautDureeMs: number;
@@ -138,8 +136,9 @@ export interface ConfigJeu {
     /** Approche de la cible avant un coup (§2.8b) : pénétration et durées.
      *  `penetrationFrappe` : le sprite du poing/pied doit **toucher** l'adversaire. */
     penetrationFrappe: number;
-    approcheDureeMs: number;
-    retourDureeMs: number;
+    /** Marche accélérée des coups (§2.8b) : facteur de vitesse du pas (2 = le
+     *  pas et le déplacement vont au double — une vraie marche, pas une glisse). */
+    approcheVitesse: number;
     /** Hauteur d'impact au-dessus du sol (px) selon le coup. */
     impactY: Record<Coup, number>;
   };
@@ -262,7 +261,6 @@ export const CONFIG: ConfigJeu = {
     flashTier4Ms: 180,
   },
   rig: {
-    dureeExtensionMs: 90,
     sautHauteur: 140,
     sautDureeMs: 260,
     deplacementPas: 90,
@@ -271,8 +269,7 @@ export const CONFIG: ConfigJeu = {
     /** Pénétration du coup dans la silhouette adverse (px) : le sprite du
      *  poing/pied doit **toucher** l'adversaire, même en cas de blocage. */
     penetrationFrappe: 110,
-    approcheDureeMs: 220,
-    retourDureeMs: 280,
+    approcheVitesse: 4,
     impactY: { poing: 185, 'pied-haut': 100, 'pied-bas': 40 },
   },
   saisieMaxChiffres: 3,

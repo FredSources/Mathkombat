@@ -90,12 +90,10 @@ describe('rig — mise en scène des sprites (§2.8b/c)', () => {
     expect(CONFIG.rig.deplacementDureeMs).toBeGreaterThan(0);
   });
 
-  it('coup : pénétration bornée (le sprite touche l\'adversaire) et durées', () => {
+  it('coup : pénétration bornée (le sprite touche l\'adversaire) et marche accélérée', () => {
     expect(CONFIG.rig.penetrationFrappe).toBeGreaterThan(0);
     expect(CONFIG.rig.penetrationFrappe).toBeLessThan(200);
-    expect(CONFIG.rig.approcheDureeMs).toBeGreaterThan(0);
-    expect(CONFIG.rig.retourDureeMs).toBeGreaterThan(0);
-    expect(CONFIG.rig.dureeExtensionMs).toBeGreaterThan(0);
+    expect(CONFIG.rig.approcheVitesse).toBeGreaterThan(1);
   });
 
   it('impacts : hauteurs par coup et chute du K.O. bornées', () => {

@@ -773,6 +773,10 @@ export class FightScene extends Phaser.Scene {
   /**
    * Résolution d'un tour : journal, sons et animations.
    * Priorité visuelle : CONTRE > blocage > frappe > coup raté.
+   *
+   * Le journal est immédiat ; les animations partent **à la fin des mouvements
+   * de suivi** (§2.8b) : correction de distance d'abord, puis le déplacement
+   * du coup — à **distance fixe**, contact au pixel.
    */
   private afficherResolution(r: ResultatTour): void {
     // (le bandeau central de résumé « attaque − défense = solde » a été retiré
@@ -782,42 +786,68 @@ export class FightScene extends Phaser.Scene {
     const defenseur = r.defenseur === 'j1' ? this.j1 : this.j2;
     const juice = CONFIG.juice;
 
+    // journal immédiat (traçabilité) — indépendant de la chorégraphie
     if (r.contre && r.degats > 0) {
-      // riposte dédiée : l'attaquant est esquivé puis frappé (§2.8c)
-      const tier = tierFrappe(r.defense);
       this.noterJournal(`CONTRE de ${FightScene.nomJoueur(r.defenseur)} (+${r.degats})`);
-      this.jouerSon('frappe');
-      defenseur.contre(attaquant, tier, (droite) =>
-        this.apresImpact(() => this.impactVisuel(attaquant, tier, true, 'pied-haut', droite))
-      );
-      this.juiceTier(tier, juice);
-      this.afficherDegatsFlottants(attaquant, r.degats, tier, true);
-    } else if (r.solde === 0 && r.attaque > 0) {
-      // parade : l'énergie défense annule exactement l'attaque (§2.8c)
-      this.noterJournal(`${FightScene.nomJoueur(r.defenseur)} parade`);
-      this.jouerSon('blocage');
-      const tierBlocage = tierFrappe(r.attaque);
-      // l'attaquant s'approche et frappe… le défenseur bloque (garde)
-      const { coup } = attaquant.frapper(defenseur, tierBlocage);
-      defenseur.parade(coup, tierBlocage, attaquant.corps.x > defenseur.corps.x);
+    } else if (r.solde === 0) {
+      // égalité de points (y compris 0 = 0) : le défenseur riposte (§2.8c)
+      this.noterJournal(`${FightScene.nomJoueur(r.defenseur)} riposte (égalité)`);
     } else if (r.degats > 0) {
       this.noterJournal(`${FightScene.nomJoueur(r.defenseur)} encaisse ${r.degats}`);
-      this.jouerSon('frappe');
-      const tierFrappeCourant = tierFrappe(r.attaque);
-      // l'attaquant s'approche et frappe… le défenseur encaisse (coup porté)
-      const { coup, droite } = attaquant.frapper(defenseur, tierFrappeCourant);
-      defenseur.encaisse(tierFrappeCourant, droite ? 1 : -1);
-      this.apresImpact(() =>
-        this.impactVisuel(defenseur, tierFrappeCourant, false, coup, droite)
-      );
-      this.juiceTier(tierFrappeCourant, juice);
-      this.afficherDegatsFlottants(defenseur, r.degats, tierFrappeCourant, false);
     } else {
-      // coup raté (attaque nulle) : l'attaquant échoue à se projeter
       this.noterJournal(`${FightScene.nomJoueur(r.attaquant)} rate son coup`);
-      this.jouerSon('blocage');
-      attaquant.whiff();
     }
+
+    // correction de distance puis coup (§2.8b) : le déplacement pour le coup se
+    // fait à la fin des mouvements de suivi
+    this.verifierDistance();
+    this.quandCombattantsImmobiles(() => {
+      if (r.contre && r.degats > 0) {
+        // riposte dédiée : l'attaquant est esquivé puis frappé (§2.8c) — le
+        // contre arrive AVANT le retour de l'attaquant
+        const tier = tierFrappe(r.defense);
+        defenseur.contre(attaquant, tier, (droite) => {
+          // choc/flash visibles EN MÊME TEMPS que la riposte est portée
+          this.jouerSon('frappe');
+          this.impactVisuel(attaquant, tier, true, 'pied-haut', droite);
+          this.juiceTier(tier, juice);
+          this.afficherDegatsFlottants(attaquant, r.degats, tier, true);
+        });
+      } else if (r.solde === 0) {
+        // ÉGALITÉ DE POINTS (y compris 0 = 0) : le défenseur fait un MOUVEMENT
+        // DE CONTRE (§2.8c) au lieu du mouvement de choc — l'attaquant
+        // s'approche et frappe (la garde ou le vide), le défenseur esquive et
+        // riposte. Le déplacement du coup a lieu quand même (demande utilisateur)
+        const tier = Math.max(1, tierFrappe(r.defense)); // riposte visible
+        defenseur.contre(attaquant, tier, (droite) => {
+          // le choc/flash est visible EN MÊME TEMPS que la riposte est portée
+          this.jouerSon('frappe');
+          this.impactVisuel(attaquant, tier, true, 'pied-haut', droite);
+          this.juiceTier(tier, juice);
+        });
+      } else if (r.degats > 0) {
+        const tierFrappeCourant = tierFrappe(r.attaque);
+        // l'attaquant s'approche et frappe ; AU CONTACT : le flash/chox est
+        // visible EN MÊME TEMPS que le coup, puis le choc du défenseur (avant
+        // le retour de l'attaquant, §2.8c)
+        attaquant.frapper(defenseur, tierFrappeCourant, ({ coup, droite }) => {
+          this.jouerSon('frappe');
+          this.impactVisuel(defenseur, tierFrappeCourant, false, coup, droite);
+          this.juiceTier(tierFrappeCourant, juice);
+          this.afficherDegatsFlottants(defenseur, r.degats, tierFrappeCourant, false);
+          defenseur.encaisse(tierFrappeCourant, droite ? 1 : -1);
+        });
+      } else {
+        // filet (jamais atteint : le moteur est exhaustif) — le déplacement du
+        // coup a lieu quand même (tier 0, §2.8b)
+        attaquant.frapper(defenseur, 0, () => this.jouerSon('blocage'));
+      }
+    });
+  }
+
+  /** Exécute `action` à la fin des mouvements de suivi des deux combattants. */
+  private quandCombattantsImmobiles(action: () => void): void {
+    this.j1.quandImmobile(() => this.j2.quandImmobile(action));
   }
 
   /** Juice commun aux impacts : secousse, flash (tier 4), zoom et ralenti (tier 3+). */
@@ -850,11 +880,6 @@ export class FightScene extends Phaser.Scene {
       this.time.timeScale = 1;
       this.ralentiActif = false;
     });
-  }
-
-  /** Déclenche l'impact une fois le membre du rig pleinement sorti (§2.8b). */
-  private apresImpact(action: () => void): void {
-    this.time.delayedCall(CONFIG.rig.dureeExtensionMs, action);
   }
 
   /**
@@ -1154,6 +1179,8 @@ export class FightScene extends Phaser.Scene {
       profondeurs: () => ({ j1: scene.j1.echelleSprite, j2: scene.j2.echelleSprite }),
       // manœuvres exécutées pendant le chrono (E16)
       manoeuvres: () => scene.compteurManoeuvres,
+      // fige les manœuvres (E15 : isole la chorégraphie des gestes aléatoires)
+      figerManoeuvres: () => scene.stopperManoeuvres(),
       // score de combat (§2.7) : mesures cumulées + scores affichés
       scores: () => ({
         j1: { ...scene.scores.j1 },
