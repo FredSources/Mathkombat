@@ -1800,3 +1800,45 @@ score = énergies gagnées (somme des gains +1/+3/+7)
 
 - Exécution de la **grille manuelle L5** sur appareil (ou émulateur) puis J8
   (équilibrage, best-of-3, README/journal final).
+
+---
+
+## 2026-11-15 — Sprites animés, manœuvres, CI/CD et équilibrage (v0.0.10 → v0.0.13)
+
+### Produits (sessions successives)
+
+| Sujet | Contenu |
+|-------|---------|
+| **Refonte 3/4 de face** | 6 combattants en **sprites animés style Mortal Kombat / Street Fighter** (`game/assets/sprites-mk/`) : 8 poses (garde, marche, saut, poing, pied, garde défensive, touché) + **cycles de marche de 8 frames** ; `rig/personnage.ts` (l'ancien rig cut-out est retiré) ; méthode de production `docs/assets.md` §3bis |
+| **Gabarits et sol** | Tailles relatives (`RATIOS` : TITAN 1,12 · BLAZE 1,08 · KENJI/KIRA 1,00 · ZANE 0,98 · NYX 0,92), **pieds garantis sur le pixel du bas** (coupe des ombres et résidus des planches), ombre portée **au sol, droite**, sous le personnage (même au K.O.) |
+| **Manœuvres (chrono)** | Pendant le chrono : déplacements de **couple** (l'attaquant bouge, le défenseur le suit avec un **temps de réaction**), **déplacements verticaux** (profondeur), sauts et coups en l'air **indépendants**, feintes de contre — **distance constante vérifiée** (recalage en marchant), biais vers le centre, **contact visible au pixel** lors des coups et blocages (portée calculée sur les largeurs de sprites) |
+| **Marche partout** | Tous les déplacements x/y sont **animés en marche** (8 frames), l'approche d'un coup est une **marche accélérée** |
+| **K.O.** | Bascule **en arrière autour des pieds, sans déplacement vertical** ; respiration arrêtée |
+| **CI/CD GitHub Actions** | `.github/workflows/build-apk.yml` : tag `v*` → build debug + release → **Release GitHub** avec `MathKombat-<version>-release/debug.apk` ; signature via les secrets `KEYSTORE_*` (mêmes clés que openwebui-android) ; `setup-sdk.sh` rendu **portable** (JDK selon l'arch, `unzip -d`, Python/PIL optionnel) |
+| **Équilibrage (A+B)** | **Repli Débutant en +7** (3×3, 3×4, 4×4 — option A) et **famille difficile élargie** (5 résistants + `6×9 · 7×9 · 8×9 · 9×9 · 7×11 · 8×11 · 9×11 · 11×11 · 11×12 · 12×12` — option B) : Difficile = **16–20 %** des faits (contre ~6–9 %) ; en Débutant, 20 % de +7 et **plus de Moyen** (les jaunes possibles sont le repli) |
+
+### Versions publiées sur GitHub
+
+`v0.0.10` (jeu complet + CI) → `v0.0.11` (manœuvres, marches, contact) → `v0.0.12`
+(état complet) → `v0.0.13` (équilibrage A+B) — chaque release embarque
+`MathKombat-<version>-release.apk` et `-debug.apk`.
+
+### Tests
+
+- Vitest ✅ **84/84** (nouveaux tests de classement : difficile élargi + repli
+  Débutant) ; couverture **100 %** ; scénarios ✅ **12/12** ; E2E ✅ **30/30**
+  (E01→E16) ; smoke ✅ ; certification RELEASE ✅ 7/7 (`certif-release.mjs`).
+- Contrôle de production des sprites : pieds sur le pixel du bas pour les
+  **96 sprites** (6 combattants × [8 poses + 8 frames de marche]).
+
+### Documentation mise à jour
+
+`AGENTS.md` §2.5 (classement des faits), `docs/test-plan.md` (I11, E13→E16,
+note de répartition), `docs/assets.md` §3bis (méthode sprites), `todo.md`.
+
+### Prochaine étape
+
+- Grille manuelle **L5** sur appareil (v0.0.13) + build **Android Studio** (PC) ;
+- **Équilibrage S12** (taux de victoires humaines 80/50/30 %) — la répartition
+  des faits est posée, reste le réglage de l'IA et de la cadence ;
+- Journal final + README (clôture J8).

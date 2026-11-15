@@ -229,8 +229,13 @@ J6 (contenu complet) ; J8 clôt.
 
 ### J8 — Clôture
 
-- [ ] Équilibrage (durées, énergies, IA) à partir des logs d'analyse — vérifier **suspense et possibilité de gagner** (S12 : taux de victoires humaines ≈ 80/50/30 %)
-- [ ] Catalogue de scénarios complet vert + E2E verts
+- [ ] Équilibrage (durées, énergies, IA) à partir des logs d'analyse — vérifier **suspense et possibilité de gagner** (S12 : taux de victoires humaines ≈ 80/50/30 %) ;
+      ✅ **répartition des calculs** (2026-11-15) : A+B appliquées — Difficile
+      16–20 % des faits (famille élargie), repli Débutant en +7 (20 %) —
+      reste le réglage IA / cadence
+- [x] Catalogue de scénarios complet vert + E2E verts — **S01→S12 ✅ 12/12**
+      (2026-11-15), **E01→E16 ✅ 30/30** (E15 saut composé, E16 profondeur et
+      manœuvres ajoutés), scénarios locaux ✅ 8/8, Vitest ✅ 84/84
 - [x] Mode RELEASE certifié zéro log (T04, I10) — `scripts/certif-release.mjs` : **7/7 ✅**
       (zéro log applicatif, zéro socket, zéro requête hors-ligne, zéro hook debug)
 - [ ] Journal final + README à jour

@@ -1,11 +1,20 @@
 # MathKombat — jeu de combat éducatif (Android)
 
-Combat 2D style *Mortal Kombat* / *Street Fighter* où la puissance des coups se gagne
+Combat 2D style *Mortal Kombat* / *Street Fighter* — **6 combattants animés**
+(KENJI, KIRA, TITAN, NYX, ZANE, BLAZE) en sprites, manœuvres et sauts pendant
+le chronomètre, K.O. en bascule arrière — où la puissance des coups se gagne
 en résolvant des calculs mentaux :
 
 - **Attaque** → multiplications (Facile **+1**, Moyen **+3**, Difficile **+7** d'énergie) ;
 - **Défense** → divisions (même barème) ; la défense se retranche à l'attaque ;
 - **Solde négatif** → **contre-attaque** de la valeur absolue du solde.
+
+## Téléchargement (Android)
+
+Les APK signés sont publiés sur les
+[releases GitHub](https://github.com/FredSources/Mathkombat/releases) :
+`MathKombat-<version>-release.apk` (recommandé) et `-debug.apk`.
+La CI (GitHub Actions) construit et publie chaque version sur un tag `vX.Y.Z`.
 
 ## Démarrage rapide
 

@@ -32,7 +32,7 @@ Vérifiés par L1/L2 à chaque exécution ; toute violation = **FAIL bloquant**.
 | I8 | La réponse est saisie sur le **clavier numérique** (0–9, **⌫ Effacer** un chiffre, **C Tout effacer**) ; **la valeur saisie est affichée sur le clavier** (ligne d'entrée unique, valeur seule — elle ne correspond à un calcul qu'à la **validation avec le bouton de la bonne couleur**) ; validation par les **3 boutons VALIDER colorés** (un par calcul) ou la touche Entrée (calcul ciblé) ; une saisie n'est évaluée qu'à la validation ; saisie bornée à 3 chiffres (réponses 0–144), abandonnée en fin de phase ; réponse attendue unique |
 | I9 | La durée de phase est **unique et configurable** (identique attaque/défense, défaut 15 s, bornes 5–60 s, validée à la lecture) ; le **rythme de calcul** (Différé / Simultané) est configurable ; il n'existe **aucun timer par calcul** |
 | I10 | En RELEASE, aucun octet de log n'est émis ni aucune connexion socket tentée |
-| I11 | La difficulté suit la **couleur du fait** (`AGENTS.md` §2.5 : 🟢 au moins un facteur ∈ {1, 2, 5, 10} ; 🟡 sinon facteur ∈ {3, 4, 6, 8, 9, 11, 12} ; 🟠 les 5 faits résistants, **repli Débutant** `3×3`/`3×4`/`4×4`) ; nombre de calculs résolus par phase **non plafonné** (rendement maximal) |
+| I11 | La difficulté suit la **couleur du fait** (`AGENTS.md` §2.5) : 🟢 au moins un facteur ∈ {1, 2, 5, 10} ; 🟡 sinon facteur ∈ {3, 4, 6, 8, 9, 11, 12} ; 🟠 les **faits difficiles** (`familles.difficile` = les 5 résistants + les durs élargis) et, en **Débutant**, le repli `3×3`/`3×4`/`4×4` ; nombre de calculs résolus par phase **non plafonné** (rendement maximal) |
 | I12 | Les 3 difficultés sont proposées **simultanément** ; la résolution d'un calcul ne remplace **que lui** (nouveau calcul de même difficulté), les deux autres sont conservés |
 | I13 | L'intensité d'animation (aura, tier de frappe, contre) est une **fonction déterministe** de la puissance, définie dans `config.ts` (bornes de tiers vérifiables) |
 | I14 | V1 : seules les opérations **× (attaque)** et **÷ (défense)** sont actives ; le générateur est abstrait par type d'opération (architecture prête pour + et −) |
@@ -88,6 +88,14 @@ Parcours Puppeteer (chromium headless, config `pptr.json` de l'environnement) :
 | E12 | Sélection de combat (§3) | RUN → **◀ niveau J1** (DÉBUTANT) + **◀ skin J2** (PERSO A) → **[ LANCER LE COMBAT ]** | le combat est construit **sur la sélection** (`selection()` = debutant/persoA) + capture `e2e-12-selection.png` — *les cas E01/E06/E07/E09/E10/E11 traversent aussi la sélection (RUN ne lance plus directement)* |
 | E13 | Mouvements des combattants (§2.8) | hook `anim()` : marche, saut, poing, pied, garde, touché, K.O. | chaque action joue bien **sa pose** de sprite (`marche-avant`, `saut`, `poing`, `pied`, `garde-defense`, `touche`) |
 | E14 | Déplacement sur un coup BLOQUÉ (§2.8b) | attaque = défense (blocage forcé) → suivi des positions pendant la résolution | l'attaquant **s'approche** (déplacement mesuré > 40 px, jusqu'au contact qui touche l'adversaire) puis **revient à sa position d'origine** (± 6 px) |
+| E15 | Saut composé (§2.8c) | hook `saut({deplacement, action})` : (place\|avant\|arrière) et/ou (coup\|contre) | les déplacements et actions sont bien **exclusifs par famille** : avant > place, retour arrière, pose `pied` au coup et au contre |
+| E16 | Profondeur + manœuvres (§2.8b) | déplacements haut/bas (zoom) + 6 s de chrono (manœuvres) | **zoom subtil** : haut < base < bas ; les **manœuvres** s'exécutent pendant le chrono (compteur qui augmente), sans contact |
+
+> **Répartition des calculs** (mise à jour 2026-11-15) : Facile 54–80 % des faits,
+> Moyen 22–27 %, **Difficile 16–20 %** (famille élargie : 5 résistants + les durs
+> `6×9 · 7×9 · 8×9 · 9×9 · 7×11 · 8×11 · 9×11 · 11×11 · 11×12 · 12×12`) ;
+> en Débutant, le repli `3×3 · 3×4 · 4×4` porte les +7 (20 % des faits) —
+> et il n'y a plus de Moyen en Débutant (les jaunes possibles sont le repli).
 | E08 | **Mode DUEL (2 joueurs)** — `a`→`h` | bascule de mode ; J1 résout facile+moyen ; frappe du pavé pendant la phase de J1 ; phase de défense ciblée par J2 ; pavé J2 (⌫ décimale, C `Delete`, chiffres + `NumpadEnter`) ; résolution ; bascule SIMULTANÉ puis frappes `Digit5` / `Numpad7` ; **surbrillance des touches** (`Digit6` puis `Numpad4`) | libellés **J2** (PV, énergie, score), énergies 4 puis 3, solde = 1 dégât sur J2, **isolation stricte des deux consoles dans les deux sens**, saisies vidées après validation, **touche pressée allumée sur sa console seule puis retour au repos** + capture `e2e-08-duel.png` |
 
 > **Ordre d'exécution** : `scripts/e2e.mjs` joue E01→E05, puis E08a→E08h (continuité
