@@ -21,15 +21,22 @@ mkdir -p "$ASSETS"
 cp -r "$PROJ/game/dist/." "$ASSETS/"
 log "assets embarqués : $(find "$ASSETS" -type f | wc -l) fichiers"
 
-# ---------------------------------------------------------- 3. keystore local
-KEYSTORE="$PROJ/tools/mathkombat.keystore"
-if [ ! -f "$KEYSTORE" ]; then
-  log "génération du keystore de signature (tools/mathkombat.keystore) …"
-  "$JAVA_HOME/bin/keytool" -genkeypair -v \
-    -keystore "$KEYSTORE" -alias mathkombat \
-    -keyalg RSA -keysize 2048 -validity 10000 \
-    -storepass mathkombat -keypass mathkombat \
-    -dname "CN=MathKombat, OU=Jeu educatif, O=MathKombat, C=FR" >/dev/null 2>&1
+# ---------------------------------------------------------- 3. keystore
+# Signature : clés fournies par l'environnement (CI — secrets GitHub) ou
+# keystore local généré (repli, identique à openwebui-android).
+if [ -n "${KEYSTORE_FILE:-}" ]; then
+  KEYSTORE="$KEYSTORE_FILE"
+  log "keystore de release fourni par l'environnement : $KEYSTORE"
+else
+  KEYSTORE="$PROJ/tools/mathkombat.keystore"
+  if [ ! -f "$KEYSTORE" ]; then
+    log "génération du keystore de signature (tools/mathkombat.keystore) …"
+    "$JAVA_HOME/bin/keytool" -genkeypair -v \
+      -keystore "$KEYSTORE" -alias mathkombat \
+      -keyalg RSA -keysize 2048 -validity 10000 \
+      -storepass mathkombat -keypass mathkombat \
+      -dname "CN=MathKombat, OU=Jeu educatif, O=MathKombat, C=FR" >/dev/null 2>&1
+  fi
 fi
 
 # ---------------------------------------------------------- 3bis. icône + outils

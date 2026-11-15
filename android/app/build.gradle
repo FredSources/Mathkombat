@@ -21,14 +21,14 @@ android {
         versionName '0.1.0'
     }
 
-    // Signature release locale : keystore généré par scripts/build-apk.sh dans
-    // tools/ (jamais de secret hors projet).
+    // Signature release : clés de l'environnement (CI — secrets GitHub, même
+    // mécanique que openwebui-android) ou keystore local généré (repli).
     signingConfigs {
         release {
-            storeFile file("$rootDir/../tools/mathkombat.keystore")
-            storePassword 'mathkombat'
-            keyAlias 'mathkombat'
-            keyPassword 'mathkombat'
+            storeFile file(System.getenv('KEYSTORE_FILE') ?: "$rootDir/../tools/mathkombat.keystore")
+            storePassword System.getenv('KEYSTORE_PASSWORD') ?: 'mathkombat'
+            keyAlias System.getenv('KEY_ALIAS') ?: 'mathkombat'
+            keyPassword System.getenv('KEY_PASSWORD') ?: 'mathkombat'
         }
     }
 
