@@ -231,8 +231,10 @@ J6 (contenu complet) ; J8 clôt.
 
 - [ ] Équilibrage (durées, énergies, IA) à partir des logs d'analyse — vérifier **suspense et possibilité de gagner** (S12 : taux de victoires humaines ≈ 80/50/30 %) ;
       ✅ **répartition des calculs** (2026-11-15) : A+B appliquées — Difficile
-      16–20 % des faits (famille élargie), repli Débutant en +7 (20 %) —
-      reste le réglage IA / cadence
+      16–20 % des faits (famille élargie), repli Débutant en +7 (20 %) ;
+      ✅ **S12 calibré** (2026-11-15) : modèle IA = score moyen + temps des
+      calculs (2 s) → scoreMoyen {21, 23, 24} = **78.7 / 49.3 / 32.3 %** de
+      victoires humaines — reste le retour d'expérience des joueurs réels (L5)
 - [x] Catalogue de scénarios complet vert + E2E verts — **S01→S12 ✅ 12/12**
       (2026-11-15), **E01→E16 ✅ 30/30** (E15 saut composé, E16 profondeur et
       manœuvres ajoutés), scénarios locaux ✅ 8/8, Vitest ✅ 84/84
