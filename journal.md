@@ -1891,3 +1891,12 @@ records détaillés par famille de table (voir `todo.md`, « Idées / dette »).
 | **Nettoyage** | `whiff()`, `parade()`, `apresImpact()`, `dureeExtensionMs`, `approcheDureeMs`, `retourDureeMs` supprimés (durée du déplacement dérivée de la distance et de la vitesse de marche). |
 | **E2E** | E14 : fenêtre 2200 ms (chorégraphie complète), journal « IA riposte (égalité) » ; **E15 fiabilisé** : hook `figerManoeuvres` (les manœuvres aléatoires du chrono jouaient une marche dans la fenêtre de capture → échec flaky). |
 | **Batterie** | typecheck ✅ · Vitest 87/87 · scénarios S01→S11 ✅ · S12 calibration 80.0 / 50.5 / 29.0 % ✅ · E2E 28/28 ✅ (`e2e-2026-11-15T21-21-12.md`). |
+
+### Clé de signature des releases GitHub (2026-11-15)
+
+| Sujet | Contenu |
+|-------|---------|
+| **Keystore de release** | Nouveau `tools/mathkombat.keystore` (alias `mathkombat`, RSA 4096, validité ~30 ans, SHA-256 `CC:64:…`) avec **mots de passe forts** aléatoires — l'ancien keystore (mots de passe « mathkombat ») est archivé en `tools/mathkombat.keystore.vieux`. |
+| **Fichiers locaux** | `tools/keystore.env` (mots de passe, chmod 600) et `tools/secrets-github.txt` (les 4 secrets prêts à coller dans l'UI GitHub) — **`tools/` n'est PAS versionné** (valeurs jamais commitées). |
+| **Build** | `scripts/build-apk.sh` source `tools/keystore.env` si présent (mots de passe fournis) ; sinon repli dev (défauts `build.gradle`). Le workflow CI lira les 4 secrets : `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`. |
+| **Secrets GitHub** | `gh secret set` refuse (HTTP 403 — PAT sans permission « Actions secrets: write »). **Action utilisateur** : ajouter les 4 secrets via l'UI (Settings → Secrets and variables → Actions), valeurs dans `tools/secrets-github.txt`. En attendant, les releases restent signées avec la clé debug. |

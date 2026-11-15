@@ -23,7 +23,16 @@ log "assets embarqués : $(find "$ASSETS" -type f | wc -l) fichiers"
 
 # ---------------------------------------------------------- 3. keystore
 # Signature : clés fournies par l'environnement (CI — secrets GitHub) ou
-# keystore local généré (repli, identique à openwebui-android).
+# keystore local (tools/mathkombat.keystore + tools/keystore.env, non versionnés).
+# tools/keystore.env (KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD) est sourcé
+# s'il existe — sinon les défauts du build.gradle s'appliquent (repli dev).
+if [ -f "$PROJ/tools/keystore.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$PROJ/tools/keystore.env"
+  set +a
+  log "keystore.env chargé (mot de passe du keystore fourni)"
+fi
 if [ -n "${KEYSTORE_FILE:-}" ]; then
   KEYSTORE="$KEYSTORE_FILE"
   log "keystore de release fourni par l'environnement : $KEYSTORE"
