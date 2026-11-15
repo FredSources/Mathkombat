@@ -68,6 +68,8 @@ bash scripts/build-apk.sh      # APK release → output/MathKombat.apk
 ## État actuel
 
 **Jalons J0→J8 livrés** : socle, jeu complet (calculs, combat, IA, animations,
-modes Solo/Duel, APK), CI/CD GitHub (release par tag), équilibrage calibré (S12).
-Version courante : **v0.0.14**. Suites possibles : best-of-3, mode Entraînement,
+modes Solo/Duel, APK), CI/CD GitHub (release par tag), équilibrage calibré (S12),
+chorégraphie de coup finalisée (marche accélérée à distance fixe, réactions
+séquencées, contre sur égalité).
+Version courante : **v0.0.15**. Suites possibles : best-of-3, mode Entraînement,
 bouton Indice, addition/soustraction (voir `todo.md`).

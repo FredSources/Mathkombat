@@ -1900,3 +1900,11 @@ records détaillés par famille de table (voir `todo.md`, « Idées / dette »).
 | **Fichiers locaux** | `tools/keystore.env` (mots de passe, chmod 600) et `tools/secrets-github.txt` (les 4 secrets prêts à coller dans l'UI GitHub) — **`tools/` n'est PAS versionné** (valeurs jamais commitées). |
 | **Build** | `scripts/build-apk.sh` source `tools/keystore.env` si présent (mots de passe fournis) ; sinon repli dev (défauts `build.gradle`). Le workflow CI lira les 4 secrets : `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`. |
 | **Secrets GitHub** | `gh secret set` refuse (HTTP 403 — PAT sans permission « Actions secrets: write »). **Action utilisateur** : ajouter les 4 secrets via l'UI (Settings → Secrets and variables → Actions), valeurs dans `tools/secrets-github.txt`. En attendant, les releases restent signées avec la clé debug. |
+
+### Release v0.0.15 (2026-11-15)
+
+| Sujet | Contenu |
+|-------|---------|
+| **Contenu** | Chorégraphie du coup réécrite (marche accélérée 4× à distance fixe, effets au coup porté, réactions séquencées, contre sur égalité) + source `tools/keystore.env` pour la signature. |
+| **Validation pré-tag** | Batterie complète sur l'état final : typecheck ✅ · Vitest 87/87 · scénarios S01→S11 ✅ · S12 calibration 80.0 / 50.5 / 29.0 % ✅ · **E2E 28/28 ✅** (`e2e-2026-11-15T22-09-11.md`, E15 stabilisé par `figerManoeuvres`). |
+| **Publication** | Tag `v0.0.15` → CI (2m32s) → release GitHub avec `MathKombat-0.0.15-release.apk` + `-debug.apk` (signés clé debug — secrets `KEYSTORE_*` encore à poser). |
