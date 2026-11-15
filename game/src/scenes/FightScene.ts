@@ -455,7 +455,8 @@ export class FightScene extends Phaser.Scene {
 
   /**
    * Check de distance (phase de manœuvres) : les deux doivent rester à la même
-   * distance — un déplacement borné ou décalé est **recalé** après le geste.
+   * distance — un déplacement borné ou décalé est **recalé en marchant** (petit
+   * pas animé, jamais un saut de coordonnées) après le geste.
    */
   private verifierDistance(): void {
     const dx = this.j2.corps.x - this.j1.corps.x;
@@ -463,7 +464,7 @@ export class FightScene extends Phaser.Scene {
     const distance = Math.hypot(dx, dy);
     if (distance > 1 && Math.abs(distance - this.distanceCible) > 2) {
       const facteur = this.distanceCible / distance;
-      this.j2.corps.setPosition(this.j1.corps.x + dx * facteur, this.j1.corps.y + dy * facteur);
+      this.j2.corrigerVers(this.j1.corps.x + dx * facteur, this.j1.corps.y + dy * facteur);
     }
   }
 

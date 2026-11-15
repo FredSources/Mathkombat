@@ -476,6 +476,23 @@ export class Personnage {
     this.deplacer(0, CONFIG.rig.deplacementPas);
   }
 
+  /**
+   * Correction de position **en marchant** (check de distance des manœuvres) :
+   * le personnage fait un pas vers la position cible — jamais un saut de
+   * coordonnées.
+   */
+  corrigerVers(x: number, y: number): void {
+    this.jouerMarche(x > this.corps.x ? 'marche-avant' : 'marche-arriere');
+    this.scene.tweens.add({
+      targets: this.corps,
+      x,
+      y,
+      duration: CONFIG.rig.deplacementDureeMs,
+      ease: 'quad.out',
+      onComplete: () => this.jouerPose('garde'),
+    });
+  }
+
   /** Oriente le personnage : sens des coups + symétrie du sprite (§9.4). */
   orienter(orientation: Orientation): void {
     if (orientation === this.orientation) return;
@@ -590,6 +607,8 @@ export class Personnage {
       (this.skin.sprites.largeur + cible.skin.sprites.largeur) / 2 -
       CONFIG.rig.penetrationFrappe;
     const xContact = cible.corps.x + (versDroite ? -1 : 1) * portee;
+    // l'aller se fait EN MARCHANT, en **marche accélérée** (geste d'attaque)
+    this.jouerMarche(versDroite ? 'marche-avant' : 'marche-arriere', 2);
     this.scene.tweens.add({
       targets: this.corps,
       x: xContact,
@@ -597,13 +616,15 @@ export class Personnage {
       ease: 'quad.out',
       onComplete: () => {
         action(); // le coup est donné
-        // retour à la position d'origine une fois la pose jouée
+        // retour à la position d'origine, lui aussi EN MARCHANT
         this.scene.time.delayedCall(this.skin.sprites.dureePoseMs, () => {
+          this.jouerMarche(versDroite ? 'marche-arriere' : 'marche-avant', 2);
           this.scene.tweens.add({
             targets: this.corps,
             x: xDepart,
             duration: CONFIG.rig.retourDureeMs,
             ease: 'quad.inOut',
+            onComplete: () => this.jouerPose('garde'),
           });
         });
       },
@@ -789,14 +810,15 @@ export class Personnage {
         : null;
   }
 
-  /** Marche animée : alterne le pas et la garde pendant le déplacement. */
-  private jouerMarche(pose: 'marche-avant' | 'marche-arriere'): void {
+  /** Marche animée : alterne le pas et la garde pendant le déplacement.
+   *  `vitesse` > 1 accélère le cycle (marche rapide de l'attaque). */
+  private jouerMarche(pose: 'marche-avant' | 'marche-arriere', vitesse = 1): void {
     const frames = this.skin.sprites.poses[pose];
     this.minuteurAnim?.remove(false);
     this.poseCourante = pose;
     let i = 0;
     this.minuteurAnim = this.scene.time.addEvent({
-      delay: this.skin.sprites.dureeFrameMs,
+      delay: this.skin.sprites.dureeFrameMs / Math.max(1, vitesse),
       loop: true,
       callback: () => {
         i = (i + 1) % frames.length;

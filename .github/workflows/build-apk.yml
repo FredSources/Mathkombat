@@ -85,17 +85,35 @@ jobs:
           unzip -l output/MathKombat.apk | grep -q 'assets/index.html'
           ./tools/android-sdk/build-tools/34.0.0/aapt dump badging output/MathKombat.apk | grep "package:"
 
+      # Nommage : mathkombat-<version>-release.apk / -debug.apk (demande)
+      - name: Nommage des APK selon la version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          [ "$GITHUB_REF_TYPE" = "tag" ] || VERSION="dev"
+          cp output/MathKombat.apk "output/MathKombat-${VERSION}-release.apk"
+          cp output/MathKombat-debug.apk "output/MathKombat-${VERSION}-debug.apk"
+          rm output/MathKombat.apk output/MathKombat-debug.apk
+          ls -la output/*.apk
+
       - uses: actions/upload-artifact@v4
         with:
           name: mathkombat-apk-${{ github.sha }}
-          path: |
-            output/MathKombat.apk
-            output/MathKombat-debug.apk
+          path: output/MathKombat-*.apk
           if-no-files-found: error
+
+      - name: Retire les anciens APK de la release (re-publication)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for a in MathKombat.apk MathKombat-debug.apk; do
+            gh release delete-asset "${GITHUB_REF_NAME}" "$a" --repo "${GITHUB_REPOSITORY}" -y 2>/dev/null || true
+          done
 
       - name: Corps de release
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
+          VERSION="${GITHUB_REF_NAME#v}"
           {
             echo "## MathKombat ${GITHUB_REF_NAME}"
             echo ""
@@ -103,10 +121,10 @@ jobs:
             echo ""
             echo "| APK | Contenu |"
             echo "|---|---|"
-            echo "| \`MathKombat.apk\` | release signée (clés de signature du projet) |"
-            echo "| \`MathKombat-debug.apk\` | debug (hooks de test, logs) |"
+            echo "| \`MathKombat-${VERSION}-release.apk\` | release signée (clés de signature du projet) |"
+            echo "| \`MathKombat-${VERSION}-debug.apk\` | debug (hooks de test, logs) |"
             echo ""
-            echo "Installation : \`adb install -r MathKombat.apk\` (paysage, plein écran)."
+            echo "Installation : \`adb install -r MathKombat-${VERSION}-release.apk\` (paysage, plein écran)."
           } > .tmp-release-body.md
 
       - name: Publication de la Release GitHub
@@ -114,7 +132,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body_path: .tmp-release-body.md
-          files: |
-            output/MathKombat.apk
-            output/MathKombat-debug.apk
+          files: output/MathKombat-*.apk
           generate_release_notes: true
