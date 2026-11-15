@@ -225,7 +225,9 @@ J6 (contenu complet) ; J8 clôt.
       (hôte aarch64) — idempotent ; prérequis apt : `qemu-user-static`,
       `libc6-amd64-cross`, `libgcc-s1-amd64-cross`
 - [ ] Build PC (Android Studio) documenté et vérifié
-- [ ] Grille manuelle L5 (M01→M07) sur appareil
+- [x] Grille manuelle L5 (M01→M07) sur appareil — **validée par l'utilisateur**
+      (2026-11-15, v0.0.14) : lancement, tactile, audio, pause/reprise (clavier
+      IA bien désactivé), record, rotation, longue session — ressenti correct
 
 ### J8 — Clôture
 
@@ -240,7 +242,9 @@ J6 (contenu complet) ; J8 clôt.
       manœuvres ajoutés), scénarios locaux ✅ 8/8, Vitest ✅ 84/84
 - [x] Mode RELEASE certifié zéro log (T04, I10) — `scripts/certif-release.mjs` : **7/7 ✅**
       (zéro log applicatif, zéro socket, zéro requête hors-ligne, zéro hook debug)
-- [ ] Journal final + README à jour
+- [x] Journal final + README à jour — **faits** (2026-11-15) : README réécrit
+      (jeu, qualité, téléchargement, état J0→J8), entrée de clôture J8 au
+      journal, todo à jour
 
 ## Idées / dette
 

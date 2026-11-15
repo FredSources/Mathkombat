@@ -1863,3 +1863,20 @@ Prochaine étape : grille manuelle L5 + build Android Studio, puis best-of-3 / i
 | **Libellé SIMULTANÉ** | Message de phase « ATTAQUE × / DÉFENSE ÷ (même chrono) » → « ATTAQUE × / DÉFENSE ÷ » (demande utilisateur). |
 | **E2E pilotage d'énergie** | Le score IA croissant avec le temps de phase (§2.6 nouveau modèle) faisait K.O. le joueur de test avant le tour 3 (E01 met `tempsPhase=45`). E03 et le tour 4 d'E05 pilotent désormais les énergies IA (`forcerEnergie*`, comme E04/E05) : la batterie vérifie la **maths de résolution**, pas l'équilibrage (couvert par S12). |
 | **Batterie** | Vitest 87/87 · scénarios S01→S12 ✅ · **E2E 28/28 ✅** (rapport `e2e-2026-11-15T17-30-34.md`). |
+
+### Clôture J8 — journal final + README (2026-11-15)
+
+| Sujet | Contenu |
+|-------|---------|
+| **Grille manuelle L5** | **Validée par l'utilisateur** sur la v0.0.14 (lancement, tactile, audio, pause/reprise avec clavier IA désactivé, record, rotation, longue session) ✅ |
+| **README.md** | Réécrit : présentation du jeu (modèle IA score moyen, temps des calculs 2 s, niveaux, tables 11/12), section Qualité (87/87 · 12/12 · 28/28 · 7/7), section Téléchargement, état actuel J0→J8 (l'ancien « État J0 » était périmé). |
+| **todo.md** | L5 cochée ; S12 marqué calibré ; reste : build Android Studio (PC) et idées optionnelles (best-of-3, Entraînement, Indice, +/−, records détaillés). |
+
+**État final du projet** : jalons J0→J8 livrés — jeu complet publié en releases
+`v0.0.10 → v0.0.14` (CI/CD GitHub par tag), équilibrage calibré (S12 : 78.7 /
+49.3 / 32.3 % de victoires humaines vs cibles 80/50/30), batterie complète
+verte (Vitest 87/87 · scénarios 12/12 · E2E 28/28 · certif RELEASE 7/7).
+
+**Reste ouvert** : build Android Studio sur PC (vérification documentaire),
+best-of-3, mode Entraînement, bouton Indice, addition/soustraction,
+records détaillés par famille de table (voir `todo.md`, « Idées / dette »).
