@@ -29,3 +29,6 @@ android/.gradle/
 android/app/src/main/assets/
 android/local.properties
 android/app/build/
+
+# dépendances reconstituées par npm install (jamais versionnées)
+game/node_modules/

@@ -107,40 +107,15 @@ export interface ConfigJeu {
     flashTier4Ms: number;
   };
   /**
-   * Rig cut-out articulé (§2.8b/c, docs/assets.md §3a) : angles et durées des
-   * animations de membres — pilotés d'ici, jamais durcis dans la scène.
+   * Mise en scène des combattants (§2.8b/c, sprites animés `rig/personnage.ts`) :
+   * durées, déplacements et impacts — pilotés d'ici, jamais durcis dans la scène.
    */
   rig: {
-    /** Durée de l'extension du membre (ms) — sert aussi de délai d'impact. */
+    /** Délai entre le coup et l'impact visuel (ms). */
     dureeExtensionMs: number;
-    /** Durée du retour à la position de repos (ms). */
-    dureeRetourMs: number;
-    /** Durée du flash d'impact « sprite de coup » en fusion ADD (ms). */
-    flashCoupMs: number;
-    /** Angles d'articulation (Phaser : sens horaire positif), en degrés. */
-    angles: {
-      /** Coup de poing : bras du côté de la frappe. */
-      poing: number;
-      /** Uppercut : coup de poing vers le haut (§9.2 `coupDePoing`). */
-      uppercut: number;
-      /** Crochet : coup de poing latéral (§9.2 `coupDePoing`). */
-      crochet: number;
-      /** Coup de pied haut : jambe du côté de la frappe. */
-      piedHaut: number;
-      /** Coup de pied bas : jambe du côté de la frappe. */
-      piedBas: number;
-      /** Garde haute : bras levé (contre un coup haut, §2.8c). */
-      gardeHaute: number;
-      /** Garde basse : jambe levée (contre un coup bas, §2.8c). */
-      gardeBasse: number;
-      /** CONTRE : coup de pied de la riposte (saut + jambe, §2.8c). */
-      contrePied: number;
-    };
-    /** Saut du CONTRE : hauteur (unités rig) et durée totale (ms). */
+    /** Saut du CONTRE : hauteur (px) et durée totale (ms). */
     sautHauteur: number;
     sautDureeMs: number;
-    /** Échelle du personnage dans l'arène (demande : aux 2/3 — 0,62 → 0,42). */
-    echelle: number;
     /** Chute du K.O. : enfoncement sous le sol (px). */
     koChuteY: number;
     /** Déplacement libre du personnage (§9.2 `vaAGauche`…`vaEnBas`). */
