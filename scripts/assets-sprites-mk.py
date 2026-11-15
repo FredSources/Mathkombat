@@ -66,14 +66,16 @@ def detourer(case: Image.Image) -> Image.Image:
             # (min(r,b) très supérieur au vert) — les violets du personnage (NYX)
             # ont un vert proportionnel et sont conservés
             magenta = (
-                distance < 60
+                distance < 120
                 or (g < 18 and min(r, b) > 25)
                 or (min(r, b) > 2 * g + 100 and max(r, b) > 120)
             )
             if magenta:
                 px[x, y] = (r, g, b, 0)
-            elif distance < 110:  # bord : alpha proportionnel (lissage)
-                px[x, y] = (r, g, b, max(0, a - int(255 * ((110 - distance) / 50))))
+            elif distance < 150:  # fin liseré anti-aliasing (très étroit)
+                px[x, y] = (r, g, b, max(0, a - int(255 * ((150 - distance) / 30))))
+            elif a < 30:  # voile résiduel (halo) : coupé net
+                px[x, y] = (r, g, b, 0)
     return rgba
 
 

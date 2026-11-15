@@ -27,7 +27,7 @@ describe('mode de jeu (§2.6)', () => {
 
   it('le mode duel est disponible sans toucher aux autres réglages', () => {
     const duel: ModeJeu = 'duel';
-    expect({ ...CONFIG, mode: duel }).toMatchObject({ mode: 'duel', rythme: 'differe' });
+    expect({ ...CONFIG, mode: duel }).toMatchObject({ mode: 'duel', rythme: 'simultane' });
   });
 });
 
@@ -171,7 +171,7 @@ describe('réglages de l\'écran CONFIG (§2.7)', () => {
     expect(reglagesDefaut()).toEqual({
       mode: 'solo',
       tempsPhase: PRESETS_TEMPO.normal,
-      rythme: 'differe',
+      rythme: 'simultane',
       pvMax: PV_DEFAUT,
       niveau: 'intermediaire',
       difficulteIA: 'moyen',

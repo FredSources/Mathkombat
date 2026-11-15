@@ -170,7 +170,11 @@ async function main() {
     verifier('E01', 'Lancement → écran RUN, puis RUN → scène de combat atteinte', e01Menu === 'menu' && e01.tour >= 1 && e01.pv.j1 === 100 && e01.pv.j2 === 100, `ecran=${e01Menu} tour=${e01.tour}`);
 
     // ---------------------------------------------------------- E02
-    // attendre une phase d'attaque du joueur (tour 1 : J1 attaque)
+    // attendre une phase d'attaque du joueur (tour 1 : J1 attaque).
+    // Rythme DIFFÉRÉ explicite : le défaut est SIMULTANÉ (§2.1) et E02→E05
+    // testent la séquence attaque → défense → résolution.
+    await page.evaluate(() => window.__mathkombat.setRythme('differe'));
+    await attendre(400);
     await page.waitForFunction(
       () => {
         const e = window.__mathkombat.etat();
@@ -627,6 +631,9 @@ async function main() {
     await clicJeu(850, 612); // [ VALIDER ] (wireframe §2)
     await attendreEcran('menu');
     await lancerCombat();
+    // séquence attaque → défense séparée : rythme DIFFÉRÉ explicite
+    await page.evaluate(() => window.__mathkombat.setRythme('differe'));
+    await attendre(300);
     const e06Attaque = await etat();
     await page.screenshot({ path: path.join(SHOTS, 'e2e-06-tempo-rapide.png') });
     // tour 1 : attaque J1 (10 s) → défense IA (3 s, hors sujet) → résolution
@@ -671,7 +678,8 @@ async function main() {
     await clicJeu(640, 410); // CONFIG
     await attendreEcran('config');
     await clicJeu(1100, 145); // ▶ MODE : SOLO vs IA → 2 JOUEURS
-    await clicJeu(1100, 320); // ▶ RYTHME : DIFFÉRÉ → SIMULTANÉ
+    await clicJeu(700, 320); // ◀ RYTHME : SIMULTANÉ (défaut) → DIFFÉRÉ
+    await clicJeu(1100, 320); // ▶ RYTHME : DIFFÉRÉ → SIMULTANÉ (bascule complète)
     await attendre(250);
     await clicJeu(850, 612); // [ VALIDER ]
     await attendreEcran('menu');
@@ -709,6 +717,9 @@ async function main() {
     // avec bonus K.O., record persistant et HIGH SCORE réaffiché sur l'écran RUN.
     await relancer();
     await lancerCombat(); // solo, défauts §2.9
+    // séquence attaque → défense séparée : rythme DIFFÉRÉ explicite
+    await page.evaluate(() => window.__mathkombat.setRythme('differe'));
+    await attendre(300);
     // 1 calcul résolu au clavier → énergie gagnée créditée au score de J1
     const q09 = (await questions()).find((q) => q.difficulte === 'facile');
     await clicJeu(126, 178); // cible la carte FACILE
@@ -800,6 +811,9 @@ async function main() {
     // [ MENU ] remplacent le message « R = rejouer ».
     await relancer();
     await lancerCombat();
+    // séquence attaque → défense séparée : rythme DIFFÉRÉ explicite
+    await page.evaluate(() => window.__mathkombat.setRythme('differe'));
+    await attendre(300);
     await page.evaluate(() => {
       window.__mathkombat.forcerEnergieAttaque(100);
       window.__mathkombat.forcerEnergieDefense(0);
@@ -901,6 +915,9 @@ async function main() {
     // de l'adversaire, donne son coup, puis **revient à sa position d'origine**.
     await relancer();
     await lancerCombat();
+    // séquence attaque → défense séparée : rythme DIFFÉRÉ explicite
+    await page.evaluate(() => window.__mathkombat.setRythme('differe'));
+    await attendre(300);
     // attaque = défense exactement → blocage (§2.4)
     await page.evaluate(() => {
       window.__mathkombat.forcerEnergieAttaque(6);
@@ -934,6 +951,38 @@ async function main() {
       "Coup bloqué : l'attaquant s'approche (déplacement) puis revient à sa position",
       e14.max > e14Depart.j1 + 40 && Math.abs(e14.depart.j1 - e14Depart.j1) < 6,
       `départ=${e14Depart.j1} min=${e14.min} max=${e14.max} retour=${e14.depart.j1} journal=${JSON.stringify(e14.journal)}`
+    );
+
+    // ---------------------------------------------------------- E15
+    // Saut composé (§2.8c) : (rester | avancer | reculer) ET/OU
+    // (donner un coup | faire un contre) — exclusif dans chaque famille.
+    await relancer();
+    await lancerCombat();
+    const e15 = await page.evaluate(async () => {
+      const h = window.__mathkombat;
+      const p0 = h.positions().j1;
+      h.saut({ deplacement: 'avant' }); // déplacement seul
+      await new Promise((r) => setTimeout(r, 450));
+      const pAvant = h.positions().j1;
+      h.saut({ deplacement: 'arriere' });
+      await new Promise((r) => setTimeout(r, 700));
+      const pArriere = h.positions().j1;
+      h.saut({ action: 'coup' }); // action seule (coup sauté au sommet)
+      await new Promise((r) => setTimeout(r, 300));
+      const poseCoup = h.coups().poses.j1;
+      h.saut({ deplacement: 'avant', action: 'contre' }); // combinaison
+      await new Promise((r) => setTimeout(r, 450));
+      const poseContre = h.coups().poses.j1;
+      return { p0, pAvant, pArriere, poseCoup, poseContre };
+    });
+    verifier(
+      'E15',
+      'Saut composé : (place|avant|arrière) et/ou (coup|contre)',
+      e15.pAvant > e15.p0 &&
+        e15.pArriere < e15.pAvant &&
+        e15.poseCoup === 'pied' &&
+        e15.poseContre === 'pied',
+      `déplacements ${e15.p0} → ${e15.pAvant} → ${e15.pArriere} · pose coup=${e15.poseCoup} contre=${e15.poseContre}`
     );
   } finally {
     await navigateur.close();

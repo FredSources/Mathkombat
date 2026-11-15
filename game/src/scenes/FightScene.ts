@@ -1038,6 +1038,11 @@ export class FightScene extends Phaser.Scene {
       },
       // positions des combattants (E14 : déplacement pendant les résolutions)
       positions: () => ({ j1: scene.j1.corps.x, j2: scene.j2.corps.x }),
+      // saut composé (E15) : déplacement ET/OU action, en exclusif par famille
+      saut: (options?: { deplacement?: string; action?: string }) => {
+        scene.j1.saut(options as never);
+        return { pose: scene.j1.pose, ok: true };
+      },
       // score de combat (§2.7) : mesures cumulées + scores affichés
       scores: () => ({
         j1: { ...scene.scores.j1 },

@@ -48,7 +48,7 @@ export interface ConfigJeu {
   pvMax: number;
   /** Durée de phase en secondes — identique attaque/défense (plage 5–60). */
   tempsPhase: number;
-  /** Rythme de calcul : 'differe' (défaut) ou 'simultane' (jamais auto-adapté). */
+  /** Rythme de calcul : 'simultane' (défaut) ou 'differe' (jamais auto-adapté). */
   rythme: Rythme;
   /** Mode de jeu (§2.6) : 'solo' (défaut, J1 vs IA) ou 'duel' (2 joueurs). */
   mode: ModeJeu;
@@ -181,7 +181,7 @@ export interface ConfigJeu {
 export const CONFIG: ConfigJeu = {
   pvMax: PV_DEFAUT,
   tempsPhase: 15,
-  rythme: 'differe',
+  rythme: 'simultane',
   mode: 'solo',
   niveau: 'intermediaire',
   gains: { facile: 1, moyen: 3, difficile: 7 },

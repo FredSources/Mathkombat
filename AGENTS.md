@@ -40,11 +40,10 @@ vivent dans `game/src/core/config.ts` et nulle part ailleurs.
   fois** (celle du joueur dont c'est la phase) ; en SIMULTANÉ, **les deux zones sont
   actives** (l'attaquant résout ses multiplications, le défenseur ses divisions).
 - **Rythme de calcul configurable** (§2.9), au choix :
-  - **DIFFÉRÉ** *(défaut)* : la phase d'attaque puis la phase de défense
-    s'enchaînent, chacune avec **la même durée** ; une seule zone de calcul active à
-    la fois ;
-  - **SIMULTANÉ** : les deux joueurs calculent **en même temps**, sur le **même
-    chrono** (l'attaquant ses multiplications, le défenseur ses divisions).
+  - **SIMULTANÉ** *(défaut)* : les deux joueurs calculent **en même temps**, sur
+    le **même chrono** (l'attaquant ses multiplications, le défenseur ses divisions) ;
+  - **DIFFÉRÉ** : la phase d'attaque puis la phase de défense s'enchaînent,
+    chacune avec **la même durée** ; une seule zone de calcul active à la fois.
   - Le rythme appliqué est **toujours celui de la configuration choisie** (écran
     CONFIG ou `config.ts`) : **aucun comportement automatique**. La **taille de
     l'écran n'est que le *pourquoi*** de ce réglage (deux joueurs côte à côte
@@ -363,7 +362,7 @@ phase** (les deux phases partagent le même chrono).
 | Paramètre | Défaut | Plage | Réglage |
 |-----------|--------|-------|---------|
 | **Temps de phase** (identique attaque/défense) | 15 s | 5–60 s | `config.ts` + écran **CONFIG** |
-| **Rythme de calcul** | Différé | Différé / Simultané | `config.ts` + écran **CONFIG** |
+| **Rythme de calcul** | Simultané | Différé / Simultané | `config.ts` + écran **CONFIG** |
 | PV par joueur | 100 | 10–999 | `config.ts` |
 | Énergie visuelle de référence (aura) | 30 | 10–99 | `config.ts` |
 | Bornes des tiers d'animation | §2.8b | — | `config.ts` |

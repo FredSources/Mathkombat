@@ -45,6 +45,18 @@ export type PoseSprite =
   | 'garde-defense'
   | 'touche';
 
+/** Déplacement pendant un saut (exclusif) : rester sur place, avancer, reculer. */
+export type DeplacementSaut = 'place' | 'avant' | 'arriere';
+
+/** Action pendant un saut (exclusif, optionnelle) : un coup ou un contre. */
+export type ActionSaut = 'coup' | 'contre';
+
+/** Composition d'un saut (§2.8c) : déplacement **et/ou** action. */
+export interface OptionsSaut {
+  deplacement?: DeplacementSaut;
+  action?: ActionSaut;
+}
+
 /** Rendu par sprites animés : les poses sont des clés de textures. */
 export interface SpritesSkin {
   /** Une ou plusieurs images par pose (la marche alterne deux frames). */
@@ -480,9 +492,17 @@ export class Personnage {
     this.jouerPose('pied', this.skin.sprites.dureePoseMs);
   }
 
-  /** Saut (§9.2) : le sprite et l'aura montent (l'ombre reste au sol). */
-  saut(): void {
+  /**
+   * Saut (§2.8c) — composé, exclusif dans chaque famille :
+   *  - **déplacement** : `rester sur place` | `avancer` | `reculer` ;
+   *  - **action** (optionnelle) : `donner un coup` (coup de pied sauté) ou
+   *    `faire un contre` (garde puis riposte).
+   * Le sprite et l'aura montent (l'ombre reste au sol) ; le déplacement
+   * horizontal se fait **pendant** le saut.
+   */
+  saut(options: OptionsSaut = {}): void {
     const rig = CONFIG.rig;
+    const { deplacement = 'place', action } = options;
     this.jouerPose('saut', rig.sautDureeMs);
     this.scene.tweens.add({
       targets: [this.rig, this.aura],
@@ -491,6 +511,33 @@ export class Personnage {
       ease: 'quad.out',
       yoyo: true,
     });
+    // déplacement horizontal pendant le saut (« avant » = le sens du regard)
+    if (deplacement !== 'place') {
+      const sens = (this.orientation === 'droite' ? 1 : -1) * (deplacement === 'avant' ? 1 : -1);
+      this.scene.tweens.add({
+        targets: this.corps,
+        x: Phaser.Math.Clamp(
+          this.corps.x + sens * CONFIG.rig.deplacementPas * 2,
+          this.options.limites.xMin,
+          this.options.limites.xMax
+        ),
+        duration: rig.sautDureeMs,
+        ease: 'sine.inOut',
+      });
+    }
+    // action au sommet du saut : un coup sauté, ou un contre (garde → riposte)
+    if (action === 'coup') {
+      this.scene.time.delayedCall(rig.sautDureeMs / 2, () =>
+        this.jouerPose('pied', this.skin.sprites.dureePoseMs)
+      );
+    } else if (action === 'contre') {
+      this.scene.time.delayedCall(rig.sautDureeMs / 2, () => {
+        this.jouerPose('garde-defense');
+        this.scene.time.delayedCall(250, () =>
+          this.jouerPose('pied', this.skin.sprites.dureePoseMs)
+        );
+      });
+    }
   }
 
   /**
