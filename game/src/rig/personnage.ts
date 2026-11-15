@@ -138,28 +138,28 @@ export const SKINS: Record<string, SkinPersonnage> = {
     nom: 'TITAN',
     orientation: 'droite',
     teintes: teintesDe(0xd4a13a),
-    sprites: { poses: posesMk('h2'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
+    sprites: { poses: posesMk('h2'), largeur: 291, dureeFrameMs: 200, dureePoseMs: 500 },
   },
   ninja: {
     id: 'ninja',
     nom: 'NYX',
     orientation: 'droite',
     teintes: teintesDe(0x7a5fd4),
-    sprites: { poses: posesMk('f2'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
+    sprites: { poses: posesMk('f2'), largeur: 239, dureeFrameMs: 200, dureePoseMs: 500 },
   },
   guerrier: {
     id: 'guerrier',
     nom: 'ZANE',
     orientation: 'droite',
     teintes: teintesDe(0x3f7fe0),
-    sprites: { poses: posesMk('z1'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
+    sprites: { poses: posesMk('z1'), largeur: 255, dureeFrameMs: 200, dureePoseMs: 500 },
   },
   guerriere: {
     id: 'guerriere',
     nom: 'BLAZE',
     orientation: 'droite',
     teintes: teintesDe(0xd4433a),
-    sprites: { poses: posesMk('z2'), largeur: 260, dureeFrameMs: 200, dureePoseMs: 500 },
+    sprites: { poses: posesMk('z2'), largeur: 281, dureeFrameMs: 200, dureePoseMs: 500 },
   },
 };
 
@@ -264,11 +264,12 @@ export class Personnage {
       this.textureTeintee(`flamme${v}`, coeur, `flamme${v}-c${suffixe}`)
     );
 
-    // ombre portée au sol (fine) — le halo sombre hérité de l'ancienne animation
-    // a été retiré (artefact parasite sur le décor)
+    // ombre portée au sol : **proportionnelle au gabarit et collée aux pieds**
+    // (elle suit le sol quand le personnage saute — le saut ne bouge que le
+    // sprite et l'aura, jamais l'ombre)
     const ombre = scene.add.graphics();
     ombre.fillStyle(0x000000, 0.5);
-    ombre.fillEllipse(0, -4, 150, 22);
+    ombre.fillEllipse(0, -2, options.skin.sprites.largeur * 0.55, 22);
 
     // enveloppe de flammes (§2.8a) : la **couche 0** = les flammes très proches
     // du corps (« niveau 1 ») ; chaque palier AJOUTE une strate « un peu moins
@@ -358,20 +359,26 @@ export class Personnage {
     aura.add(particules);
     conteneur.add([ombre, aura, rig, etiquette]);
 
-    // respiration (idle) — mouvement permanent, non bloquant
-    scene.tweens.add({
-      targets: conteneur,
-      y: options.y - 5,
+    // respiration (idle) — mouvement permanent, non bloquant. Seul le SPRITE
+    // respire : l'ombre portée reste **collée au sol** (demande : le halo ne
+    // quitte les pieds qu'en cas de saut).
+    this.corps = conteneur;
+    this.aura = aura;
+    this.rig = rig;
+    this.etiquette = etiquette;
+    this.respirer();
+  }
+
+  /** Respiration (idle) : seul le sprite bouge, l'ombre reste au sol. */
+  private respirer(): void {
+    this.scene.tweens.add({
+      targets: this.rig,
+      y: -5,
       duration: 1300,
       ease: 'sine.inout',
       yoyo: true,
       repeat: -1,
     });
-
-    this.corps = conteneur;
-    this.aura = aura;
-    this.rig = rig;
-    this.etiquette = etiquette;
   }
 
   /** Nom affiché (étiquette sous le personnage) — libellé J1 / IA / J2. */
@@ -683,6 +690,7 @@ export class Personnage {
     this.aura.setPosition(0, 0);
     this.jouerPose('garde');
     this.couchesAura.forEach((couche, i) => couche.setAlpha(i === 0 ? 1 : 0));
+    this.respirer(); // la respiration repart après le nettoyage des tweens
     this.palier = -1;
     this.alphaPalier = 0;
   }

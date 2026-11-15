@@ -30,8 +30,19 @@ POSES = [
     "garde", "marche-avant", "marche-arriere", "saut",
     "poing", "pied", "garde-defense", "touche",
 ]
-# hauteur commune imposée (alignement des pieds) — recadrage final
+# hauteur de référence du combattant « moyen » (px)
 HAUTEUR_CIBLE = 300
+
+# tailles relatives des combattants (proportions entre personnages) :
+# TITAN est massif, NYX menue — le reste est le gabarit de base
+RATIOS = {
+    "j1": 1.0,   # KENJI
+    "j2": 1.0,   # KIRA
+    "h2": 1.12,  # TITAN
+    "f2": 0.92,  # NYX
+    "z1": 0.98,  # ZANE
+    "z2": 1.08,  # BLAZE
+}
 
 
 def detourer(case: Image.Image) -> Image.Image:
@@ -56,38 +67,48 @@ def detourer(case: Image.Image) -> Image.Image:
     return rgba
 
 
-def recadrer(sprite: Image.Image, echelle: float) -> Image.Image:
+def recadrer(sprite: Image.Image, echelle: float, ratio: float) -> Image.Image:
     """Recadre sur le contenu OPAQUE (vrais pieds — les planches intègrent une
     ombre douce sous les pieds qui faisait « voler » les personnages), à
-    l'échelle fixe de la planche, pieds collés au bas du canevas.
+    l'échelle du gabarit (`RATIOS`), **pieds garantis au contact du bas**.
     """
     net = sprite.getchannel("A").point(lambda v: 255 if v > 200 else 0)
     bbox = net.getbbox()
     if not bbox:
         return sprite
     contenu = sprite.crop(bbox)
-    nouvelle = (
-        max(1, int(contenu.width * echelle)),
-        max(1, int(contenu.height * echelle)),
+    contenu = contenu.resize(
+        (max(1, int(contenu.width * echelle)), max(1, int(contenu.height * echelle))),
+        Image.LANCZOS,
     )
-    contenu = contenu.resize(nouvelle, Image.LANCZOS)
-    # canevas de largeur constante, pieds collés au bas
-    largeur = int(HAUTEUR_CIBLE * 1.1)
-    canevas = Image.new("RGBA", (largeur, HAUTEUR_CIBLE), (0, 0, 0, 0))
-    canevas.paste(contenu, ((largeur - contenu.width) // 2, HAUTEUR_CIBLE - contenu.height))
+    # canevas proportionnel au gabarit, pieds collés au bas
+    hauteur_canevas = int(HAUTEUR_CIBLE * ratio)
+    largeur = int(hauteur_canevas * 1.1)
+    canevas = Image.new("RGBA", (largeur, hauteur_canevas), (0, 0, 0, 0))
+    canevas.paste(contenu, ((largeur - contenu.width) // 2, hauteur_canevas - contenu.height))
+    # garantie de contact : si le contenu visible ne touche pas le bas, on le
+    # descend (l'anti-aliasing du resize peut ronger les pieds)
+    vis = canevas.getchannel("A").point(lambda v: 255 if v > 40 else 0).getbbox()
+    if vis and vis[3] < hauteur_canevas:
+        canevas = Image.new("RGBA", (largeur, hauteur_canevas), (0, 0, 0, 0))
+        canevas.paste(
+            contenu,
+            ((largeur - contenu.width) // 2, hauteur_canevas - contenu.height + (hauteur_canevas - vis[3])),
+        )
     return canevas
 
 
-def echelle_planche(image: Image.Image) -> float:
-    """Échelle de la planche, calculée sur la pose de référence (garde) : toutes
-    les poses gardent la même taille (sinon le personnage « respire »)."""
+def echelle_planche(image: Image.Image, identifiant: str) -> float:
+    """Échelle de la planche, calculée sur la pose de référence (garde)
+    **détourée** : le personnage garde son gabarit (`RATIOS`) et toutes les poses
+    la même taille (sinon le personnage « respire »)."""
     case_w = image.width // COLONNES
     case_h = image.height // LIGNES
-    garde = image.crop((0, 0, case_w, case_h))
+    garde = detourer(image.crop((0, 0, case_w, case_h)))
     net = garde.getchannel("A").point(lambda v: 255 if v > 200 else 0)
     bbox = net.getbbox() or (0, 0, case_w, case_h)
     hauteur = bbox[3] - bbox[1]
-    return HAUTEUR_CIBLE / max(1, hauteur)
+    return (HAUTEUR_CIBLE * RATIOS.get(identifiant, 1.0)) / max(1, hauteur)
 
 
 def main() -> int:
@@ -102,12 +123,13 @@ def main() -> int:
         image = Image.open(planche).convert("RGBA")
         case_w = image.width // COLONNES
         case_h = image.height // LIGNES
-        echelle = echelle_planche(image)  # taille identique pour toutes les poses
-        print(f"{planche.name} : {image.width}x{image.height} → cases {case_w}x{case_h} (échelle {echelle:.2f})")
+        ratio = RATIOS.get(identifiant, 1.0)
+        echelle = echelle_planche(image, identifiant)  # gabarit + poses homogènes
+        print(f"{planche.name} : {image.width}x{image.height} → cases {case_w}x{case_h} (ratio {ratio}, échelle {echelle:.2f})")
         for i, pose in enumerate(POSES):
             col, ligne = i % COLONNES, i // COLONNES
             case = image.crop((col * case_w, ligne * case_h, (col + 1) * case_w, (ligne + 1) * case_h))
-            sprite = recadrer(detourer(case), echelle)
+            sprite = recadrer(detourer(case), echelle, ratio)
             cible = SORTIE / f"{identifiant}-{i}-{pose}.png"
             sprite.save(cible)
             print(f"  {cible.name}")
