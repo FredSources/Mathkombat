@@ -109,7 +109,7 @@ const ECHELLE_AURA = 1;
  * une strate de flammes nettement plus large — l'aura **grandit** avec l'énergie,
  * taille et densité des flammes inchangées.
  */
-const ECARTEMENTS_COUCHES: readonly number[] = [0.9, 1.3, 1.7];
+const ECARTEMENTS_COUCHES: readonly number[] = [0.9, 1.18, 1.45];
 
 /**
  * Poses d'un combattant : clés de textures `mk-<id>-<i>` (chargées par

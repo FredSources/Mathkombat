@@ -83,6 +83,8 @@ export class FightScene extends Phaser.Scene {
   private minuteurManoeuvres: Phaser.Time.TimerEvent | null = null;
   /** Nombre de manœuvres exécutées (debug/E2E). */
   private compteurManoeuvres = 0;
+  /** Distance entre les combattants à maintenir pendant les manœuvres (px). */
+  private distanceCible = 0;
 
   private j1!: Personnage;
   private j2!: Personnage;
@@ -415,25 +417,30 @@ export class FightScene extends Phaser.Scene {
     const acteur = Math.random() < 0.5 ? attaquant : defenseur;
     const choix = Math.random();
     if (choix < 0.24) {
-      // déplacement de COUPLE horizontal : l'attaquant bouge, le défenseur le
-      // suit avec un léger RETARD (temps de réaction simulé)
-      const versDroite = Math.random() < 0.5;
+      // déplacement de COUPLE horizontal, **biaisé vers le centre** : les
+      // personnages restent au milieu de l'écran ; l'attaquant bouge, le
+      // défenseur le suit avec un léger RETARD (temps de réaction simulé)
+      const centreCouple = (attaquant.corps.x + defenseur.corps.x) / 2;
+      const versDroite = Math.random() < (centreCouple < LARGEUR / 2 ? 0.68 : 0.32);
       if (versDroite) attaquant.vaADroite();
       else attaquant.vaAGauche();
       this.time.delayedCall(CONFIG.manoeuvres.tempsReactionMs, () => {
         if (versDroite) defenseur.vaADroite();
         else defenseur.vaAGauche();
+        // check : la distance doit rester constante après le geste
+        this.time.delayedCall(CONFIG.rig.deplacementDureeMs + 20, () => this.verifierDistance());
       });
     } else if (choix < 0.48) {
-      // déplacement de COUPLE en PROFONDEUR : les deux montent ou descendent
-      // ensemble (distance constante), le défenseur en retard — le zoom simule
-      // la perspective
-      const versLeBas = Math.random() < 0.5;
+      // déplacement de COUPLE en PROFONDEUR, biaisé vers le centre de l'arène
+      const milieu = (attaquant.corps.y + defenseur.corps.y) / 2;
+      const versLeBas = Math.random() < (milieu < (LIMITES_PERSONNAGE.yMin + LIMITES_PERSONNAGE.yMax) / 2 ? 0.68 : 0.32);
       if (versLeBas) attaquant.vaEnBas();
       else attaquant.vaEnHaut();
       this.time.delayedCall(CONFIG.manoeuvres.tempsReactionMs, () => {
         if (versLeBas) defenseur.vaEnBas();
         else defenseur.vaEnHaut();
+        // check : la distance doit rester constante après le geste
+        this.time.delayedCall(CONFIG.rig.deplacementDureeMs + 20, () => this.verifierDistance());
       });
     } else if (choix < 0.66) {
       acteur.saut(); // saut indépendant (l'autre ne suit pas)
@@ -443,6 +450,20 @@ export class FightScene extends Phaser.Scene {
       acteur.saut({ action: 'contre' }); // feinte de contre
     } else {
       acteur.gardeHaute(); // garde
+    }
+  }
+
+  /**
+   * Check de distance (phase de manœuvres) : les deux doivent rester à la même
+   * distance — un déplacement borné ou décalé est **recalé** après le geste.
+   */
+  private verifierDistance(): void {
+    const dx = this.j2.corps.x - this.j1.corps.x;
+    const dy = this.j2.corps.y - this.j1.corps.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance > 1 && Math.abs(distance - this.distanceCible) > 2) {
+      const facteur = this.distanceCible / distance;
+      this.j2.corps.setPosition(this.j1.corps.x + dx * facteur, this.j1.corps.y + dy * facteur);
     }
   }
 
@@ -541,6 +562,11 @@ export class FightScene extends Phaser.Scene {
     // remise à pied des combattants (rejeu après K.O.) — rig et membres au repos
     this.j1.reinitialiser();
     this.j2.reinitialiser();
+    // distance à maintenir pendant les manœuvres (§2.8b)
+    this.distanceCible = Math.hypot(
+      this.j2.corps.x - this.j1.corps.x,
+      this.j2.corps.y - this.j1.corps.y
+    );
     // libellés du mode courant (solo = IA, duel = J2) : étiquette et score
     this.j2.nom = FightScene.nomJoueur('j2');
     this.mettreAJourScore();
@@ -1110,7 +1136,14 @@ export class FightScene extends Phaser.Scene {
         return { pose: j.pose, ok: true };
       },
       // positions des combattants (E14 : déplacement pendant les résolutions)
-      positions: () => ({ j1: scene.j1.corps.x, j2: scene.j2.corps.x }),
+      positions: () => ({
+        j1: scene.j1.corps.x,
+        j2: scene.j2.corps.x,
+        distance: Math.hypot(
+          scene.j2.corps.x - scene.j1.corps.x,
+          scene.j2.corps.y - scene.j1.corps.y
+        ),
+      }),
       // saut composé (E15) : déplacement ET/OU action, en exclusif par famille
       saut: (options?: { deplacement?: string; action?: string }) => {
         scene.j1.saut(options as never);
