@@ -78,21 +78,28 @@ clavier est plaqué contre le **bord extérieur** de l'écran, sous la main du j
 
 ## 3. Sélection des personnages (après RUN)
 
+**Solo vs IA** — aucune ligne de niveau pour l'IA (sa difficulté règle en CONFIG,
+écran 2) :
+
 ```
 ┌──────────────────────────────────────────────────────┐
 │  ◀ RETOUR           S É L E C T I O N                │
 │                                                      │
-│   J1 :  [ ◀ perso A ▶ ]   niveau : INTermédiaire     │
-│                                                      │
-│   J2 :  [ ◀ perso A ▶ ]   niveau : INTermédiaire     │
-│          (IA : difficulté MOYEN, règle de CONFIG)    │
+│   JOUEUR 1 ........      ◀   PERSO A          ▶     │
+│   niveau J1 ......       ◀   INTERMÉDIAIRE    ▶     │
+│   I A  ............      ◀   PERSO B          ▶     │
 │                                                      │
 │            [ ▶  L A N C E R   L E   C O M B A T  ]   │
 └──────────────────────────────────────────────────────┘
 ```
 
-- Solo : J2 = IA (niveau calé sur J1, difficulté issue de CONFIG).
-- 2 joueurs : chaque joueur choisit son personnage.
+**2 joueurs** : même écran avec les lignes supplémentaires `JOUEUR 2 ........`
+et `niveau J2  ......` — le niveau est lié à **chaque** joueur (§2.5) — et la
+note « MODE 2 JOUEURS : chacun son personnage et son niveau ».
+
+- Solo : J2 = IA — seule la ligne du personnage est proposée ; son niveau de
+  calcul suit celui de J1 (§2.5), sa difficulté se règle en CONFIG (écran 2).
+- 2 joueurs : chaque joueur choisit son personnage **et son niveau**.
 - Événements : `ui.clic`, `session.debut`.
 
 ---

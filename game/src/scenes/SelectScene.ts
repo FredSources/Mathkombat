@@ -5,8 +5,9 @@
  * `rig/personnage.ts`) et son **niveau de calcul** (§2.5) ; puis
  * **[ LANCER LE COMBAT ]** part sur `Fight` avec la sélection.
  *
- *  - **Solo** : J2 = IA — son niveau suit celui de J1 et sa difficulté vient de
- *    CONFIG (§2.6) ; les choix de J2 restent mémorisés pour le mode duel.
+ *  - **Solo** : J2 = IA — **aucune ligne de niveau pour l'IA** (sa difficulté se
+ *    règle en CONFIG, §2.6) ; seul J1 choisit son niveau (l'IA le suit, §2.5).
+ *    Les choix de J2 restent mémorisés pour le mode duel.
  *  - **Événements** : `ui.clic`, `session.debut` (émis par `main.ts`).
  */
 import Phaser from 'phaser';
@@ -85,9 +86,10 @@ export class SelectScene extends Phaser.Scene {
     this.add.rectangle(640, 96, 1160, 3, RETRO.cadre);
 
     const p = PLACE_SELECT;
-    // En SOLO, l'adversaire est l'IA (jamais « J2 ») — §2.6 / demande utilisateur
+    // En SOLO, l'adversaire est l'IA (jamais « J2 ») — §2.6 / demande utilisateur.
+    // Pas de « niveau IA » : la difficulté de l'IA vit dans CONFIG (§2.6) ;
+    // le niveau n'est proposé qu'aux joueurs humains (§2.5).
     const libelleJ2 = CONFIG.mode === 'duel' ? 'JOUEUR 2  ........' : 'I A  ............';
-    const libelleNiveau2 = CONFIG.mode === 'duel' ? 'niveau J2  ......' : 'niveau IA  ......';
     this.dessinerLigne(
       {
         libelle: 'JOUEUR 1  ........',
@@ -127,21 +129,28 @@ export class SelectScene extends Phaser.Scene {
       },
       p.lignes.j2Skin
     );
-    this.dessinerLigne(
-      {
-        libelle: libelleNiveau2,
-        valeur: () => LIBELLES_NIVEAU[selection.niveauJ2],
-        moins: () => {
-          selection.niveauJ2 = suivant(NIVEAUX, selection.niveauJ2, -1);
+    // Niveau de J2 : uniquement en duel — en solo, l'IA n'a pas de niveau
+    // (difficulté réglée en CONFIG) et le niveau de J1 s'applique aux deux.
+    if (CONFIG.mode === 'duel') {
+      this.dessinerLigne(
+        {
+          libelle: 'niveau J2  ......',
+          valeur: () => LIBELLES_NIVEAU[selection.niveauJ2],
+          moins: () => {
+            selection.niveauJ2 = suivant(NIVEAUX, selection.niveauJ2, -1);
+          },
+          plus: () => {
+            selection.niveauJ2 = suivant(NIVEAUX, selection.niveauJ2, 1);
+          },
         },
-        plus: () => {
-          selection.niveauJ2 = suivant(NIVEAUX, selection.niveauJ2, 1);
-        },
-      },
-      p.lignes.j2Niveau
-    );
-
-    texteRetro(this, 640, 440, this.noteMode(), { taille: 20, couleur: RETRO.texteAccent });
+        p.lignes.j2Niveau
+      );
+      // Note de mode (duel uniquement) : en solo, aucune mention d'IA ici.
+      texteRetro(this, 640, 440, 'MODE 2 JOUEURS : chacun son personnage et son niveau', {
+        taille: 20,
+        couleur: RETRO.texteAccent,
+      });
+    }
 
     creerBoutonRetro({
       scene: this,
@@ -157,13 +166,6 @@ export class SelectScene extends Phaser.Scene {
 
     // Entrée = lancer, comme la touche START d'une borne.
     this.input.keyboard?.on('keydown-ENTER', () => this.lancer());
-  }
-
-  /** Note de mode sous les lignes (§3 : en SOLO, l'IA suit le niveau de J1). */
-  private noteMode(): string {
-    return CONFIG.mode === 'duel'
-      ? 'MODE 2 JOUEURS : chacun son personnage et son niveau'
-      : `MODE SOLO : l'IA suit le niveau de J1 (difficulté ${CONFIG.ia.difficulte.toUpperCase()}, règle CONFIG)`;
   }
 
   private dessinerLigne(ligne: LigneSelect, y: number): void {
