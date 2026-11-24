@@ -54,8 +54,7 @@ clavier est plaqué contre le **bord extérieur** de l'écran, sous la main du j
 │     durée [— 15 s +]   (curseur borné 5–60 si PERSO) │
 │  RYTHME DE CALCUL .  ◀   DIFFÉRÉ          ▶          │
 │  PV ...............  ◀   100              ▶          │
-│  NIVEAU DE CALCUL .  ◀   INTERMÉDIAIRE    ▶          │
-│  DIFFICULTÉ IA ....  ◀   MOYEN            ▶          │
+│  Niveau / difficulté IA : écran SÉLECTION            │
 │  ════════════════════════════════════════════════    │
 │      [ RÉINITIALISER ]        [ V A L I D E R ]      │
 └──────────────────────────────────────────────────────┘
@@ -69,37 +68,59 @@ clavier est plaqué contre le **bord extérieur** de l'écran, sous la main du j
     **SIMULTANÉ** (les deux joueurs sur le même chrono) — c'est **la configuration
     choisie qui s'applique** ;
   - **PV** : 10–999 (défaut 100) ;
-  - **NIVEAU** : DÉBUTANT / INTermédiaire / AVANCÉ ;
-  - **DIFFICULTÉ IA** : FACILE / MOYEN / DIFFICILE.
+  - Le **NIVEAU DE CALCUL** et la **DIFFICULTÉ IA** ne sont plus réglés ici :
+    ils sont remontés sur l'écran **SÉLECTION** (§3), où le joueur les voit au
+    moment du combat (demande utilisateur).
 - **VALIDER** = enregistre (`ui.validation`) et retour au lancement ;
   **RÉINITIALISER** = valeurs par défaut. Bornes appliquées à la validation (I9).
 
 ---
 
-## 3. Sélection des personnages (après RUN)
+## 3. Sélection de combat (après RUN)
 
-**Solo vs IA** — aucune ligne de niveau pour l'IA (sa difficulté règle en CONFIG,
-écran 2) :
+Deux **blocs regroupés par joueur**, séparés par un filet : aucun choix n'est
+mélangé entre J1 et l'adversaire, **aucune superposition d'éléments graphiques**.
+Chaque ligne se règle avec **◀ ▶** ; `[ LANCER LE COMBAT ]` (ou `Entrée`) lance le combat.
+
+**Solo vs IA** — bloc JOUEUR 1 puis bloc IA (dont la difficulté est remontée de CONFIG) :
 
 ```
 ┌──────────────────────────────────────────────────────┐
 │  ◀ RETOUR           S É L E C T I O N                │
-│                                                      │
-│   JOUEUR 1 ........      ◀   PERSO A          ▶     │
-│   niveau J1 ......       ◀   INTERMÉDIAIRE    ▶     │
-│   I A  ............      ◀   PERSO B          ▶     │
-│                                                      │
-│            [ ▶  L A N C E R   L E   C O M B A T  ]   │
+│  ════════════════════════════════════════════════    │
+│  JOUEUR 1 ........   ◀   PERSO A          ▶         │  y=165
+│  niveau J1 ......    ◀   INTERMÉDIAIRE    ▶         │  y=230
+│  calcul J1 ......    ◀   MULT × / DIV ÷    ▶         │  y=295
+│  ────────────────────────────────────────────────    │  y=330 (séparation)
+│  I A  ............   ◀   PERSO B          ▶         │  y=365
+│  difficulté IA ...   ◀   MOYEN            ▶         │  y=430
+│       diff. IA = score moyen attaque / défense        │  y=500
+│         [ ▶  L A N C E R   L E   C O M B A T  ]      │  y=595
 └──────────────────────────────────────────────────────┘
 ```
 
-**2 joueurs** : même écran avec les lignes supplémentaires `JOUEUR 2 ........`
-et `niveau J2  ......` — le niveau est lié à **chaque** joueur (§2.5) — et la
-note « MODE 2 JOUEURS : chacun son personnage et son niveau ».
+**2 joueurs** — même structure, le bloc IA est remplacé par le bloc JOUEUR 2 :
 
-- Solo : J2 = IA — seule la ligne du personnage est proposée ; son niveau de
-  calcul suit celui de J1 (§2.5), sa difficulté se règle en CONFIG (écran 2).
-- 2 joueurs : chaque joueur choisit son personnage **et son niveau**.
+```
+│  ────────────────────────────────────────────────    │  y=330 (séparation)
+│  JOUEUR 2 ........   ◀   PERSO B          ▶         │  y=365
+│  niveau J2 ......    ◀   INTERMÉDIAIRE    ▶         │  y=430
+│  calcul J2 ......    ◀   MULT × / DIV ÷    ▶         │  y=495
+```
+
+- **Bloc JOUEUR 1** : personnage, niveau, **son** couple de calcul.
+- **Bloc adversaire** : en solo, l'IA a son personnage et sa difficulté, mais pas
+  de ligne de niveau (elle suit celui de J1, §2.5) ; en duel, J2 a son personnage,
+  son niveau **et son propre couple de calcul**.
+- **Couple de calcul** : `MULT × / DIV ÷` ou `ADD + / SOUS −` (§2.5). L'attaque
+  utilise le premier terme du couple du joueur concerné, la défense l'inverse de
+  ce même couple — les choix des deux joueurs ne sont jamais croisés.
+- **Géométrie sans superposition** : libellés à `x=110`, flèches `◀` à `x=700` et
+  `▶` à `x=1100` (56 px de large), valeur centrée à `x=900`. Les libellés longs
+  sont abrégés (`LIBELLES_OPERATION_COURT`) pour ne pas chevaucher les flèches ;
+  une seule ligne par palier de 65 px (menu aéré) ; un filet sépare les deux
+  blocs ; le bouton LANCER (`y=595`, hauteur 80 → bord haut `555`) est descendu
+  et reste dégagé (dernière ligne à `y=495`, bas ≈ 515 ; note solo bas ≈ 510).
 - Événements : `ui.clic`, `session.debut`.
 
 ---

@@ -17,7 +17,7 @@
  *    (§2.8, I13).
  */
 import type { ConfigJeu, Difficulte, Niveau, Rythme, TypeOperation } from './config.ts';
-import { CONFIG } from './config.ts';
+import { CONFIG, operationInverse } from './config.ts';
 import type { Question } from './math-generator.ts';
 import { GenerateurMath, evaluerReponse, gainObtenu } from './math-generator.ts';
 
@@ -187,6 +187,9 @@ export interface OptionsCombat {
   config?: ConfigJeu;
   aleatoire?: () => number;
   niveaux: Record<IdJoueur, Niveau>;
+  /** Opération d'attaque de chaque joueur (§2.5) ; la défense de chacun
+   *  utilise `operationInverse` de sa propre opération. Repli : `config.operation`. */
+  operations?: Record<IdJoueur, TypeOperation>;
   emettre?: Emetteur;
 }
 
@@ -195,12 +198,15 @@ export class CombatEngine {
   private readonly generateur: GenerateurMath;
   private readonly emettre: Emetteur | undefined;
   private readonly niveaux: Record<IdJoueur, Niveau>;
+  private readonly operations: Record<IdJoueur, TypeOperation>;
   private etatCourant: EtatCombat;
 
   constructor(options: OptionsCombat) {
     this.config = options.config ?? CONFIG;
     this.emettre = options.emettre;
     this.niveaux = options.niveaux;
+    const operationDefaut = this.config.operation ?? 'multiplication';
+    this.operations = options.operations ?? { j1: operationDefaut, j2: operationDefaut };
     this.generateur = new GenerateurMath(this.config, options.aleatoire);
     this.etatCourant = {
       tour: 0,
@@ -217,10 +223,10 @@ export class CombatEngine {
   }
 
   /**
-   * Démarre un tour : phase d'attaque (multiplications de l'attaquant) et phase
-   * de défense (divisions du défenseur). Événements `combat.phase` selon le
-   * rythme configuré (I15) : DIFFÉRÉ = 2 phases enchaînées (même durée) ;
-   * SIMULTANÉ = un seul chrono partagé.
+   * Démarre un tour : phase d'attaque (`CONFIG.operation` de l'attaquant) et
+   * phase de défense (opération inverse du défenseur, §2.5). Événements
+   * `combat.phase` selon le rythme configuré (I15) : DIFFÉRÉ = 2 phases
+   * enchaînées (même durée) ; SIMULTANÉ = un seul chrono partagé.
    */
   demarrerTour(): Tour {
     if (this.etatCourant.fini) {
@@ -230,14 +236,16 @@ export class CombatEngine {
     const defenseur: IdJoueur = attaquant === 'j1' ? 'j2' : 'j1';
     const numero = this.etatCourant.tour + 1;
 
+    // Chaque joueur joue SON couple : il attaque avec son opération et défend
+    // avec l'inverse de la sienne (§2.5) — aucun choix n'est mélangé entre J1/J2.
     const phaseAttaque = new PhaseCalcul(
-      'multiplication',
+      this.operations[attaquant],
       this.niveaux[attaquant],
       this.generateur,
       this.emettre
     );
     const phaseDefense = new PhaseCalcul(
-      'division',
+      operationInverse(this.operations[defenseur]),
       this.niveaux[defenseur],
       this.generateur,
       this.emettre

@@ -9,8 +9,8 @@
 Produire un **jeu de combat 2D** style *Mortal Kombat* / *Street Fighter* où la puissance
 des coups dépend de la réussite à des **calculs mentaux** :
 
-- **attaquer** = résoudre des **multiplications** dans un temps limité ;
-- **défendre** = résoudre des **divisions** dans un temps limité ;
+- **attaquer** = résoudre des calculs de l'**opération d'attaque** (× par défaut) dans un temps limité ;
+- **défendre** = résoudre l'**opération inverse** (÷ par défaut) dans un temps limité ;
 - chaque calcul réussi rapporte de l'**énergie** selon la difficulté choisie
   (**Facile +1**, **Moyen +3**, **Difficile +7**) ;
 - l'énergie accumulée = **puissance du coup** ; les points de défense sont retranchés à
@@ -41,7 +41,7 @@ vivent dans `game/src/core/config.ts` et nulle part ailleurs.
   actives** (l'attaquant résout ses multiplications, le défenseur ses divisions).
 - **Rythme de calcul configurable** (§2.9), au choix :
   - **SIMULTANÉ** *(défaut)* : les deux joueurs calculent **en même temps**, sur
-    le **même chrono** (l'attaquant ses multiplications, le défenseur ses divisions) ;
+    le **même chrono** (l'attaquant l'opération d'attaque, le défenseur son inverse) ;
   - **DIFFÉRÉ** : la phase d'attaque puis la phase de défense s'enchaînent,
     chacune avec **la même durée** ; une seule zone de calcul active à la fois.
   - Le rythme appliqué est **toujours celui de la configuration choisie** (écran
@@ -53,7 +53,7 @@ vivent dans `game/src/core/config.ts` et nulle part ailleurs.
   défenseur pour les divisions (les deux zones en SIMULTANÉ, disposition : §2.7).
 - **K.O.** : PV ≤ 0 → fin du combat. (V1 : une manche. Best-of-3 manches = jalon J8.)
 
-### 2.2 Phase d'attaque — multiplications
+### 2.2 Phase d'attaque — opération choisie (multiplications par défaut)
 
 - Durée globale : **identique à celle de la défense** (défaut **15 s**, paramètre
   **configurable**, §2.9). **Aucun timer par calcul** : la seule limite est
@@ -75,14 +75,16 @@ vivent dans `game/src/core/config.ts` et nulle part ailleurs.
 - Fin du **temps de phase** (durée configurable, §2.9) → le coup est porté avec
   l'énergie totale accumulée (0 énergie = coup manqué, « whiff » → tier 0, §2.8b).
 
-### 2.3 Phase de défense — divisions
+### 2.3 Phase de défense — opération inverse (divisions par défaut)
 
 - Même structure, **même durée que l'attaque** (configurable, §2.9), **aucun timer
   par calcul**. En rythme **SIMULTANÉ**, cette phase court sur le **même chrono** que
   l'attaque (les deux joueurs calculent ensemble).
-- **3 calculs de division simultanés au-dessus du défenseur**, un par difficulté :
-  **Facile +1**, **Moyen +3**, **Difficile +7** points de défense. Divisions exactes
-  (ex. `56 ÷ 7`), réponse saisie au **clavier numérique** (Effacer / Valider).
+- **3 calculs simultanés au-dessus du défenseur**, un par difficulté :
+  **Facile +1**, **Moyen +3**, **Difficile +7** points de défense. L'opération est
+  l'inverse de celle de l'attaque (§2.5) : divisions exactes par défaut
+  (ex. `56 ÷ 7`), soustractions à résultat positif, additions exactes — réponse
+  saisie au **clavier numérique** (Effacer / Valider).
 - Même règle de rendement : réussite = remplacement du **seul** calcul résolu ;
   erreur = le calcul **reste** (retour « Faux ! »), temps perdu comme seule pénalité.
 - Objectif : cadence maximale → défense élevée → potentiel de **contre-attaque** élevé
@@ -134,8 +136,10 @@ Les **5 faits résistants** (à mémoriser, d'après le document) : `6×7`, `6×
 - **table 12** : `12×1`, `12×2` → **Facile** ; `12×3`, `12×6`, `12×7`, `12×8`, `12×9`, `12×11` → **Difficile** ; le reste (`12×4`, `12×5`, `12×10`, `12×12`) → **Moyen** ;
 - **tables 11 et 12 réservées au niveau Avancé** (la borne du niveau s'applique aux **deux facteurs**).
 
-**Niveau = borne des deux facteurs** (multiplications : table **et** second facteur ; divisions : diviseur **et** quotient), choisi en début de combat par chaque joueur ; l'IA utilise le niveau du joueur humain :
-choisi en début de combat par chaque joueur ; l'IA utilise le niveau du joueur humain :
+**Niveau = borne des deux facteurs** (multiplications : table **et** second facteur ;
+divisions : diviseur **et** quotient ; additions et soustractions : les deux opérandes
+du fait sous-jacent), choisi en début de combat par chaque joueur sur l'écran SÉLECTION ;
+l'IA utilise le niveau du joueur humain :
 
 | Niveau | Borne |
 |--------|-------|
@@ -181,12 +185,14 @@ se suivent).
 - *« Aucun chronomètre au début »* → idée de **Mode Entraînement sans chrono**
   (voir `todo.md`), hors périmètre v1.
 
-**Types de calculs (v1 et extensions)** : la phase d'attaque utilise les
-**multiplications**, la phase de défense les **divisions**. Le générateur est abstrait
-par **type d'opération** — `addition`, `soustraction`, `multiplication`, `division` —
-pour permettre ultérieurement d'**adapter le niveau en variant les opérations**.
-En v1, seules **×** et **÷** sont actives ; **+** et **−** sont prévues dans
-l'architecture mais non implémentées (voir `todo.md`, « Idées / dette »).
+**Types de calculs** : les quatre opérations — `addition`, `soustraction`,
+`multiplication`, `division` — sont **implémentées** dans le générateur. La phase
+d'attaque utilise `CONFIG.operation` (**× par défaut**) et la phase de défense
+l'opération inverse (`operationInverse`, **÷ par défaut**). L'opération d'attaque
+est choisie **par chaque joueur dans son propre bloc** de l'écran SÉLECTION
+(solo : J1 choisit, l'IA suit son couple ; duel : J1 et J2 ont chacun leur
+couple, jamais mélangé). Les faits sont générés avec la même borne de niveau
+et le même classement par difficulté pour les quatre opérations.
 
 ### 2.6 Modes de jeu
 
@@ -224,8 +230,9 @@ l'architecture mais non implémentées (voir `todo.md`, « Idées / dette »).
   personnages) ; CONFIG ouvre l'écran de configuration des règles.
 - **Écran CONFIG** (style écran de setup rétro, commandes **◀ ▶**) : mode
   (Solo vs IA / 2 joueurs), tempo (durée unique attaque = défense, §2.9), **rythme de
-  calcul (Différé / Simultané)**, PV, niveau de calcul, difficulté IA — touches
-  **VALIDER** / **RÉINITIALISER**.
+  calcul (Différé / Simultané)**, PV — touches **VALIDER** / **RÉINITIALISER**.
+  Le **niveau de calcul** et la **difficulté IA** sont remontés sur l'écran
+  **SÉLECTION** (`docs/wireframes.md` §3) : ils n'y sont plus réglés ici (demande utilisateur).
 - **Clavier numérique par joueur** (console de saisie) :
   - **la valeur saisie est affichée sur le clavier** : une **ligne d'entrée unique**
     (même largeur que le clavier) ne montre que la **valeur tapée** (« 49 ») — elle
@@ -373,7 +380,8 @@ phase** (les deux phases partagent le même chrono).
 | PV par joueur | 100 | 10–999 | `config.ts` |
 | Énergie visuelle de référence (aura) | 30 | 10–99 | `config.ts` |
 | Bornes des tiers d'animation | §2.8b | — | `config.ts` |
-| Difficulté de l'IA | Moyen | Facile/Moyen/Difficile | `config.ts` + écran **CONFIG** |
+| Opération d'attaque (défense = inverse) | Multiplication | couples ×/÷ ou +/− | `config.ts` + écran **SÉLECTION** (un couple par joueur) |
+| Difficulté de l'IA | Moyen | Facile/Moyen/Difficile | `config.ts` + écran **SÉLECTION** |
 | Score — facteur énergie / temps restant (`score`) | 1 / 1 | — | `config.ts` |
 | Score — bonus K.O. (`score.bonusKo`) | 25 | — | `config.ts` |
 | Score moyen de l'IA (« gentillesse », `scoreMoyen`) | 21 / 23 / 24 | — | `config.ts` |

@@ -121,7 +121,7 @@ J6 (contenu complet) ; J8 clôt.
 ### J2 — Moteur mathématique (terminé ✅)
 
 - [x] `core/config.ts` : tout l'équilibrage centralisé (PV, tempo, rythme, gains, familles 🟢🟡🟠, bornes 5/10/12, tiers, IA gentille, cadence de référence)
-- [x] `core/math-generator.ts` : multiplications/divisions adaptatives (couleur du fait, repli Débutant, non-répétition, exactitude, abstraction type d'opération pour +/− futurs)
+- [x] `core/math-generator.ts` : quatre opérations adaptatives (+, −, ×, ÷) — couleur du fait, repli Débutant, non-répétition, exactitude (÷ exacte, − à résultat positif), bornes de niveau par fait sous-jacent
 - [x] Tests Vitest (S01→S03, invariants I3, I4, I6, I7, I11) — **22 tests, couverture 100 %** du cœur maths
 - [x] `scripts/run-scenarios.mjs` : exécuteur de scénarios headless + rapport `output/reports/scenarios-*.md`
 
@@ -171,6 +171,14 @@ J6 (contenu complet) ; J8 clôt.
       `CONFIG.mode`, une console par joueur (touches physiques disjointes), rôles
       alternés, rythme SIMULTANÉ deux zones actives ; **choisissable depuis
       l'écran CONFIG** (E2E E07/E08).
+- [x] **Écran SÉLECTION (§3) et CONFIG réorganisés** — demande utilisateur :
+      **deux blocs regroupés par joueur, sans superposition ni mélange** ;
+      J1 = personnage + niveau + couple de calcul ; adversaire = IA (personnage
+      + difficulté remontée de CONFIG) ou J2 (personnage + niveau + son couple) ;
+      CONFIG ne propose plus ni niveau ni difficulté IA (E2E E12 adapté).
+- [x] **Quatre opérations jouables (+, −, ×, ÷)** — demande utilisateur :
+      attaque = `CONFIG.operation`, défense = `operationInverse` ; générateur,
+      moteur de combat, libellés du HUD, tests Vitest et docs alignés.
 - [x] **Surbrillance des touches du clavier à l'appui** — demande utilisateur :
       touche pressée (clic **ou** frappe physique) éclaircie + contour blanc, retour
       au repos après `CONFIG.ui.surbrillanceMs` (160 ms), **console pressée seule** ;
@@ -260,8 +268,6 @@ J6 (contenu complet) ; J8 clôt.
     détaillés par famille de table (bullets ci-dessous).
 - **Bouton « Indice »** : afficher l'astuce de déduction de la table concernée
   (boîte à outils `AGENTS.md` §2.5) — pédagogique, à pénaliser doucement ou non.
-- **Addition / soustraction** : type de calcul supplémentaire pour adapter le niveau
-  (abstraction `type d'opération` prévue dès J2 dans le générateur — v1 = × et ÷ seuls).
 - Best-of-3 manches + écran de victoire de manche (J8).
 - Sauvegarde des scores / progression (hors périmètre v1).
 - Deux personnages jouables minimum pour la sélection (J6).

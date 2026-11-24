@@ -21,14 +21,7 @@ import {
   presetDeTemps,
   reglagesDefaut,
 } from '../core/config';
-import type {
-  Difficulte,
-  ModeJeu,
-  Niveau,
-  PresetTempo,
-  ReglagesConfig,
-  Rythme,
-} from '../core/config';
+import type { ModeJeu, PresetTempo, ReglagesConfig, Rythme } from '../core/config';
 import { getLogger } from '../core/logger';
 import { declarerEcran } from '../ui/ecran';
 import { RETRO, creerBoutonRetro, creerCadreBorne, suivant, texteRetro } from '../ui/retro';
@@ -37,17 +30,9 @@ const log = getLogger('Config');
 
 const MODES: readonly ModeJeu[] = ['solo', 'duel'];
 const RYTHMES: readonly Rythme[] = ['differe', 'simultane'];
-const NIVEAUX: readonly Niveau[] = ['debutant', 'intermediaire', 'avance'];
-const DIFFICULTES_IA: readonly Difficulte[] = ['facile', 'moyen', 'difficile'];
 
 const LIBELLES_MODE: Record<ModeJeu, string> = { solo: 'SOLO vs IA', duel: '2 JOUEURS' };
 const LIBELLES_RYTHME: Record<Rythme, string> = { differe: 'DIFFÉRÉ', simultane: 'SIMULTANÉ' };
-const LIBELLES_NIVEAU: Record<Niveau, string> = {
-  debutant: 'DÉBUTANT',
-  intermediaire: 'INTERMÉDIAIRE',
-  avance: 'AVANCÉ',
-};
-const LIBELLES_IA: Record<Difficulte, string> = { facile: 'FACILE', moyen: 'MOYEN', difficile: 'DIFFICILE' };
 const LIBELLES_PRESET: Record<Exclude<PresetTempo, 'personnalise'>, string> = {
   rapide: 'RAPIDE',
   normal: 'NORMAL',
@@ -116,10 +101,15 @@ export class ConfigScene extends Phaser.Scene {
       { ligne: this.ligneDuree(), y: 258 },
       { ligne: this.ligneRythme(), y: 320 },
       { ligne: this.lignePv(), y: 380 },
-      { ligne: this.ligneNiveau(), y: 440 },
-      { ligne: this.ligneIa(), y: 500 },
     ];
     for (const { ligne, y } of dispos) this.dessinerLigne(ligne, y);
+
+    // Le niveau et la difficulté IA ne sont plus réglés ici : ils sont remontés
+    // sur l'écran SÉLECTION (§3), où le joueur les voit au moment du combat.
+    texteRetro(this, 640, 460, 'Niveau et difficulté IA : écran SÉLECTION (après RUN)', {
+      taille: 20,
+      couleur: RETRO.texteAccent,
+    });
 
     this.add.rectangle(640, 552, 1160, 3, RETRO.cadre);
     creerBoutonRetro({
@@ -212,34 +202,6 @@ export class ConfigScene extends Phaser.Scene {
       },
       plus: () => {
         this.reglages.pvMax = lirePv(this.reglages.pvMax + PAS_PV);
-      },
-    };
-  }
-
-  private ligneNiveau(): LigneConfig {
-    return {
-      cle: 'niveau',
-      libelle: 'NIVEAU DE CALCUL .',
-      valeur: () => LIBELLES_NIVEAU[this.reglages.niveau],
-      moins: () => {
-        this.reglages.niveau = suivant(NIVEAUX, this.reglages.niveau, -1);
-      },
-      plus: () => {
-        this.reglages.niveau = suivant(NIVEAUX, this.reglages.niveau, 1);
-      },
-    };
-  }
-
-  private ligneIa(): LigneConfig {
-    return {
-      cle: 'difficulteIa',
-      libelle: 'DIFFICULTÉ IA ....',
-      valeur: () => LIBELLES_IA[this.reglages.difficulteIA],
-      moins: () => {
-        this.reglages.difficulteIA = suivant(DIFFICULTES_IA, this.reglages.difficulteIA, -1);
-      },
-      plus: () => {
-        this.reglages.difficulteIA = suivant(DIFFICULTES_IA, this.reglages.difficulteIA, 1);
       },
     };
   }

@@ -275,3 +275,34 @@ describe('Mise en scène déterministe (I13, §2.8)', () => {
     expect(palierAura(1000)).toBe(3); // plafond visuel uniquement (I11)
   });
 });
+
+describe('Couples d\'opérations par joueur (§2.5 / I14)', () => {
+  it('chaque joueur attaque avec SON opération et défend avec son inverse', () => {
+    const engine = new CombatEngine({
+      niveaux: { j1: 'intermediaire', j2: 'intermediaire' },
+      operations: { j1: 'addition', j2: 'multiplication' },
+      aleatoire: alea(31),
+    });
+    // Tour 1 : J1 attaque en +, J2 défend avec l'inverse de SON couple (÷).
+    const t1 = engine.demarrerTour();
+    expect(t1.phaseAttaque.operation).toBe('addition');
+    expect(t1.phaseDefense.operation).toBe('division');
+    engine.resoudreTour(t1, 0, 0);
+
+    // Tour 2 : J2 attaque en ×, J1 défend avec l'inverse de SON couple (−).
+    const t2 = engine.demarrerTour();
+    expect(t2.phaseAttaque.operation).toBe('multiplication');
+    expect(t2.phaseDefense.operation).toBe('soustraction');
+  });
+
+  it('repli sur CONFIG.operation quand aucun couple n\'est fourni', () => {
+    const engine = new CombatEngine({
+      niveaux: { j1: 'debutant', j2: 'debutant' },
+      config: { ...CONFIG, operation: 'division' },
+      aleatoire: alea(32),
+    });
+    const t = engine.demarrerTour();
+    expect(t.phaseAttaque.operation).toBe('division');
+    expect(t.phaseDefense.operation).toBe('multiplication');
+  });
+});

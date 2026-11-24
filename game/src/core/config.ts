@@ -19,10 +19,75 @@ export type ModeJeu = 'solo' | 'duel';
 export type PresetTempo = 'rapide' | 'normal' | 'long' | 'personnalise';
 /** Coup de combat (§2.8b) : sert aux impacts et au choix de l'animation. */
 export type Coup = 'poing' | 'pied-bas' | 'pied-haut';
-/** v1 : multiplication + division seules ; addition/soustraction prévues (I14). */
+/** Quatre opérations générées par le moteur (§2.5) — l'attaque utilise
+ * `operation`, la défense son inverse (`operationInverse`). */
 export type TypeOperation = 'addition' | 'soustraction' | 'multiplication' | 'division';
 
+/** Opération d'opposée utilisée par la phase de défense (§2.2/§2.3). */
+export function operationInverse(operation: TypeOperation): TypeOperation {
+  switch (operation) {
+    case 'multiplication':
+      return 'division';
+    case 'division':
+      return 'multiplication';
+    case 'addition':
+      return 'soustraction';
+    case 'soustraction':
+      return 'addition';
+  }
+}
+
 export type Fait = readonly [number, number]; // fait sous-jacent (a, b) — non ordonné au sens de la commutativité
+
+// ------------------------------- listes et libellés partagés (écrans §2/§3/§4)
+
+/** Ordre de défilement des niveaux (§2.5). */
+export const NIVEAUX: readonly Niveau[] = ['debutant', 'intermediaire', 'avance'];
+/** Ordre de défilement des difficultés IA (§2.6). */
+export const DIFFICULTES_IA: readonly Difficulte[] = ['facile', 'moyen', 'difficile'];
+/**
+ * Couples proposés par le sélecteur (§2.5) : attaque = opération choisie,
+ * défense = `operationInverse` → « MULTIPLICATION × / DIVISION ÷ » ou
+ * « ADDITION + / SOUSTRACTION − ». On ne choisit donc pas quatre opérations
+ * indépendantes, mais **un couple**.
+ */
+export const CHOIX_CALCUL: readonly TypeOperation[] = ['multiplication', 'addition'];
+export const LIBELLES_NIVEAU: Record<Niveau, string> = {
+  debutant: 'DÉBUTANT',
+  intermediaire: 'INTERMÉDIAIRE',
+  avance: 'AVANCÉ',
+};
+export const LIBELLES_IA: Record<Difficulte, string> = {
+  facile: 'FACILE',
+  moyen: 'MOYEN',
+  difficile: 'DIFFICILE',
+};
+/** Libellé du couple affiché sur l'écran SÉLECTION (§2.5). */
+export const LIBELLES_OPERATION: Record<TypeOperation, string> = {
+  addition: 'ADDITION + / SOUSTRACTION −',
+  soustraction: 'SOUSTRACTION − / ADDITION +',
+  multiplication: 'MULTIPLICATION × / DIVISION ÷',
+  division: 'DIVISION ÷ / MULTIPLICATION ×',
+};
+/**
+ * Version courte affichée sur l'écran SÉLECTION : les libellés longs ci-dessus
+ * servent aux logs, mais déborderaient sur les flèches ◀ ▶ (pas de
+ * superposition d'éléments graphiques).
+ */
+export const LIBELLES_OPERATION_COURT: Record<TypeOperation, string> = {
+  addition: 'ADD + / SOUS −',
+  soustraction: 'SOUS − / ADD +',
+  multiplication: 'MULT × / DIV ÷',
+  division: 'DIV ÷ / MULT ×',
+};
+
+/** Symbole affiché dans le HUD pour la phase courante (§2.2/§2.3). */
+export const SYMBOLES_OPERATION: Record<TypeOperation, string> = {
+  addition: '+',
+  soustraction: '−',
+  multiplication: '×',
+  division: '÷',
+};
 
 // ------------------------------------------------------- bornes et presets (§2.9)
 
@@ -52,6 +117,8 @@ export interface ConfigJeu {
   rythme: Rythme;
   /** Mode de jeu (§2.6) : 'solo' (défaut, J1 vs IA) ou 'duel' (2 joueurs). */
   mode: ModeJeu;
+  /** Opération de l'attaque (§2.5) — la défense utilise `operationInverse`. */
+  operation: TypeOperation;
   /** Niveau de calcul (§2.5) : borne du second facteur (×) et du quotient (÷). */
   niveau: Niveau;
   /** Gain d'énergie / de défense par difficulté (§2.2/§2.3). */
@@ -208,6 +275,7 @@ export const CONFIG: ConfigJeu = {
   tempsPhase: 15,
   rythme: 'simultane',
   mode: 'solo',
+  operation: 'multiplication',
   niveau: 'intermediaire',
   gains: { facile: 1, moyen: 3, difficile: 7 },
   bornesNiveau: { debutant: 5, intermediaire: 10, avance: 12 },
@@ -342,6 +410,7 @@ export interface ReglagesConfig {
   pvMax: number;
   niveau: Niveau;
   difficulteIA: Difficulte;
+  operation: TypeOperation;
 }
 
 /**
@@ -381,6 +450,7 @@ export function lireReglages(config: ConfigJeu = CONFIG): ReglagesConfig {
     pvMax: config.pvMax,
     niveau: config.niveau,
     difficulteIA: config.ia.difficulte,
+    operation: config.operation,
   };
 }
 
@@ -392,4 +462,5 @@ export function appliquerReglages(config: ConfigJeu, r: ReglagesConfig): void {
   config.pvMax = lirePv(r.pvMax);
   config.niveau = r.niveau;
   config.ia.difficulte = r.difficulteIA;
+  config.operation = r.operation;
 }

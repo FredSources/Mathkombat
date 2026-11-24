@@ -15,6 +15,7 @@ import {
   lirePv,
   lireReglages,
   lireTempsPhase,
+  operationInverse,
   presetDeTemps,
   reglagesDefaut,
 } from '../src/core/config.ts';
@@ -28,6 +29,27 @@ describe('mode de jeu (§2.6)', () => {
   it('le mode duel est disponible sans toucher aux autres réglages', () => {
     const duel: ModeJeu = 'duel';
     expect({ ...CONFIG, mode: duel }).toMatchObject({ mode: 'duel', rythme: 'simultane' });
+  });
+});
+
+describe('opérations et leur inverse (§2.5)', () => {
+  it('opération d\'attaque par défaut : multiplication', () => {
+    expect(CONFIG.operation).toBe('multiplication');
+  });
+
+  it('la défense utilise l\'opération inverse de l\'attaque', () => {
+    expect(operationInverse('multiplication')).toBe('division');
+    expect(operationInverse('division')).toBe('multiplication');
+    expect(operationInverse('addition')).toBe('soustraction');
+    expect(operationInverse('soustraction')).toBe('addition');
+  });
+
+  it('l\'opération est un réglage persistant de l\'écran CONFIG', () => {
+    const reglages = lireReglages();
+    expect(reglages.operation).toBe(CONFIG.operation);
+    const copie = { ...CONFIG, operation: 'addition' as const };
+    appliquerReglages(copie, { ...reglages, operation: 'addition' });
+    expect(copie.operation).toBe('addition');
   });
 });
 
@@ -172,6 +194,7 @@ describe('réglages de l\'écran CONFIG (§2.7)', () => {
       pvMax: PV_DEFAUT,
       niveau: 'intermediaire',
       difficulteIA: 'moyen',
+      operation: 'multiplication',
     });
   });
 
@@ -179,6 +202,7 @@ describe('réglages de l\'écran CONFIG (§2.7)', () => {
     const cible = copieConfig();
     appliquerReglages(cible, {
       mode: 'duel',
+      operation: 'division',
       tempsPhase: 10,
       rythme: 'simultane',
       pvMax: 250,
@@ -192,7 +216,9 @@ describe('réglages de l\'écran CONFIG (§2.7)', () => {
       pvMax: 250,
       niveau: 'avance',
       difficulteIA: 'difficile',
+      operation: 'division',
     });
+    expect(cible.operation).toBe('division');
     expect(lireReglages()).toEqual(lireReglages(CONFIG));
   });
 
@@ -206,12 +232,14 @@ describe('réglages de l\'écran CONFIG (§2.7)', () => {
       pvMax: 0,
       niveau: 'debutant',
       difficulteIA: 'facile',
+      operation: 'soustraction',
     });
     expect(cible.tempsPhase).toBe(BORNES_TEMPS_PHASE.max);
     expect(cible.pvMax).toBe(BORNES_PV.min);
     expect(cible.mode).toBe('duel');
     expect(cible.rythme).toBe('simultane');
     expect(cible.niveau).toBe('debutant');
+    expect(cible.operation).toBe('soustraction');
     expect(cible.ia.difficulte).toBe('facile');
     // rien d'autre n'a bougé : gains d'énergie et réglages de l'IA
     expect(cible.gains).toEqual(avant.gains);

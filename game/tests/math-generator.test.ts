@@ -259,13 +259,41 @@ describe('Évaluation et énergie — S03 (I3, I4)', () => {
   });
 });
 
-describe('Garde-fous (I14, robustesse)', () => {
-  it('refuse les opérations non implémentées en v1 (+, −)', () => {
-    const gen = new GenerateurMath(CONFIG, alea(1));
-    expect(() => gen.nouvelleQuestion('addition', 'facile', 'debutant')).toThrow();
-    expect(() => gen.nouvelleQuestion('soustraction', 'facile', 'debutant')).toThrow();
+describe('Opérations + et − (§2.5)', () => {
+  it('addition : énoncé, réponse et fait sous-jacent cohérents', () => {
+    const gen = new GenerateurMath(CONFIG, alea(21));
+    const q = gen.nouvelleQuestion('addition', 'facile', 'debutant');
+    const [a, b] = q.enonce.split(' + ').map(Number);
+    expect(q.operation).toBe('addition');
+    expect(q.reponse).toBe(a + b);
+    expect(q.fait).toEqual([a, b]);
+    expect(Math.max(a, b)).toBeLessThanOrEqual(CONFIG.bornesNiveau.debutant);
   });
 
+  it('soustraction : résultat positif, énoncé a − b = c et fait borné', () => {
+    const gen = new GenerateurMath(CONFIG, alea(22));
+    for (let i = 0; i < 50; i++) {
+      const q = gen.nouvelleQuestion('soustraction', 'moyen', 'intermediaire');
+      const [a, b] = q.enonce.split(' − ').map(Number);
+      expect(q.operation).toBe('soustraction');
+      expect(a - b).toBe(q.reponse);
+      expect(q.reponse).toBeGreaterThan(0);
+      expect(q.fait).toEqual([b, q.reponse]);
+      expect(Math.max(...q.fait)).toBeLessThanOrEqual(CONFIG.bornesNiveau.intermediaire);
+    }
+  });
+
+  it('les quatre opérations sont générées sans exception (§2.5)', () => {
+    const gen = new GenerateurMath(CONFIG, alea(23));
+    for (const operation of ['addition', 'soustraction', 'multiplication', 'division'] as const) {
+      const q = gen.nouvelleQuestion(operation, 'facile', 'debutant');
+      expect(q.operation).toBe(operation);
+      expect(q.enonce).toMatch(/\d/);
+    }
+  });
+});
+
+describe('Garde-fous (robustesse)', () => {
   it('réponses dans l\'intervalle 0–144 (12×12, §2.7)', () => {
     const gen = new GenerateurMath(CONFIG, alea(5));
     for (const niveau of NIVEAUX) {

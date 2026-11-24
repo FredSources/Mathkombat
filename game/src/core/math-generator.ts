@@ -8,8 +8,9 @@
  *    commutativité : 2×7 est un fait « × 2 » 🟢) ; les 5 faits résistants sont
  *    forcés 🟠 ; repli Débutant (3×3, 3×4, 4×4) quand les résistants sont
  *    impossibles à la borne du niveau ;
- *  - niveau = borne du second facteur (×) et du quotient (÷) ;
- *  - division toujours exacte (dividende = quotient × diviseur) ;
+ *  - niveau = borne des deux facteurs (×, +) ou du fait sous-jacent (÷, −) ;
+ *  - division toujours exacte (dividende = quotient × diviseur) ; soustraction
+ *    toujours à résultat positif (a = b + c, fait sous-jacent (b, c)) ;
  *  - énoncé jamais deux fois de suite à la suite (même fait commutatif), sauf
  *    impossibilité (famille épuisée) ;
  *  - réponse unique, saisie libre (aucune proposition à générer).
@@ -109,15 +110,12 @@ export class GenerateurMath {
     return elements[Math.floor(this.aleatoire() * elements.length)];
   }
 
-  /** Nouvelle question ; jamais le même fait deux fois de suite (sauf impossibilité). */
-  nouvelleQuestion(
-    operation: TypeOperation,
-    difficulte: Difficulte,
-    niveau: Niveau
-  ): Question {
-    if (operation !== 'multiplication' && operation !== 'division') {
-      throw new Error(`Opération non implémentée en v1 : ${operation} (I14)`);
-    }
+  /**
+   * Tirage d'un fait pour (opération, difficulté, niveau) — pool partagé par
+   * les quatre opérations, classé par `classerFait` (§2.5). Non-répétition du
+   * fait sous-jacent, y compris sous forme commutative.
+   */
+  private tirerFait(operation: TypeOperation, difficulte: Difficulte, niveau: Niveau): Fait {
     const pool = poolFaits(difficulte, niveau, this.config);
     if (pool.length === 0) {
       throw new Error(`Pool vide : ${difficulte} / ${niveau}`);
@@ -128,21 +126,57 @@ export class GenerateurMath {
       pool.length > 1
         ? pool.filter(([t, s]) => cleFait(t, s) !== clePrecedente)
         : pool;
-    const [table, second] = this.tirer(candidats.length > 0 ? candidats : pool);
-    this.derniersFaits.set(`${operation}:${difficulte}`, cleFait(table, second));
+    const fait = this.tirer(candidats.length > 0 ? candidats : pool);
+    this.derniersFaits.set(`${operation}:${difficulte}`, cleFait(fait[0], fait[1]));
+    return fait;
+  }
 
-    const produit = table * second;
-    const enonce =
-      operation === 'multiplication' ? `${table} × ${second}` : `${produit} ÷ ${table}`;
-    return {
-      operation,
-      difficulte,
-      niveau,
-      enonce,
-      reponse: operation === 'multiplication' ? produit : second,
-      gain: this.config.gains[difficulte],
-      fait: [table, second],
-    };
+  /** Nouvelle question ; jamais le même fait deux fois de suite (sauf impossibilité). */
+  nouvelleQuestion(
+    operation: TypeOperation,
+    difficulte: Difficulte,
+    niveau: Niveau
+  ): Question {
+    const commun = { operation, difficulte, niveau, gain: this.config.gains[difficulte] };
+
+    switch (operation) {
+      case 'multiplication': {
+        const [table, second] = this.tirerFait(operation, difficulte, niveau);
+        return {
+          ...commun,
+          enonce: `${table} × ${second}`,
+          reponse: table * second,
+          fait: [table, second],
+        };
+      }
+      case 'division': {
+        // (diviseur, quotient) ≤ borne → dividende exact = diviseur × quotient
+        const [diviseur, quotient] = this.tirerFait(operation, difficulte, niveau);
+        return {
+          ...commun,
+          enonce: `${diviseur * quotient} ÷ ${diviseur}`,
+          reponse: quotient,
+          fait: [diviseur, quotient],
+        };
+      }
+      case 'addition': {
+        const [a, b] = this.tirerFait(operation, difficulte, niveau);
+        return { ...commun, enonce: `${a} + ${b}`, reponse: a + b, fait: [a, b] };
+      }
+      case 'soustraction': {
+        // fait sous-jacent (b, c) = (soustrait, reste) ≤ borne ;
+        // a = b + c → énoncé a − b = c, résultat toujours ≥ 1
+        const [soustrait, reste] = this.tirerFait(operation, difficulte, niveau);
+        return {
+          ...commun,
+          enonce: `${soustrait + reste} − ${soustrait}`,
+          reponse: reste,
+          fait: [soustrait, reste],
+        };
+      }
+      default:
+        throw new Error(`Opération ${operation} non supportée`);
+    }
   }
 }
 

@@ -152,7 +152,7 @@ async function main() {
     await clicJeu(640, 310); // bouton RUN (wireframe §1)
     await attendreEcran('select');
     await attendre(250);
-    await clicJeu(640, 520); // [ ▶ LANCER LE COMBAT ] (wireframe §3)
+    await clicJeu(640, 595); // [ ▶ LANCER LE COMBAT ] (wireframe §3)
     await attendreHook();
     await attendre(400);
   }
@@ -868,31 +868,38 @@ async function main() {
     );
 
     // ---------------------------------------------------------- E12
-    // Sélection de combat (§3) : niveau J1 et personnage choisis, puis
-    // LANCER LE COMBAT → la sélection est bien celle du combat lancé.
+    // Sélection de combat (§3), SOLO : J1 choisit son niveau et le type de
+    // calcul, l'IA son personnage et sa difficulté (remontée de CONFIG), puis
+    // LANCER LE COMBAT → le combat part sur ces choix.
     await relancer();
     await clicJeu(640, 310); // RUN
     await attendreEcran('select');
     await attendre(250);
-    await clicJeu(700, 240); // ◀ niveau J1 : INTERMÉDIAIRE → DÉBUTANT
-    await clicJeu(700, 320); // ◀ skin J2 : PERSO B → PERSO A
+    await clicJeu(700, 230); // ◀ niveau J1 : INTERMÉDIAIRE → DÉBUTANT
+    await clicJeu(1100, 295); // ▶ calcul J1 : ×/÷ → +/− (attaque +, défense −)
+    await clicJeu(700, 365); // ◀ personnage IA : COMBATTANTE → autre skin
+    await clicJeu(700, 430); // ◀ difficulté IA : MOYEN → FACILE
     await attendre(200);
     await page.screenshot({ path: path.join(SHOTS, 'e2e-12-selection.png') });
-    await clicJeu(640, 520); // [ ▶ LANCER LE COMBAT ]
+    await clicJeu(640, 595); // [ ▶ LANCER LE COMBAT ]
     await attendreHook();
     const e12 = await page.evaluate(() => ({
       ...window.__mathkombat.selection(),
+      difficulteIA: window.__mathkombat.etat().difficulteIA,
+      operationJ1: window.__mathkombat.etat().operations.j1,
       ecran: window.__mathkombatEcrans.ecran,
       tour: window.__mathkombat.etat().tour,
     }));
     verifier(
       'E12',
-      'Sélection (§3) : niveau J1 et personnage choisis → combat construit dessus',
+      'Sélection solo (§3) : niveau/type J1 + personnage et difficulté IA → combat construit dessus',
       e12.ecran === 'fight' &&
         e12.tour >= 1 &&
         e12.niveauJ1 === 'debutant' &&
-        e12.skinJ2 !== 'combattante', // ◀ fait changer le combattant de J2
-      `ecran=${e12.ecran} tour=${e12.tour} · sélection: niveauJ1=${e12.niveauJ1} skinJ2=${e12.skinJ2}`
+        e12.skinJ2 !== 'combattante' &&
+        e12.difficulteIA === 'facile' &&
+        e12.operationJ1 === 'addition',
+      `ecran=${e12.ecran} tour=${e12.tour} · niveauJ1=${e12.niveauJ1} skinIA=${e12.skinJ2} difficulteIA=${e12.difficulteIA} calculJ1=${e12.operationJ1}`
     );
 
     // ---------------------------------------------------------- E13

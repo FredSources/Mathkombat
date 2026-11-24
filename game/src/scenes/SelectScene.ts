@@ -1,18 +1,24 @@
 /**
- * SelectScene — sélection des personnages et des niveaux (wireframes §3).
+ * SelectScene — sélection de combat (wireframes §3).
  *
- * Après RUN : chaque joueur choisit son **personnage** (skins de
- * `rig/personnage.ts`) et son **niveau de calcul** (§2.5) ; puis
- * **[ LANCER LE COMBAT ]** part sur `Fight` avec la sélection.
+ * Deux **blocs distincts**, sans mélanger les joueurs :
+ *  - **JOUEUR 1** : personnage, niveau, type de calcul (couple attaque/défense) ;
+ *  - **ADVERSAIRE** : en solo l'IA (personnage + difficulté remontée de CONFIG),
+ *    en duel J2 (personnage + niveau + son propre type de calcul).
  *
- *  - **Solo** : J2 = IA — **aucune ligne de niveau pour l'IA** (sa difficulté se
- *    règle en CONFIG, §2.6) ; seul J1 choisit son niveau (l'IA le suit, §2.5).
- *    Les choix de J2 restent mémorisés pour le mode duel.
- *  - **Événements** : `ui.clic`, `session.debut` (émis par `main.ts`).
+ * `[ LANCER LE COMBAT ]` part sur `Fight` avec la sélection (§2.5/§2.6).
+ * Événements : `ui.clic`, `session.debut` (émis par `main.ts`).
  */
 import Phaser from 'phaser';
-import { CONFIG } from '../core/config';
-import type { Niveau } from '../core/config';
+import {
+  CHOIX_CALCUL,
+  CONFIG,
+  DIFFICULTES_IA,
+  LIBELLES_IA,
+  LIBELLES_NIVEAU,
+  LIBELLES_OPERATION_COURT,
+  NIVEAUX,
+} from '../core/config';
 import { getLogger } from '../core/logger';
 import { declarerEcran } from '../ui/ecran';
 import { selection } from '../ui/selection';
@@ -21,12 +27,6 @@ import { SKINS } from '../rig/personnage';
 
 const log = getLogger('Select');
 
-const NIVEAUX: readonly Niveau[] = ['debutant', 'intermediaire', 'avance'];
-const LIBELLES_NIVEAU: Record<Niveau, string> = {
-  debutant: 'DÉBUTANT',
-  intermediaire: 'INTERMÉDIAIRE',
-  avance: 'AVANCÉ',
-};
 /** Combattants jouables : les skins animés (« Mortal Kombat »), avec leur nom. */
 const IDS_SKIN = Object.values(SKINS)
   .filter((s) => s.sprites)
@@ -35,12 +35,20 @@ const IDS_SKIN = Object.values(SKINS)
 /** Positions des commandes (coordonnées de référence des tests E2E). */
 export const PLACE_SELECT = {
   retour: { x: 175, y: 60 },
-  lignes: { j1Skin: 180, j1Niveau: 240, j2Skin: 320, j2Niveau: 380 },
+  lignes: {
+    j1Skin: 165,
+    j1Niveau: 230,
+    j1Operation: 295,
+    j2Skin: 365,
+    j2Niveau: 430,
+    j2Operation: 495,
+  },
+  separateur: 330,
   flecheGauche: 700,
   flecheDroite: 1100,
   valeur: 900,
   libelle: 110,
-  lancer: { x: 640, y: 520, largeur: 700, hauteur: 92 },
+  lancer: { x: 640, y: 595, largeur: 700, hauteur: 80 },
 } as const;
 
 interface LigneSelect {
@@ -86,68 +94,38 @@ export class SelectScene extends Phaser.Scene {
     this.add.rectangle(640, 96, 1160, 3, RETRO.cadre);
 
     const p = PLACE_SELECT;
-    // En SOLO, l'adversaire est l'IA (jamais « J2 ») — §2.6 / demande utilisateur.
-    // Pas de « niveau IA » : la difficulté de l'IA vit dans CONFIG (§2.6) ;
-    // le niveau n'est proposé qu'aux joueurs humains (§2.5).
-    const libelleJ2 = CONFIG.mode === 'duel' ? 'JOUEUR 2  ........' : 'I A  ............';
-    this.dessinerLigne(
-      {
-        libelle: 'JOUEUR 1  ........',
-        valeur: () => SKINS[selection.skinJ1]?.nom ?? selection.skinJ1.toUpperCase(),
-        moins: () => {
-          selection.skinJ1 = suivant(IDS_SKIN, selection.skinJ1, -1);
-        },
-        plus: () => {
-          selection.skinJ1 = suivant(IDS_SKIN, selection.skinJ1, 1);
-        },
-      },
-      p.lignes.j1Skin
-    );
-    this.dessinerLigne(
-      {
-        libelle: 'niveau J1  ......',
-        valeur: () => LIBELLES_NIVEAU[selection.niveauJ1],
-        moins: () => {
-          selection.niveauJ1 = suivant(NIVEAUX, selection.niveauJ1, -1);
-        },
-        plus: () => {
-          selection.niveauJ1 = suivant(NIVEAUX, selection.niveauJ1, 1);
-        },
-      },
-      p.lignes.j1Niveau
-    );
-    this.dessinerLigne(
-      {
-        libelle: libelleJ2,
-        valeur: () => SKINS[selection.skinJ2]?.nom ?? selection.skinJ2.toUpperCase(),
-        moins: () => {
-          selection.skinJ2 = suivant(IDS_SKIN, selection.skinJ2, -1);
-        },
-        plus: () => {
-          selection.skinJ2 = suivant(IDS_SKIN, selection.skinJ2, 1);
-        },
-      },
-      p.lignes.j2Skin
-    );
-    // Niveau de J2 : uniquement en duel — en solo, l'IA n'a pas de niveau
-    // (difficulté réglée en CONFIG) et le niveau de J1 s'applique aux deux.
-    if (CONFIG.mode === 'duel') {
+    const duel = CONFIG.mode === 'duel';
+
+    // ------------------------------- BLOC JOUEUR 1 (toutes ses choix ensemble)
+    this.dessinerLigne(this.ligneSkin('JOUEUR 1  ........', 'skinJ1'), p.lignes.j1Skin);
+    this.dessinerLigne(this.ligneNiveau('niveau J1  ......', 'niveauJ1'), p.lignes.j1Niveau);
+    this.dessinerLigne(this.ligneCalcul('calcul J1  ......', 'operationJ1'), p.lignes.j1Operation);
+
+    // Séparateur net entre les deux blocs : jamais de choix interleaved.
+    this.add.rectangle(640, p.separateur, 1160, 2, RETRO.cadre);
+
+    // ------------------------------------ BLOC ADVERSAIRE (J2 ou IA, pas mixé)
+    if (duel) {
+      this.dessinerLigne(this.ligneSkin('JOUEUR 2  ........', 'skinJ2'), p.lignes.j2Skin);
+      this.dessinerLigne(this.ligneNiveau('niveau J2  ......', 'niveauJ2'), p.lignes.j2Niveau);
+      this.dessinerLigne(this.ligneCalcul('calcul J2  ......', 'operationJ2'), p.lignes.j2Operation);
+    } else {
+      this.dessinerLigne(this.ligneSkin('I A  ............', 'skinJ2'), p.lignes.j2Skin);
       this.dessinerLigne(
         {
-          libelle: 'niveau J2  ......',
-          valeur: () => LIBELLES_NIVEAU[selection.niveauJ2],
+          libelle: 'difficulté IA ....',
+          valeur: () => LIBELLES_IA[CONFIG.ia.difficulte],
           moins: () => {
-            selection.niveauJ2 = suivant(NIVEAUX, selection.niveauJ2, -1);
+            CONFIG.ia.difficulte = suivant(DIFFICULTES_IA, CONFIG.ia.difficulte, -1);
           },
           plus: () => {
-            selection.niveauJ2 = suivant(NIVEAUX, selection.niveauJ2, 1);
+            CONFIG.ia.difficulte = suivant(DIFFICULTES_IA, CONFIG.ia.difficulte, 1);
           },
         },
         p.lignes.j2Niveau
       );
-      // Note de mode (duel uniquement) : en solo, aucune mention d'IA ici.
-      texteRetro(this, 640, 440, 'MODE 2 JOUEURS : chacun son personnage et son niveau', {
-        taille: 20,
+      texteRetro(this, 640, 500, 'diffic. IA = score moyen en attaque et défense', {
+        taille: 18,
         couleur: RETRO.texteAccent,
       });
     }
@@ -167,6 +145,50 @@ export class SelectScene extends Phaser.Scene {
     // Entrée = lancer, comme la touche START d'une borne.
     this.input.keyboard?.on('keydown-ENTER', () => this.lancer());
   }
+
+  // ------------------------------------------------------------ lignes (J1/J2)
+
+  private ligneSkin(libelle: string, cle: 'skinJ1' | 'skinJ2'): LigneSelect {
+    return {
+      libelle,
+      valeur: () => SKINS[selection[cle]]?.nom ?? selection[cle].toUpperCase(),
+      moins: () => {
+        selection[cle] = suivant(IDS_SKIN, selection[cle], -1);
+      },
+      plus: () => {
+        selection[cle] = suivant(IDS_SKIN, selection[cle], 1);
+      },
+    };
+  }
+
+  private ligneNiveau(libelle: string, cle: 'niveauJ1' | 'niveauJ2'): LigneSelect {
+    return {
+      libelle,
+      valeur: () => LIBELLES_NIVEAU[selection[cle]],
+      moins: () => {
+        selection[cle] = suivant(NIVEAUX, selection[cle], -1);
+      },
+      plus: () => {
+        selection[cle] = suivant(NIVEAUX, selection[cle], 1);
+      },
+    };
+  }
+
+  /** Couple attaque/défense : ◀ ▶ entre « ×/÷ » et « +/− ». */
+  private ligneCalcul(libelle: string, cle: 'operationJ1' | 'operationJ2'): LigneSelect {
+    return {
+      libelle,
+      valeur: () => LIBELLES_OPERATION_COURT[selection[cle]],
+      moins: () => {
+        selection[cle] = suivant(CHOIX_CALCUL, selection[cle], -1);
+      },
+      plus: () => {
+        selection[cle] = suivant(CHOIX_CALCUL, selection[cle], 1);
+      },
+    };
+  }
+
+  // ------------------------------------------------------------- rendu & actions
 
   private dessinerLigne(ligne: LigneSelect, y: number): void {
     texteRetro(this, PLACE_SELECT.libelle, y, ligne.libelle, {

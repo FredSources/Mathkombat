@@ -18,7 +18,7 @@
  *  - traces par le logger (DEBUG) ; hook de debug `window.__mathkombat` (DEBUG).
  */
 import Phaser from 'phaser';
-import { CONFIG, lireTempsPhase } from '../core/config.ts';
+import { CONFIG, SYMBOLES_OPERATION, lireTempsPhase, operationInverse } from '../core/config.ts';
 import type { ConfigJeu, Coup, Difficulte, ModeJeu, Rythme } from '../core/config.ts';
 import {
   CombatEngine,
@@ -542,6 +542,11 @@ export class FightScene extends Phaser.Scene {
         j1: selection.niveauJ1,
         j2: CONFIG.mode === 'duel' ? selection.niveauJ2 : selection.niveauJ1,
       },
+      // couples d'opérations (§2.5) : en solo l'IA suit le couple de J1
+      operations: {
+        j1: selection.operationJ1,
+        j2: CONFIG.mode === 'duel' ? selection.operationJ2 : selection.operationJ1,
+      },
       emettre: (e: TraceEvent) => log.debug(e.event, e.data),
     });
     this.ia = new AiController(CONFIG, undefined, (e: TraceEvent) =>
@@ -586,7 +591,18 @@ export class FightScene extends Phaser.Scene {
     }
   }
 
-  /** Joueur qui possède cette nature de phase (attaquant = ×, défenseur = ÷). */
+  /** Joueur qui possède cette nature de phase (attaque = opération choisie,
+   *  défense = son inverse, §2.5). */
+  private symbolesPhases(): { attaque: string; defense: string } {
+    const attaque = this.tourCourant?.phaseAttaque.operation ?? CONFIG.operation;
+    const defense = this.tourCourant?.phaseDefense.operation ?? operationInverse(CONFIG.operation);
+    return {
+      attaque: SYMBOLES_OPERATION[attaque],
+      defense: SYMBOLES_OPERATION[defense],
+    };
+  }
+
+  /** Joueur qui possède cette nature de phase (tour courant, §2.1). */
   private joueurDe(nature: 'attaque' | 'defense'): 'j1' | 'j2' {
     const tour = this.tourCourant!;
     return nature === 'attaque' ? tour.attaquant : tour.defenseur;
@@ -627,7 +643,8 @@ export class FightScene extends Phaser.Scene {
       if (this.estHumain(joueur)) this.preparerJoueur(joueur, nature);
       else this.preparerIA(nature);
     }
-    this.textePhase.setText('ATTAQUE ×  /  DÉFENSE ÷');
+    const symboles = this.symbolesPhases();
+    this.textePhase.setText(`ATTAQUE ${symboles.attaque}  /  DÉFENSE ${symboles.defense}`);
     this.demarrerMinuteur(this.tempsPhase);
     this.demarrerManoeuvres(); // feintes à distance pendant le chrono (§2.8b)
   }
@@ -642,8 +659,11 @@ export class FightScene extends Phaser.Scene {
     } else {
       this.preparerIA(nature);
     }
+    const symboles = this.symbolesPhases();
     this.textePhase.setText(
-      nature === 'attaque' ? 'PHASE ATTAQUE ×' : 'PHASE DÉFENSE ÷'
+      nature === 'attaque'
+        ? `PHASE ATTAQUE ${symboles.attaque}`
+        : `PHASE DÉFENSE ${symboles.defense}`
     );
     // chrono immédiat pour l'IA (solo) : score déjà calculé, l'humain n'attend
     // pas — en duel, les deux joueurs sont humains : toujours tempsPhase
@@ -1099,6 +1119,9 @@ export class FightScene extends Phaser.Scene {
         gagnant: scene.engine.etat.gagnant,
         rythme: scene.engine.etat.rythme,
         mode: CONFIG.mode,
+        operation: CONFIG.operation,
+        operations: { j1: selection.operationJ1, j2: selection.operationJ2 },
+        difficulteIA: CONFIG.ia.difficulte,
         phase: scene.naturePhase,
         chrono: scene.chronoRestant,
         energieAttaque: scene.tourCourant?.phaseAttaque.energie() ?? 0,
