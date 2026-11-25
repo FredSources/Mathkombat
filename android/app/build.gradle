@@ -32,8 +32,9 @@ android {
         versionName mkVersion
     }
 
-    // Signature release : clés de l'environnement (CI — secrets GitHub, même
-    // mécanique que openwebui-android) ou keystore local généré (repli).
+    // Signature release : clés de l'environnement (CI — secrets GitHub) ou
+    // keystore local. LA CLÉ DOIT ÊTRE STABLE : une clé différente à chaque
+    // build empêche Android de mettre à jour une version déjà installée.
     signingConfigs {
         release {
             storeFile file(System.getenv('KEYSTORE_FILE') ?: "$rootDir/../tools/mathkombat.keystore")
@@ -44,6 +45,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Même clé stable que la release (secrets CI ou keystore local non
+            // versionné) : aucun keystore dans le dépôt, certificat constant
+            // d'une version à l'autre pour l'APK debug aussi.
+            signingConfig signingConfigs.release
+        }
         release {
             minifyEnabled false
             signingConfig signingConfigs.release

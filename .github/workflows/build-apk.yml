@@ -63,17 +63,24 @@ jobs:
         run: npm install
         working-directory: game
 
-      - name: Keystore de release (si secrets présents)
+      # Signature stable — OBLIGATOIRE : un keystore régénéré à chaque run change
+      # le certificat et Android refuse alors de mettre à jour l'APK installée.
+      - name: Keystore de release (secrets obligatoires)
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > "$GITHUB_WORKSPACE/release.keystore"
-            echo "KEYSTORE_FILE=$GITHUB_WORKSPACE/release.keystore" >> "$GITHUB_ENV"
-            echo "Keystore de release reconnu."
-          else
-            echo "Aucun keystore : release signée avec la clé debug (installable, tests)."
-          fi
+          for nom in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!nom}" ]; then
+              echo "ERREUR: secret $nom absent — signature stable impossible, build refusé." >&2
+              exit 1
+            fi
+          done
+          echo "$KEYSTORE_BASE64" | base64 -d > "$GITHUB_WORKSPACE/release.keystore"
+          echo "KEYSTORE_FILE=$GITHUB_WORKSPACE/release.keystore" >> "$GITHUB_ENV"
+          echo "Keystore de release reconnu (stable)."
 
       - name: Build web RELEASE + APK release
         env:
@@ -102,6 +109,14 @@ jobs:
           ./tools/android-sdk/build-tools/34.0.0/aapt dump badging output/MathKombat-debug.apk \
             | grep -q "versionName='$MK_VERSION'"
           echo "Cohérence version OK : versionName=$MK_VERSION (tag $GITHUB_REF_NAME)"
+          # Signature stable : empreinte du certificat ÉPINGLÉE. Sans cela, un
+          # keystore régénéré change de certificat et l'APK ne se met plus à jour.
+          RELEASE_SHA256='7fa25845d80017c8cd81669e2955de6d21b2d7ac4a5a0d5f0fa981866dc34e4'
+          ./tools/android-sdk/build-tools/34.0.0/apksigner verify --print-certs output/MathKombat.apk \
+            | grep -qi "$RELEASE_SHA256"
+          ./tools/android-sdk/build-tools/34.0.0/apksigner verify --print-certs output/MathKombat-debug.apk \
+            | grep -qi "$RELEASE_SHA256"
+          echo "Signature stable OK (release et debug) : $RELEASE_SHA256"
 
       # Nommage : mathkombat-<version>-release.apk / -debug.apk (demande)
       - name: Nommage des APK selon la version

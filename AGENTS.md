@@ -561,6 +561,17 @@ vérifie la cohérence au build (`aapt dump badging` = version du tag). À chaqu
 release : poser le tag `vX.Y.Z` — tout le reste en découle (`game/package.json`
 reste informationnel, à tenir à jour).
 
+**Signature stable — mise à jour Android (2026-11-25)** : la clé de release est
+**unique** (copie locale privée fournie par l'utilisateur, hors dépôt — voir
+`journal.md`) et injectée dans la CI par les secrets `KEYSTORE_BASE64`,
+`KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` (valeurs dans
+`tools/secrets-github.txt`, non versionné). La CI **refuse le build** si un secret
+manque (plus de keystore aléatoire) et **épingle** l'empreinte SHA-256 du
+certificat (`7fa2…4e4`) sur les deux APK : une clé différente à chaque build
+empêche Android de mettre à jour l'APK déjà installée. **Aucun keystore, mot de
+passe ni secret n'est versionné ni affiché** : l'APK debug est signée avec la
+même clé injectée par les secrets (repli local : `tools/`, ignoré par git).
+
 ## 9. Journal et TODO — discipline de session
 
 - **`journal.md`** : à **chaque session de travail**, ajouter une entrée datée listant
