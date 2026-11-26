@@ -7,9 +7,10 @@
 # gradle.properties : la surcharge aapt2/qemu est retirée sur ce runner — le
 # runner x86_64 exécute aapt2 nativement (pas besoin de scripts/setup-sdk-qemu.sh).
 #
-# Signature release : créer les secrets GitHub
-#   KEYSTORE_BASE64 (keystore JKS en base64), KEYSTORE_PASSWORD, KEY_ALIAS,
-#   KEY_PASSWORD — sinon l'APK release est signée avec la clé debug (tests).
+# Signature stable : 4 secrets GitHub OBLIGATOIRES (échec si absent) —
+#   KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD.
+#   La même clé signe la release ET le debug ; l'empreinte est épinglée dans
+#   la phase « Vérifications ». Aucun keystore n'est versionné.
 # (mêmes clés que le projet openwebui-android — reprise à la demande)
 
 name: Build APK
@@ -90,6 +91,13 @@ jobs:
         run: bash scripts/build-apk.sh
 
       - name: Build APK debug (même contenu web)
+        # Même clé stable que la release : transmettre les secrets aussi ici,
+        # sinon Gradle retombe sur les valeurs par défaut et ne peut pas ouvrir
+        # le keystore (alias/password différents) → échec de signature debug.
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           cd android
           ../tools/gradle/gradle-*/bin/gradle --no-daemon \
