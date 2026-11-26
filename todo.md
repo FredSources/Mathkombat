@@ -14,6 +14,16 @@ Vérifications : BUILD SUCCESSFUL · `aapt dump badging` conforme ·
 signature `apksigner` valide · contenu complet (index.html, assets, classes.dex).
 Reste manuel : grille L5 sur appareil + build Android Studio (PC).
 
+**Signature stable pour mises à jour Android : CORRIGÉE ✅ (v0.0.19)** — cause : la
+CI régénérait un keystore à chaque run (certificats différents de v0.0.14 à
+v0.0.18, Android refusait la mise à jour). Désormais 4 secrets **obligatoires**
+(`KEYSTORE_BASE64` / `KEYSTORE_PASSWORD` / `KEY_ALIAS`=`mathkombat` /
+`KEY_PASSWORD`), même clé pour release **et** debug, empreinte `7fa2…4e4`
+**épinglée** dans la CI ; aucun keystore ni secret versionné, historique vérifié
+propre. Local : release + debug `0.0.19` rebuildées → même empreinte ✅, Vitest
+94/94 ✅. Tag `v0.0.19` poussé, CI en cours de vérification. Utilisateurs :
+désinstaller une fois les versions antérieures (clés éphémères perdues).
+
 **Menu de pause + boutons de fin de combat : LIVRÉS ✅** (demandes utilisateur) —
 **☰ MENU entre les deux blocs de calculs** (raccourci `M`) → overlay pause
 [ RETOUR AU JEU ] / [ QUITTER → MENU ], pause réelle (chrono et tweens figés) ;
