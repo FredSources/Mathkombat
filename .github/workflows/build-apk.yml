@@ -81,22 +81,34 @@ jobs:
           done
           echo "$KEYSTORE_BASE64" | base64 -d > "$GITHUB_WORKSPACE/release.keystore"
           echo "KEYSTORE_FILE=$GITHUB_WORKSPACE/release.keystore" >> "$GITHUB_ENV"
-          echo "Keystore de release reconnu (stable)."
+          # L'alias est lu DANS le keystore décodé : évite l'échec
+          # « No key with alias ... found » si KEY_ALIAS et KEYSTORE_BASE64
+          # n'ont pas été mis à jour ensemble (cas rencontré en v0.0.19).
+          ALIAS_STORE=$(keytool -list -keystore "$GITHUB_WORKSPACE/release.keystore" \
+            -storepass "$KEYSTORE_PASSWORD" 2>/dev/null \
+            | awk -F, '/PrivateKeyEntry/ {print $1; exit}')
+          if [ -z "$ALIAS_STORE" ]; then
+            echo "ERREUR: impossible de lire un PrivateKeyEntry dans le keystore (base64 ou mot de passe invalide)." >&2
+            exit 1
+          fi
+          if [ "$ALIAS_STORE" != "$KEY_ALIAS" ]; then
+            echo "ATTENTION: KEY_ALIAS='$KEY_ALIAS' ne correspond pas à l'alias du keystore ('$ALIAS_STORE') — utilisation de l'alias du keystore."
+          fi
+          echo "KEY_ALIAS=$ALIAS_STORE" >> "$GITHUB_ENV"
+          echo "Keystore de release reconnu (alias stable)."
 
       - name: Build web RELEASE + APK release
+        # KEYSTORE_FILE et KEY_ALIAS viennent du GITHUB_ENV ci-dessus (alias lu
+        # dans le keystore). Seuls les mots de passe sont relus depuis les secrets.
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: bash scripts/build-apk.sh
 
       - name: Build APK debug (même contenu web)
-        # Même clé stable que la release : transmettre les secrets aussi ici,
-        # sinon Gradle retombe sur les valeurs par défaut et ne peut pas ouvrir
-        # le keystore (alias/password différents) → échec de signature debug.
+        # Même clé stable que la release : mêmes variables d'environnement.
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           cd android

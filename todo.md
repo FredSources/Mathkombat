@@ -21,8 +21,9 @@ v0.0.18, Android refusait la mise à jour). Désormais 4 secrets **obligatoires*
 `KEY_PASSWORD`), même clé pour release **et** debug, empreinte `7fa2…4e4`
 **épinglée** dans la CI ; aucun keystore ni secret versionné, historique vérifié
 propre. Local : release + debug `0.0.19` rebuildées → même empreinte ✅, Vitest
-94/94 ✅. Tag `v0.0.19` poussé, CI en cours de vérification. Utilisateurs :
-désinstaller une fois les versions antérieures (clés éphémères perdues).
+94/94 ✅. Tag `v0.0.19` poussé ; 1er run CI échoué (alias secret ≠ alias du
+keystore) → CI rendue auto-cohérente (alias lu dans le keystore), run relancé.
+Utilisateurs : désinstaller une fois les versions antérieures (clés éphémères perdues).
 
 **Menu de pause + boutons de fin de combat : LIVRÉS ✅** (demandes utilisateur) —
 **☰ MENU entre les deux blocs de calculs** (raccourci `M`) → overlay pause
