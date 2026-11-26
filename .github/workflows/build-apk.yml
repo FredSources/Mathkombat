@@ -94,6 +94,12 @@ jobs:
           if [ "$ALIAS_STORE" != "$KEY_ALIAS" ]; then
             echo "ATTENTION: KEY_ALIAS='$KEY_ALIAS' ne correspond pas à l'alias du keystore ('$ALIAS_STORE') — utilisation de l'alias du keystore."
           fi
+          # Diagnostic (empreinte publique, non secrète) : permet de voir
+          # immédiatement si KEYSTORE_BASE64 pointe sur la bonne clé.
+          CERT_STORE=$(keytool -list -v -keystore "$GITHUB_WORKSPACE/release.keystore" \
+            -storepass "$KEYSTORE_PASSWORD" 2>/dev/null \
+            | awk '/SHA256:/ {gsub(/[ :]/, "", $2); print tolower($2); exit}')
+          echo "Empreinte du keystore (certificat) : $CERT_STORE"
           echo "KEY_ALIAS=$ALIAS_STORE" >> "$GITHUB_ENV"
           echo "Keystore de release reconnu (alias stable)."
 
@@ -132,10 +138,18 @@ jobs:
           # Signature stable : empreinte du certificat ÉPINGLÉE. Sans cela, un
           # keystore régénéré change de certificat et l'APK ne se met plus à jour.
           RELEASE_SHA256='7fa25845d80017c8cd81669e2955de6d21b2d7ac4a5a0d5f0fa981866dc34e4'
-          ./tools/android-sdk/build-tools/34.0.0/apksigner verify --print-certs output/MathKombat.apk \
-            | grep -qi "$RELEASE_SHA256"
-          ./tools/android-sdk/build-tools/34.0.0/apksigner verify --print-certs output/MathKombat-debug.apk \
-            | grep -qi "$RELEASE_SHA256"
+          APKSIGNER=./tools/android-sdk/build-tools/34.0.0/apksigner
+          CERT_RELEASE=$($APKSIGNER verify --print-certs output/MathKombat.apk \
+            | awk '/SHA-256 digest/ {print $NF; exit}')
+          CERT_DEBUG=$($APKSIGNER verify --print-certs output/MathKombat-debug.apk \
+            | awk '/SHA-256 digest/ {print $NF; exit}')
+          echo "Empreinte release : $CERT_RELEASE"
+          echo "Empreinte debug   : $CERT_DEBUG"
+          echo "Empreinte attendue: $RELEASE_SHA256"
+          if [ "$CERT_RELEASE" != "$RELEASE_SHA256" ] || [ "$CERT_DEBUG" != "$RELEASE_SHA256" ]; then
+            echo "ERREUR: certificat inattendu — KEYSTORE_BASE64 ne contient pas la clé stable (voir tools/secrets-github.txt)." >&2
+            exit 1
+          fi
           echo "Signature stable OK (release et debug) : $RELEASE_SHA256"
 
       # Nommage : mathkombat-<version>-release.apk / -debug.apk (demande)
